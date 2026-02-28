@@ -1,0 +1,25 @@
+- **Socrates**: Plato's Apology, Crito, Phaedo, Phaedrus, Symposium, Theaetetus
+- **Confucius**: Analects
+- **Buddha**: Dhammapada, The Diamond Sutra
+- **Marcus Aurelius**: Meditations
+- **Seneca**: Letters from a Stoic
+- **Epictetus**: Discourses
+- **Goethe**: autobiography, maxims & reflections
+- **Leonardo da Vinci**: The Notebooks of Leonardo Da Vinci, Thoughts on Art and Life
+- **Napoleon Bonaparte**: Memoirs of Napoleon Bonaparte, Napoleon's Letters to Josephine
+- **Benjamin Franklin**: Autobiography, Memoirs of Benjamin Franklin
+- **Abraham Lincoln**: Speeches and Letters of Abraham Lincoln
+- **Schopenhauer**: The World as Will and Idea, Essays
+- **Leo Tolstoy**: The Journal of Leo Tolstoi, What Is Art?
+- **Henry Thoreau**: Walden, and On The Duty Of Civil Disobedience
+- **鲁迅**: 南腔北調集, 朝花夕拾, 野草
+- **Sigmund Freud**: The Interpretation of Dreams, Introductory lectures on psycho-analysis : a course of twenty-eight lectures delivered at the University of Vienna, Psychopathology of Everyday Life
+- **Carl Jung**: Psychology of the Unconscious, The Theory of Psychoanalysis
+
+- **J Krishnamurti**: https://www.youtube.com/playlist?list=PL1n30s-LKus6_6oepw2kg1gIp_dg-MGZR, https://www.youtube.com/playlist?list=PL1n30s-LKus4oQ5fCd6MJ17waAMCsgumf
+- **Alan Watts**: https://www.youtube.com/playlist?list=PLqGJSfj5N-pKxwOFjYC6bxQhTEWegGDdZ
+- **Steve Jobs**: https://xibadke9yj127edz.public.blob.vercel-storage.com/Make%20Something%20Wonderful%20-%20Steve%20Jobs-JPwGLMXERzQnb9bjkciA3dXITgbHXC.epub, https://www.youtube.com/playlist?list=PLpP6AHh9my4WdhEt26pRWeYF0pGjHqNC8
+- **Paul Graham**: https://www.youtube.com/playlist?list=PLxdhcXqFihj8X48tiGYJK_5B2YHiGJ64b, https://www.youtube.com/playlist?list=PLMZKGjHSyo8zetAxVCp3Isggr_8JwWc4L
+- **Naval Ravikant**: www.youtube.com/playlist?list=PL5QAQBV5zCqXqrXaWACI3ZACs5XgWPJup, https://www.youtube.com/playlist?list=PL3bSdFK6-qbPCQN33G4XhnuUa0nCApNPE
+- **Elon Musk**: https://www.youtube.com/playlist?list=PLAnGYT90HVdPRaRP4Tf24ZKfYHH7PkT-n, https://www.youtube.com/playlist?list=PLDRiqmdNLxaVnVGVJQ513C4KDN_oQGent
+- **Andrew Huberman**: https://www.youtube.com/playlist?list=PLPNW_gerXa4OGNy1yE-W9IX-tPu-tJa7S
