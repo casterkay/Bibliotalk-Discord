@@ -20,7 +20,7 @@ harness and pytest-driven testing first.
   testable approach first. Constitution Principle IV (Incremental
   Delivery) requires MVP text chat to work end-to-end before adding
   advanced features.
-- A `bt-cli` harness (stdin/stdout chat with a Clone) enables
+- A `bt_cli` harness (stdin/stdout chat with a Clone) enables
   rapid iteration on persona tuning, citation quality, and memory
   search without the Synapse round-trip.
 
@@ -33,12 +33,12 @@ harness and pytest-driven testing first.
    lighter. The FastAPI appservice layer comes later with Matrix.
 
 **Implementation Order**:
-1. bt-common (EMOS client, citation schemas, segment models) — pytest
+1. bt_common (EMOS client, citation schemas, segment models) — pytest
 2. Clone agent with ADK — InMemoryRunner + mock EMOS
-3. bt-cli test harness — stdin/stdout end-to-end grounding validation
-4. Matrix appservice layer (bt-agent proper)
+3. bt_cli test harness — stdin/stdout end-to-end grounding validation
+4. Matrix appservice layer (bt_agent proper)
 5. Multi-agent discussions (A2A)
-6. Voice (bt-voice-sidecar + voice backends)
+6. Voice (bt_voice_sidecar + voice backends)
 
 ## R2: Google ADK Agent Testing
 
@@ -82,11 +82,11 @@ with Pydantic request/response models.
   Bibliotalk uses rrf (fast) with agentic fallback.
 
 **Testing Tiers**:
-| Tier         | Tool                    | What It Tests                      |
-|--------------|-------------------------|------------------------------------|
-| Unit         | `respx` / `pytest-httpx`| Client serialization, error paths  |
-| Contract     | Fixture JSON files      | Response parsing, schema compliance|
-| Integration  | Docker Compose + EMOS   | Full round-trip memorize → search  |
+| Tier        | Tool                     | What It Tests                       |
+| ----------- | ------------------------ | ----------------------------------- |
+| Unit        | `respx` / `pytest-httpx` | Client serialization, error paths   |
+| Contract    | Fixture JSON files       | Response parsing, schema compliance |
+| Integration | Docker Compose + EMOS    | Full round-trip memorize → search   |
 
 **Key Design Decisions**:
 - Memorize returns `status_info: "extracted" | "accumulated"` — the

@@ -1,16 +1,14 @@
 # Contract: EMOS Client
 
-**Service**: bt-common → EverMemOS HTTP API
-**Direction**: bt-common calls EMOS
+**Service**: bt_common → EverMemOS HTTP API
+**Direction**: bt_common calls EMOS
 **Base URL**: Configured per agent via `agent_emos_config.emos_base_url`
 
 ## Headers
 
 All requests include:
 - `Content-Type: application/json`
-- `X-Organization-Id: {emos_org_id}` (if configured)
-- `X-Space-Id: {emos_space_id}` (if configured)
-- `X-API-Key: {emos_api_key}` (if configured)
+- `Authorization: Bearer {emos_api_key}` (if configured)
 
 ## Endpoints
 
@@ -93,7 +91,7 @@ Set source-level metadata for a group.
   "scene_desc": {
     "description": "Podcast episode transcript",
     "extra": {
-      "platform": "taddy",
+      "platform": "podwise",
       "source_url": "https://...",
       "title": "Episode Title",
       "speakers": ["Speaker A", "Speaker B"]
@@ -102,7 +100,7 @@ Set source-level metadata for a group.
   "name": "Episode Title",
   "group_id": "{agent_id}:{platform}:{external_id}",
   "created_at": "2025-01-15T10:00:00Z",
-  "tags": ["taddy", "podcast"]
+  "tags": ["podwise", "podcast"]
 }
 ```
 

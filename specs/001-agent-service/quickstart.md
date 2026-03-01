@@ -68,11 +68,11 @@ docker compose -f docker-compose.test.yml down
 
 ```bash
 # Ensure Synapse is running and appservice is registered
-# Start bt-agent
+# Start bt_agent
 uvicorn bt_agent.main:app --host 0.0.0.0 --port 8009
 
-# Start bt-voice-sidecar (for voice calls)
-cd bt-voice-sidecar && npm start
+# Start bt_voice_sidecar (for voice calls)
+cd bt_voice_sidecar && npm start
 ```
 
 ## 5. Verify
@@ -85,13 +85,13 @@ cd bt-voice-sidecar && npm start
 ## Project Structure
 
 ```
-bt-common/                  # Shared Python library
+bt_common/                  # Shared Python library
 ├── emos_client.py          # Async EMOS HTTP client
 ├── citation.py             # Citation models + validation
 ├── segment.py              # Segment models + BM25 re-ranking
 └── matrix_helpers.py       # Message formatting
 
-bt-agent/                   # Core agent service
+bt_agent/                   # Core agent service
 ├── main.py                 # FastAPI appservice entry point
 ├── appservice.py           # Matrix event handler (mautrix)
 ├── agent_factory.py        # ADK agent creation
@@ -100,18 +100,20 @@ bt-agent/                   # Core agent service
 │   └── emit_citations.py   # Citation attachment
 ├── voice/
 │   ├── session_manager.py  # Voice session lifecycle
-│   ├── nova_sonic.py       # Nova Sonic backend
-│   └── gemini_live.py      # Gemini Live backend
+│   └── backends/
+│       ├── base.py         # VoiceBackend ABC
+│       ├── nova_sonic.py   # Nova Sonic backend
+│       └── gemini_live.py  # Gemini Live backend
 └── discussion/
     ├── orchestrator.py     # Multi-agent LoopAgent
     └── a2a_server.py       # Per-Clone A2A endpoint
 
-bt-voice-sidecar/           # Node.js voice bridge
+bt_voice_sidecar/           # Node.js voice bridge
 ├── index.js                # Entry point
 ├── matrixrtc.js            # MatrixRTC client
-└── audio_bridge.js         # WebSocket bridge to bt-agent
+└── audio_bridge.js         # WebSocket bridge to bt_agent
 
-bt-cli/                     # CLI test harness
+bt_cli/                     # CLI test harness
 └── __main__.py             # stdin/stdout Clone chat
 
 tests/

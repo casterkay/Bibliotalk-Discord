@@ -1,6 +1,6 @@
 # Contract: Citation Schema
 
-**Service**: bt-common (shared across bt-agent, bt-workers)
+**Service**: bt_common (shared across bt_agent, bt-workers)
 **Format**: Pydantic models, embedded in Matrix events and chat_history
 
 ## Citation Object
@@ -54,6 +54,6 @@ Before posting any Clone response:
   "source_title": "...",
   "source_url": "...",
   "text": "full segment text",
-  "platform": "taddy" | "gutenberg" | "youtube"
+  "platform": "podwise" | "gutenberg" | "youtube"
 }
 ```

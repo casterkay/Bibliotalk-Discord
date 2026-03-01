@@ -1,6 +1,6 @@
 # Contract: Voice Backend Interface
 
-**Service**: bt-agent voice session manager
+**Service**: bt_agent voice session manager
 **Pattern**: Abstract base class with pluggable implementations
 
 ## VoiceBackend ABC
@@ -14,19 +14,19 @@ end_session() → None
 
 ## VoiceEvent Types
 
-| Type        | Fields                          | Description                      |
-|-------------|---------------------------------|----------------------------------|
-| AudioChunk  | pcm_24khz: bytes                | Clone speech audio               |
-| ToolCall    | tool_name: str, args: dict      | Model requests a tool invocation |
-| Transcript  | text: str, role: str            | Transcription of speech          |
-| EndOfTurn   | (none)                          | Model finished speaking          |
+| Type       | Fields                     | Description                      |
+| ---------- | -------------------------- | -------------------------------- |
+| AudioChunk | pcm_24khz: bytes           | Clone speech audio               |
+| ToolCall   | tool_name: str, args: dict | Model requests a tool invocation |
+| Transcript | text: str, role: str       | Transcription of speech          |
+| EndOfTurn  | (none)                     | Model finished speaking          |
 
 ## Audio Format
 
-| Direction | Format    | Sample Rate | Bit Depth | Channels |
-|-----------|-----------|-------------|-----------|----------|
-| Input     | PCM       | 16 kHz      | 16-bit    | Mono     |
-| Output    | PCM       | 24 kHz      | 16-bit    | Mono     |
+| Direction | Format | Sample Rate | Bit Depth | Channels |
+| --------- | ------ | ----------- | --------- | -------- |
+| Input     | PCM    | 16 kHz      | 16-bit    | Mono     |
+| Output    | PCM    | 24 kHz      | 16-bit    | Mono     |
 
 ## Tool-Use Mid-Conversation
 
@@ -41,7 +41,7 @@ voice conversations, maintaining citation grounding in voice mode.
 
 ## Implementations
 
-| Backend          | Transport              | Region     |
-|------------------|------------------------|------------|
-| NovaSonicBackend | Bedrock bidirectional  | us-east-1  |
-| GeminiLiveBackend| Gemini Live WebSocket  | any        |
+| Backend           | Transport             | Region    |
+| ----------------- | --------------------- | --------- |
+| NovaSonicBackend  | Bedrock bidirectional | us-east-1 |
+| GeminiLiveBackend | Gemini Live WebSocket | any       |

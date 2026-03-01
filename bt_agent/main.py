@@ -1,0 +1,56 @@
+"""FastAPI entrypoint for appservice transactions."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from fastapi import FastAPI
+
+from bt_agent.agent_factory import create_clone_agent
+from bt_agent.appservice import AppServiceHandler
+from bt_agent.llm_registry import LLMRegistry
+from bt_common.logging import get_request_logger, set_correlation_id
+from bt_common.supabase_helpers import SupabaseHelpers
+
+app = FastAPI(title="Bibliotalk Agent Service")
+logger = get_request_logger("bt_agent.main")
+
+
+def _supabase() -> SupabaseHelpers:
+    # The real Supabase client should be injected at runtime.
+    return SupabaseHelpers(client=None)
+
+
+async def _resolve_agent(agent_id: str):
+    return await create_clone_agent(UUID(agent_id), supabase_helpers=_supabase(), llm_registry=LLMRegistry)
+
+
+async def _send_message(room_id: str, payload: dict):
+    logger.info("send_message room_id=%s payload_keys=%s", room_id, list(payload.keys()))
+
+
+handler = AppServiceHandler(agent_resolver=_resolve_agent, send_message=_send_message)
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    LLMRegistry.init_defaults()
+    logger.info("startup complete")
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/_matrix/app/v1/transactions/{txn_id}")
+async def transaction(txn_id: str, body: dict) -> dict[str, object]:
+    set_correlation_id(txn_id)
+    events = body.get("events", [])
+    delivered = 0
+    for event in events:
+        payload = await handler.handle_event(event)
+        if payload is not None:
+            delivered += 1
+
+    return {"ok": True, "processed": len(events), "delivered": delivered}

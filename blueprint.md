@@ -17,7 +17,7 @@ Bibliotalk is a social network where every account — whether a living person, 
 **MVP:**
 - Matrix + Element as the sole UI (no web portal)
 - Self-hosted Synapse with appservice for Clone virtual users
-- Figure Clones with platform-managed ingestion (Taddy podcasts, Project Gutenberg, YouTube transcripts)
+- Figure Clones with platform-managed ingestion (Podwise podcasts, Project Gutenberg, YouTube transcripts)
 - User Clones powered by user-provided EverMemOS API keys
 - Private text chat with Clones (1:1 and group)
 - Multi-agent discussion rooms ("agentic podcasts") via A2A protocol
@@ -82,7 +82,7 @@ Bibliotalk is a social network where every account — whether a living person, 
           │       bt-workers         │
           │  (Python — async)        │
           │                          │
-          │  Taddy ingestion         │  → podcasts → EMOS + profile room
+          │  Podwise ingestion        │  → podcasts → EMOS + profile room
           │  Gutenberg ingestion     │  → books → EMOS + profile room
           │  YouTube ingestion       │  → transcripts → EMOS + profile room
           │  Scheduled jobs          │
@@ -133,7 +133,7 @@ Shared code used by both bt-agent and bt-workers:
 
 - **EMOS client**: Async httpx client for `/api/v1/memories` endpoints (memorize, search, conversation-meta)
 - **Citation schema**: Pydantic models for citation objects + validation logic
-- **Segment chunking**: Platform-specific chunking helpers (Taddy, Gutenberg, YouTube) with stable sha256 hashing
+- **Segment chunking**: Platform-specific chunking helpers (Podwise, Gutenberg, YouTube) with stable sha256 hashing
 - **Matrix helpers**: Message formatting (HTML + plain + citation custom field), room state utilities
 - **Supabase helpers**: Common DB access patterns
 
@@ -203,8 +203,6 @@ create table agent_emos_config (
   agent_id uuid primary key references agents(id),
   emos_base_url text not null,          -- platform URL for figures, user-provided for users
   emos_api_key_encrypted text,          -- encrypted; null if platform instance uses service auth
-  emos_org_id text,
-  emos_space_id text,
   tenant_prefix text not null           -- "{agent_id}" for figures; user-configured for users
 );
 ```
@@ -230,7 +228,7 @@ create table figures (
   aliases text[] not null default '{}',
   language_default text not null default 'en',
   sources_config jsonb not null default '{}'
-  -- e.g. {"taddy": {"search_terms": ["Lex Fridman"], "max_episodes": 200},
+  -- e.g. {"podwise": {"search_terms": ["Lex Fridman"], "max_episodes": 200},
   --       "gutenberg": {"book_ids": [1342]},
   --       "youtube": {"channel_ids": ["UC..."], "playlist_ids": ["PL..."]}}
 );
@@ -252,7 +250,7 @@ create table profile_rooms (
 create table sources (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agents(id),
-  platform text not null check (platform in ('taddy', 'gutenberg', 'youtube')),
+  platform text not null check (platform in ('podwise', 'gutenberg', 'youtube')),
   external_id text not null,            -- episode UUID, Gutenberg book ID, YouTube video ID
   external_url text,                    -- canonical URL to original content
   title text not null,
@@ -299,7 +297,7 @@ The `segments` table serves three purposes:
 create table ingestion_jobs (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agents(id),
-  platform text not null check (platform in ('taddy', 'gutenberg', 'youtube')),
+  platform text not null check (platform in ('podwise', 'gutenberg', 'youtube')),
   status text not null default 'pending' check (status in ('pending', 'running', 'done', 'failed')),
   cursor jsonb,                         -- progress tracking (last processed item, etc.)
   last_error text,
@@ -343,9 +341,7 @@ For voice calls, each Clone turn is transcribed (Nova Sonic / Gemini Live provid
 ### EMOS HTTP Headers
 
 All requests to the managed EMOS instance include:
-- `X-Organization-Id`: `{emos_org_id}`
-- `X-Space-Id`: `{emos_space_id}`
-- `X-API-Key`: `{emos_api_key}` (if required)
+- `Authorization: Bearer {emos_api_key}` (if required)
 
 ### API Usage
 
@@ -364,7 +360,7 @@ sender    = "{agent_id}"
             (same across all platforms — one EMOS user per agent)
 
 group_id  = "{agent_id}:{platform}:{external_id}"
-            e.g. "a1b2c3:taddy:episode_abc123"
+            e.g. "a1b2c3:podwise:episode_abc123"
             e.g. "a1b2c3:gutenberg:book_1342"
             e.g. "a1b2c3:youtube:video_dQw4w9WgXcQ"
 
@@ -599,7 +595,7 @@ Each agent (figure or user) has one profile room. Created by the appservice when
 - **Room alias**: `#bt_confucius_profile:bibliotalk.space`
 - **Join rules**: `public` (anyone on the homeserver can join to "follow")
 - **Power levels**: Clone virtual user = 50 (can send messages), all other users = 0 (read-only). `events_default` = 50 so only the Clone can post.
-- **No AI responses here.** The appservice hard-checks: if a room is tracked in `profile_rooms`, Clones never generate agent responses in it. Only bt-workers posts verbatim ingested content.
+- **No AI responses here.** Enforced by Matrix room permissions (read-only for non-Clone users). Only bt-workers posts verbatim ingested content.
 - **Content format**: Each ingested source → Matrix thread. Root message = source description. Replies = verbatim segments.
 
 ```
@@ -661,14 +657,14 @@ Source API → Fetch metadata → Upsert sources row
 
 All ingestion runs in bt-workers. Progress tracked in `ingestion_jobs`. Content metadata stored in `sources`, canonical chunks in `segments`.
 
-### 8.1 Taddy (Podcasts)
+### 8.1 Podwise (Podcasts)
 
-**API**: GraphQL at `https://api.taddy.org`, headers `X-USER-ID` + `X-API-KEY`.
+**Method**: Playwright-based crawling of podcast transcripts on `https://podwise.ai`. No API keys required — transcripts are scraped from the public Podwise web interface.
 
 **Figure config** (in `figures.sources_config`):
 ```json
 {
-  "taddy": {
+  "podwise": {
     "search_terms": ["Neil deGrasse Tyson"],
     "max_episodes_per_term": 200
   }
@@ -676,11 +672,11 @@ All ingestion runs in bt-workers. Progress tracked in `ingestion_jobs`. Content 
 ```
 
 **Algorithm**:
-1. For each search term: query `searchForTerm(term, filterForTypes: PODCASTEPISODE, filterForHasTranscript: true)`.
-2. For each episode: fetch transcript items `{ text, speaker, startTimecode, endTimecode }`.
-3. Upsert `sources` row with `emos_group_id = "{agent_id}:taddy:{episode_uuid}"`.
+1. For each search term: use Playwright to search `podwise.ai` for matching podcast episodes with available transcripts.
+2. For each episode: crawl the episode transcript page to extract transcript segments (text, speaker labels, timecodes).
+3. Upsert `sources` row with `emos_group_id = "{agent_id}:podwise:{episode_id}"`.
 4. Chunk into segments (~800-1200 chars, preserving speaker labels and timecodes).
-5. Upsert `segments` rows with `emos_message_id = "{agent_id}:taddy:{episode_uuid}:seg:{seq}"`.
+5. Upsert `segments` rows with `emos_message_id = "{agent_id}:podwise:{episode_id}:seg:{seq}"`.
 6. Set conversation metadata once per episode: `POST /memories/conversation-meta` with `group_id`, `scene_desc.extra` = `{platform, source_url, title, speakers}`.
 7. For each new segment: `POST /memories` with:
    - `message_id` = `segments.emos_message_id`
@@ -691,6 +687,8 @@ All ingestion runs in bt-workers. Progress tracked in `ingestion_jobs`. Content 
 8. Post thread to profile room (root = episode description, replies = segments).
 
 **Dedup**: Track processed episodes in `ingestion_jobs.cursor`. Re-run weekly; skip already-processed episodes.
+
+**Rate limiting**: Respect `podwise.ai` by adding delays between page requests and limiting concurrent crawl sessions.
 
 ### 8.2 Project Gutenberg (Books)
 
@@ -753,11 +751,11 @@ All ingestion runs in bt-workers. Progress tracked in `ingestion_jobs`. Content 
     {
       "index": 1,
       "segment_id": "uuid-of-segment",
-      "emos_message_id": "a1b2c3:taddy:episode_xyz:seg:12",
+      "emos_message_id": "a1b2c3:podwise:episode_xyz:seg:12",
       "source_title": "StarTalk — The Nature of Time",
       "source_url": "https://example.com/episode/xyz",
       "quote": "Time is not a dimension we move through; it moves through us.",
-      "platform": "taddy",
+      "platform": "podwise",
       "timestamp": "2024-12-15"
     }
   ]
@@ -957,7 +955,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 4. **EMOS client**: Async Python client for `/api/v1/memories` (memorize, search, conversation-meta)
 5. **ADK agent**: Clone agent with persona instruction, memory_search tool, emit_citations tool
 6. **Private text chat**: Clone responds in DMs and group chats with grounded citations
-7. **Ingestion — Taddy**: Podcast transcript ingestion pipeline + profile room threads
+7. **Ingestion — Podwise**: Podcast transcript ingestion pipeline + profile room threads
 8. **Ingestion — Gutenberg**: Book text ingestion pipeline + profile room threads
 9. **Ingestion — YouTube**: Transcript ingestion pipeline + profile room threads
 10. **Multi-agent discussions**: LoopAgent orchestrator + A2A protocol between Clones
@@ -976,7 +974,8 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 google-adk                  # Agent Development Kit
 google-genai                # Gemini API client
 mautrix                     # Matrix appservice framework
-httpx                       # Async HTTP (EMOS, Taddy)
+httpx                       # Async HTTP (EMOS)
+playwright                  # Browser automation (Podwise crawling)
 supabase                    # Supabase Python client
 boto3                       # AWS Bedrock (Nova Sonic, Nova Lite)
 youtube-transcript-api      # YouTube transcripts
@@ -998,9 +997,9 @@ ws                          # WebSocket (bridge to bt-agent)
 
 ## 15. Security and Constraints
 
-### Hard Rules (enforced in code)
+### Hard Rules (enforced)
 
-1. **No AI in profile rooms.** bt-agent checks every incoming event: if the room is in `profile_rooms`, no Clone response is generated. Only bt-workers posts verbatim segments.
+1. **No AI in profile rooms.** Enforced by Matrix room permissions (profile rooms are read-only to non-Clone users). Only bt-workers posts verbatim segments.
 2. **Citation validation.** Every Clone response passes through `validate_citations()` before posting. Citations referencing nonexistent segments or mismatched quotes are stripped.
 3. **Appservice namespace isolation.** Only `@bt_*` users are controlled by the appservice. Real users cannot impersonate Clones.
 
@@ -1021,11 +1020,8 @@ ws                          # WebSocket (bridge to bt-agent)
 SYNAPSE_SHARED_SECRET       # Synapse admin/registration
 APPSERVICE_AS_TOKEN         # Appservice auth
 APPSERVICE_HS_TOKEN         # Homeserver verification
-TADDY_USER_ID               # Taddy API
-TADDY_API_KEY
+PODWISE_BASE_URL            # Podwise crawl target (default: https://podwise.ai)
 EMOS_BASE_URL               # Platform EMOS instance
-EMOS_ORG_ID
-EMOS_SPACE_ID
 EMOS_API_KEY
 AWS_BEDROCK_REGION          # us-east-1
 GOOGLE_API_KEY              # Gemini API
@@ -1039,7 +1035,7 @@ SUPABASE_SERVICE_ROLE_KEY
 
 ### Unit Tests
 
-- **Chunking**: Taddy transcript, Gutenberg text, YouTube transcript chunking produces deterministic segments respecting size limits, preserving metadata (speaker, timecodes, chapter), and generating stable sha256 hashes.
+- **Chunking**: Podwise transcript, Gutenberg text, YouTube transcript chunking produces deterministic segments respecting size limits, preserving metadata (speaker, timecodes, chapter), and generating stable sha256 hashes.
 - **EMOS ID builder**: Given agent_id + platform + external_id + seq, produces correct `emos_group_id` and `emos_message_id`.
 - **Citation validation**: Rejects unknown `segment_id`; rejects `quote` not found as substring of `segments.text`; rejects cross-agent citation (segment belongs to different agent).
 - **Matrix message renderer**: Produces correct HTML (`<sup>[N]</sup>`) + plain (`[^N]`) + `com.bibliotalk.citations` JSON for a given response + citations.
@@ -1049,14 +1045,14 @@ SUPABASE_SERVICE_ROLE_KEY
 ### Integration Tests (with mocked external services)
 
 - **Appservice**: Synapse pushes event → bt-agent receives → Clone responds in room with citations.
-- **Ingestion end-to-end**: Taddy/Gutenberg/YouTube ingestor creates `sources` + `segments` rows, calls EMOS memorize, posts threads to profile room.
+- **Ingestion end-to-end**: Podwise/Gutenberg/YouTube ingestor creates `sources` + `segments` rows, calls EMOS memorize, posts threads to profile room.
 - **Citation round-trip**: Ingested segment → EMOS memorize → memory_search retrieves it → Clone cites it → validation passes → posted with correct segment_id.
 - **Multi-agent discussion**: Orchestrator sends A2A messages → Clones respond in turn → citations posted to shared room.
-- **Profile room guard**: Verify bt-agent never generates Clone responses in profile rooms.
+- **Profile rooms**: Verify non-Clone users cannot send messages in profile rooms (Matrix permissions), and only bt-workers posts verbatim segments.
 
 ### MVP "Done" Scenarios
 
-1. Admin creates a figure (e.g., Confucius) with Gutenberg + Taddy sources. Ingestion populates `sources`, `segments`, EMOS. Profile room shows content threads with verbatim excerpts.
+1. Admin creates a figure (e.g., Confucius) with Gutenberg + Podwise sources. Ingestion populates `sources`, `segments`, EMOS. Profile room shows content threads with verbatim excerpts.
 2. User joins homeserver. Clone `User (Clone)` is auto-created. User links their EMOS API key via `!bt clone setup`.
 3. User DMs `@bt_confucius_clone`. Clone responds with grounded citations — each citation's `quote` is verifiable as a substring of the referenced segment.
 4. User creates a discussion room with Confucius and Aristotle Clones. Multi-turn discussion proceeds with grounded responses from both, each citing their own memories.

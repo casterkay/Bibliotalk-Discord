@@ -60,7 +60,7 @@ implementation. Quality gates are non-negotiable.
 - Unit tests MUST accompany all business logic (agent behavior,
   ingestion transforms, citation validation, EMOS client ops).
 - Contract tests MUST exist for every cross-service boundary
-  (appservice endpoints, EMOS API calls, Taddy/Gutenberg clients).
+  (appservice endpoints, EMOS API calls, Podwise/Gutenberg clients).
 - Integration tests MUST cover critical user journeys (private chat
   with Clone, multi-agent discussion, voice call lifecycle).
 - Tests MUST be deterministic, independently runnable, and fast.
@@ -89,7 +89,7 @@ that both producer and consumer validate against.
   require migration documentation.
 
 **Rationale**: Bibliotalk integrates multiple external systems
-(Matrix/Synapse, EverMemOS, Taddy, Bedrock, Gemini). Explicit
+(Matrix/Synapse, EverMemOS, Podwise, Bedrock, Gemini). Explicit
 contracts make integration failures visible at build time rather
 than runtime.
 
@@ -121,7 +121,7 @@ observability to diagnose issues without ad-hoc debugging.
 
 - All service entry points (appservice endpoints, agent invocations,
   ingestion jobs) MUST emit structured logs with correlation IDs.
-- External API calls (EMOS, Taddy, Bedrock, Synapse) MUST log
+- External API calls (EMOS, Podwise, Bedrock, Synapse) MUST log
   request/response metadata (status, latency, error codes) without
   leaking sensitive content.
 - Agent decision traces (ADK tool calls, memory retrievals, citation
@@ -162,10 +162,6 @@ high.
 - **Type Safety**: All Python code MUST use type annotations.
   Pydantic models MUST be used for data validation at service
   boundaries. `Any` types are prohibited in public interfaces.
-- **Dependency Management**: Dependencies MUST be pinned to exact
-  versions in lock files. New dependencies MUST be justified —
-  prefer existing dependencies over introducing new ones for
-  marginal utility.
 - **Code Style**: All code MUST pass project linting and formatting
   checks (ruff for Python, eslint/prettier for Node.js) with zero
   warnings. Linter rules are not suggestions.

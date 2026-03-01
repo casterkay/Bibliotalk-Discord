@@ -20,7 +20,7 @@ A user opens a private chat with a Clone (e.g., Confucius) and asks a question. 
 1. **Given** a user has a private DM room with a figure Clone, **When** the user sends a factual question (e.g., "What did you say about learning?"), **Then** the Clone responds in-character with inline citation markers (e.g., superscript numbers), and each citation references a verifiable passage from the Clone's source material.
 2. **Given** a user sends a message to a Clone, **When** the Clone's memory contains no relevant evidence, **Then** the Clone responds with an explicit acknowledgment that it has no evidence for that topic, rather than fabricating an answer.
 3. **Given** a user has a group chat room with multiple participants (real users and Clones), **When** a user mentions a Clone or addresses it directly, **Then** only the addressed Clone responds, with grounded citations.
-4. **Given** a Clone is a member of a profile room (read-only public room), **When** any user sends a message in that room, **Then** the Clone MUST NOT generate a response. Only pre-ingested verbatim content appears in profile rooms.
+4. **Given** a Clone is a member of a profile room (read-only public room), **When** a user attempts to send a message in that room, **Then** Matrix room permissions reject the message and no AI response is generated. Only pre-ingested verbatim content appears in profile rooms.
 5. **Given** a Clone produces a response with citations, **When** the system validates the citations, **Then** any citation whose quoted text does not match the original source passage is stripped from the response before delivery.
 
 ---
@@ -99,7 +99,7 @@ A user starts a voice call in a discussion room with multiple Clones. The Clones
 - **FR-004**: Every factual claim in a Clone's response MUST include an inline citation marker (e.g., superscript number) linking to a specific source passage.
 - **FR-005**: System MUST validate all citations before delivering a Clone's response — citations referencing non-existent sources or mismatched quotes MUST be stripped.
 - **FR-006**: When a Clone has no relevant evidence for a query, it MUST explicitly acknowledge the gap rather than fabricating content.
-- **FR-007**: System MUST enforce that Clones never generate responses in profile rooms (public, read-only rooms designated for verbatim ingested content).
+- **FR-007**: System MUST enforce that Clones never generate responses in profile rooms (public, read-only rooms designated for verbatim ingested content), enforced via Matrix room permissions.
 - **FR-008**: System MUST support multi-agent discussions where multiple Clones take turns responding to a shared topic, with configurable turn count and user interjection.
 - **FR-009**: In multi-agent discussions, each Clone MUST cite only from its own memory — never from another Clone's memory.
 - **FR-010**: System MUST support real-time voice conversations between a user and a Clone, with the Clone responding in speech grounded in its memory.
@@ -126,7 +126,7 @@ A user starts a voice call in a discussion room with multiple Clones. The Clones
 
 - **SC-001**: Users receive a grounded, cited response from a Clone within 5 seconds of sending a text message (measured from message delivery to response delivery in the chat room).
 - **SC-002**: 100% of citations in delivered Clone responses are verifiable — each cited quote is a substring of the referenced source passage. No unvalidated citations reach the user.
-- **SC-003**: Clones generate zero responses in profile rooms under all conditions (100% enforcement of the read-only guard).
+- **SC-003**: Clones generate zero responses in profile rooms under all conditions (100% enforcement via Matrix room permissions).
 - **SC-004**: In multi-agent discussions, each Clone speaks only from its own memory. Zero cross-Clone citation leaks across all discussion sessions.
 - **SC-005**: Voice call audio latency from end of user speech to start of Clone speech is under 3 seconds (measured end-to-end including memory search).
 - **SC-006**: 100% of voice call turns produce a corresponding text transcript entry with citations in the parallel text thread.
@@ -139,7 +139,7 @@ A user starts a voice call in a discussion room with multiple Clones. The Clones
 
 - The chat platform (Matrix/Synapse) and appservice registration are already deployed and operational before this feature is implemented.
 - The database schema for agents, agent configurations, and related tables is already provisioned.
-- Content ingestion pipelines (Taddy, Gutenberg, YouTube) are a separate feature — this specification assumes source material already exists in each Clone's memory when the agent service processes a conversation.
+- Content ingestion pipelines (Podwise, Gutenberg, YouTube) are a separate feature — this specification assumes source material already exists in each Clone's memory when the agent service processes a conversation.
 - The voice sidecar (audio bridge between the chat platform's voice protocol and the agent service) is treated as part of this feature's scope, since voice chat capability is explicitly requested.
 - Unencrypted voice calls are acceptable for MVP. End-to-end encrypted voice is deferred.
 - The system operates on a single homeserver instance (no federation).
