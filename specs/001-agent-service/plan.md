@@ -128,3 +128,4 @@ architecture while keeping shared logic in one place.
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | 4 packages (bt_common, bt_agent, bt_voice_sidecar, bt_cli) | Python and Node.js runtimes are incompatible; CLI harness enables rapid testing without Matrix infrastructure | Single Python package would still need a separate Node.js sidecar for WebRTC; CLI harness pays for itself in iteration speed |
 | VoiceBackend abstraction                                   | Two voice backends (Nova Sonic, Gemini Live) with same interface                                              | Direct implementation would duplicate session management, tool-use routing, and transcript handling                          |
+
