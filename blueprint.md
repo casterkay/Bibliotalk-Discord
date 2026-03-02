@@ -6,6 +6,22 @@ Bibliotalk is a social network where every account — whether a living person, 
 
 **Core principle: 言必有據** — every Ghost utterance must be faithfully grounded in its collected personal memory (EverMemOS), with verifiable citations.
 
+## Authoritative Implementation Notes (Current Code)
+
+The repository file structure is authoritative for module ownership and import boundaries.
+
+- `services/agents_service/src/matrix/appservice.py` is the single owner of `format_ghost_response`.
+- Citation and segment domain models are owned by `services/agents_service/src/models/`.
+- Agent runtime code is under `services/agents_service/src/agent/`.
+- `packages/bt_common/src/` is infra-only (`evermemos_client`, `config`, `logging`, `exceptions`).
+- `services/ingestion_service/src/` is layered as:
+  - `domain/` (models, ids, errors)
+  - `pipeline/` (chunking, manifest, ingest, index)
+  - `runtime/` (config, reporting)
+  - `adapters/` (local/gutenberg/youtube source loaders)
+
+If any section below conflicts with the current tree, follow the tree.
+
 ### Rules
 
 1. **Public content originates from real humans only.** Profile rooms display aggregated real-world content. Ghosts cannot post or comment in public rooms.
@@ -103,8 +119,10 @@ Bibliotalk is a social network where every account — whether a living person, 
 
 The core service. Runs as a Synapse appservice and hosts the agent runtime.
 
-- **Appservice handler** (mautrix): Receives all Matrix room events via Synapse transaction pushes. Sends messages as any virtual user in the `@bt_*` namespace using the appservice `as_token`.
-- **Agent orchestrator** (Google ADK): Each Ghost is an ADK `LlmAgent` with persona instructions, memory tools, and grounding rules. Multi-agent discussions use `LoopAgent` orchestration; the orchestrator invokes each Ghost runner directly (Matrix remains the shared discussion channel).
+- **Appservice handler**: Receives Matrix events and emits Ghost responses.
+- **Message formatter**: `format_ghost_response` is defined in `matrix/appservice.py` and reused by CLI and voice transcript paths.
+- **Agent runtime**: lives in `agent/` (`agent_factory.py`, `orchestrator.py`, `tools/`, `providers/`).
+- **Agent domain models**: citation and segment models live in `models/`.
 - **Voice bridge**: Coordinates with the JS sidecar for MatrixRTC voice sessions. Routes audio between the sidecar and LLM voice backends (Nova Sonic / Gemini Live).
 
 ### voice_call_service
@@ -122,6 +140,10 @@ Node.js process that handles MatrixRTC/WebRTC media.
 
 Background job processor for figure content ingestion.
 
+- `domain/`: core ids, models, and typed errors.
+- `pipeline/`: manifest parsing/resolution, chunking, ingest pipeline, and index.
+- `runtime/`: environment config and reporting/redaction.
+- `adapters/`: source loaders (local text, Gutenberg, YouTube transcripts).
 - Polls for new content on schedule (new podcast episodes, etc.)
 - Ingests into EverMemOS via memorize API
 - Posts content threads to figure profile rooms via appservice API
@@ -132,10 +154,9 @@ Background job processor for figure content ingestion.
 Shared code used by both agents_service and ingestion_service:
 
 - **EMOS client**: Async httpx client for `/api/v1/memories` endpoints (memorize, search, conversation-meta)
-- **Citation schema**: Pydantic models for citation objects + validation logic
-- **Segment chunking**: Platform-specific chunking helpers (Podwise, Gutenberg, YouTube) with stable sha256 hashing
-- **Matrix helpers**: Message formatting (HTML + plain + citation custom field), room state utilities
-- **Supabase helpers**: Common DB access patterns
+- **Config**: shared environment settings and EMOS fallback helpers
+- **Logging**: structured JSON logging and correlation IDs
+- **Exceptions**: shared infra/domain exception base types
 
 ---
 

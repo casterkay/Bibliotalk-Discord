@@ -14,7 +14,6 @@ from bt_common.exceptions import AgentNotFoundError
 
 from ..database.supabase_helpers import SupabaseHelpers
 from ..models.citation import Evidence
-from .llm_registry import LLMRegistry
 from .tools.emit_citations import EmitCitationsTool
 from .tools.memory_search import MemorySearchTool
 
@@ -23,6 +22,37 @@ EmitCitationsFn = Callable[[list[Evidence], str], Awaitable[list]]
 
 _CACHE: dict[str, tuple[float, "GhostAgent"]] = {}
 _CACHE_LOCK = asyncio.Lock()
+
+
+@dataclass
+class _EchoLLM:
+    model_name: str
+
+    async def generate(
+        self, *, persona_prompt: str, query: str, evidence: list[Evidence]
+    ) -> str:
+        _ = persona_prompt
+        _ = evidence
+        return query
+
+
+class LLMRegistry:
+    _models: dict[str, Any] = {}
+
+    @classmethod
+    def register(cls, model: str, llm: Any) -> None:
+        cls._models[model] = llm
+
+    @classmethod
+    def resolve(cls, model: str) -> Any:
+        if model not in cls._models:
+            cls._models[model] = _EchoLLM(model_name=model)
+        return cls._models[model]
+
+    @classmethod
+    def init_defaults(cls) -> None:
+        cls._models.setdefault("gemini-2.5-flash", _EchoLLM("gemini-2.5-flash"))
+        cls._models.setdefault("nova-lite-v2", _EchoLLM("nova-lite-v2"))
 
 
 @dataclass
@@ -71,25 +101,31 @@ async def create_ghost_agent(
     if not agent_row:
         raise AgentNotFoundError(f"Agent {agent_id} not found")
 
-    emos_config = await supabase_helpers.get_agent_emos_config(agent_id) or {}
-    emos_fallback = get_emos_fallback_settings()
-    evermemos_client = EverMemOSClient(
-        emos_config.get("emos_base_url") or emos_fallback.EMOS_BASE_URL or "",
-        api_key=(
-            emos_config.get("emos_api_key_encrypted")
-            or emos_config.get("emos_api_key")
-            or emos_fallback.EMOS_API_KEY
-        ),
-    )
-
     if memory_search_fn is None:
-        memory_tool = MemorySearchTool(
-            evermemos_client=evermemos_client,
-            segments_provider=lambda _agent_id: supabase_helpers.get_segments_for_agent(
-                UUID(_agent_id)
-            ),
-        )
-        memory_search_fn = memory_tool
+        memory_tool: MemorySearchTool | None = None
+
+        async def _default_memory_search(query: str, _agent_id: str) -> list[Evidence]:
+            nonlocal memory_tool
+            if memory_tool is None:
+                emos_config = await supabase_helpers.get_agent_emos_config(agent_id) or {}
+                emos_fallback = get_emos_fallback_settings()
+                evermemos_client = EverMemOSClient(
+                    emos_config.get("emos_base_url") or emos_fallback.EMOS_BASE_URL or "",
+                    api_key=(
+                        emos_config.get("emos_api_key_encrypted")
+                        or emos_config.get("emos_api_key")
+                        or emos_fallback.EMOS_API_KEY
+                    ),
+                )
+                memory_tool = MemorySearchTool(
+                    evermemos_client=evermemos_client,
+                    segments_provider=lambda lookup_agent_id: supabase_helpers.get_segments_for_agent(
+                        UUID(lookup_agent_id)
+                    ),
+                )
+            return await memory_tool(query, _agent_id)
+
+        memory_search_fn = _default_memory_search
 
     if emit_citations_fn is None:
         emit_tool = EmitCitationsTool(

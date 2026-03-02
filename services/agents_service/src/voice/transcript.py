@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
 
-from bt_common.matrix_helpers import format_ghost_response
+from ..matrix.appservice import format_ghost_response
 
 from .backends.base import EndOfTurn, Transcript
 from .session_manager import VoiceSession

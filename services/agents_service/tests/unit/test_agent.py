@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 import pytest
-from bt_common.citation import Evidence
+from agents_service.models.citation import Evidence
 
 
 @dataclass
@@ -63,7 +63,7 @@ class FakeSupabase:
 
 @pytest.mark.asyncio
 async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> None:
-    from agents_service.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_ghost_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -79,7 +79,7 @@ async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> 
 
 @pytest.mark.asyncio
 async def test_agent_calls_memory_search_tool_when_given_factual_question() -> None:
-    from agents_service.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_ghost_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -113,7 +113,7 @@ async def test_agent_calls_memory_search_tool_when_given_factual_question() -> N
 
 @pytest.mark.asyncio
 async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
-    from agents_service.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_ghost_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -153,7 +153,7 @@ async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
 async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty() -> (
     None
 ):
-    from agents_service.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_ghost_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -176,7 +176,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
 
 @pytest.mark.asyncio
 async def test_agent_uses_correct_llm_model_from_config() -> None:
-    from agents_service.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_ghost_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()

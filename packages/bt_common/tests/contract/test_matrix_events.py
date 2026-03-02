@@ -1,28 +1,13 @@
 from uuid import uuid4
 
-from bt_common.citation import Citation
-from bt_common.matrix_helpers import format_ghost_response
+from bt_common.logging import JsonFormatter, get_request_logger
 
 
-def test_ghost_response_event_schema() -> None:
-    citation = Citation(
-        index=1,
-        segment_id=uuid4(),
-        emos_message_id="a:b:c:seg:1",
-        source_title="The Analects",
-        source_url="https://example.com/source",
-        quote="Learning without thought is labor lost.",
-        platform="gutenberg",
-    )
+def test_get_request_logger_is_idempotent_and_json_formatted() -> None:
+    name = f"bt_common.logger.{uuid4()}"
+    logger_a = get_request_logger(name)
+    logger_b = get_request_logger(name)
 
-    payload = format_ghost_response(
-        "Learning without thought is labor lost.",
-        [citation],
-    )
-
-    assert payload["msgtype"] == "m.text"
-    assert "[^1]" in payload["body"]
-    assert "<sup>[1]</sup>" in payload["formatted_body"]
-    ext = payload["com.bibliotalk.citations"]
-    assert ext["version"] == "1"
-    assert len(ext["items"]) == 1
+    assert logger_a is logger_b
+    assert len(logger_a.handlers) == 1
+    assert isinstance(logger_a.handlers[0].formatter, JsonFormatter)

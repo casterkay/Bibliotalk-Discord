@@ -3,11 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from agents_service.discussion.a2a_server import GhostA2AServer
-from agents_service.discussion.orchestrator import (
-    DiscussionConfig,
-    DiscussionOrchestrator,
-)
+from agents_service.agent.orchestrator import DiscussionConfig, DiscussionOrchestrator
 
 
 @pytest.mark.asyncio
@@ -15,19 +11,33 @@ async def test_multi_agent_discussion_flow() -> None:
     agent_a = str(uuid4())
     agent_b = str(uuid4())
 
-    async def invoke_a(_prompt: str):
-        return {"text": "A response", "citations": [{"agent": agent_a}]}
-
-    async def invoke_b(_prompt: str):
-        return {"text": "B response", "citations": [{"agent": agent_b}]}
-
-    servers = {
-        agent_a: GhostA2AServer("A", "A desc", agent_a, invoke_a),
-        agent_b: GhostA2AServer("B", "B desc", agent_b, invoke_b),
-    }
-
     async def a2a_client(ghost_id: str, request: dict):
-        return await servers[ghost_id].handle_jsonrpc(request)
+        _ = request
+        if ghost_id == agent_a:
+            return {
+                "result": {
+                    "artifacts": [
+                        {
+                            "parts": [
+                                {"text": "A response"},
+                                {"data": {"citations": [{"agent": agent_a}]}},
+                            ]
+                        }
+                    ]
+                }
+            }
+        return {
+            "result": {
+                "artifacts": [
+                    {
+                        "parts": [
+                            {"text": "B response"},
+                            {"data": {"citations": [{"agent": agent_b}]}},
+                        ]
+                    }
+                ]
+            }
+        }
 
     posted: list[dict] = []
 

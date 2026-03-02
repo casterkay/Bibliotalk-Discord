@@ -3,9 +3,9 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from agents_service.agent_factory import create_ghost_agent
-from bt_common.citation import Evidence
-from bt_common.matrix_helpers import format_ghost_response
+from agents_service.agent.agent_factory import create_ghost_agent
+from agents_service.matrix.appservice import format_ghost_response
+from agents_service.models.citation import Evidence
 
 
 class FakeSupabase:

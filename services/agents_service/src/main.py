@@ -5,12 +5,11 @@ from __future__ import annotations
 from uuid import UUID
 
 from bt_common.logging import get_request_logger, set_correlation_id
-from bt_common.supabase_helpers import SupabaseHelpers
 from fastapi import FastAPI
 
-from .agent_factory import create_ghost_agent
-from .appservice import AppServiceHandler
-from .llm_registry import LLMRegistry
+from .agent.agent_factory import LLMRegistry, create_ghost_agent
+from .database.supabase_helpers import SupabaseHelpers
+from .matrix.appservice import AppServiceHandler
 
 app = FastAPI(title="Bibliotalk Agent Service")
 logger = get_request_logger("agents_service.main")

@@ -6,7 +6,7 @@ import contextvars
 from typing import Any, Awaitable, Callable
 from uuid import UUID
 
-from bt_common.citation import Citation, Evidence, SegmentLike, validate_citations
+from ...models.citation import Citation, Evidence, SegmentLike, validate_citations
 
 SegmentsByIdsProvider = Callable[[list[UUID]], Awaitable[list[dict[str, Any]]]]
 
@@ -44,4 +44,3 @@ class EmitCitationsTool:
 
 def get_last_citations() -> list[Citation]:
     return _last_citations.get()
-

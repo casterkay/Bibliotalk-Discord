@@ -6,10 +6,9 @@ import argparse
 import asyncio
 from uuid import UUID, uuid4
 
-from agents_service.agent_factory import create_ghost_agent
-from agents_service.llm_registry import LLMRegistry
-from bt_common.citation import Citation, Evidence
-from bt_common.matrix_helpers import format_ghost_response
+from .agent.agent_factory import LLMRegistry, create_ghost_agent
+from .matrix.appservice import format_ghost_response
+from .models.citation import Citation, Evidence
 
 
 class _MockSupabase:

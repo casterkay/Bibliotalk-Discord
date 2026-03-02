@@ -22,8 +22,12 @@ dev = [
 [tool.setuptools]
 packages = [
   "agents_service",
-  "agents_service.tools",
-  "agents_service.discussion",
+  "agents_service.agent",
+  "agents_service.agent.providers",
+  "agents_service.agent.tools",
+  "agents_service.database",
+  "agents_service.matrix",
+  "agents_service.models",
   "agents_service.voice",
   "agents_service.voice.backends",
 ]
@@ -34,4 +38,3 @@ packages = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
 
-from bt_common.citation import Evidence
-from bt_common.segment import Segment, bm25_rerank
+from ...models.citation import Evidence
+from ...models.segment import Segment, bm25_rerank
 
 SegmentsProvider = Callable[[str], Awaitable[list[dict[str, Any]]]]
 

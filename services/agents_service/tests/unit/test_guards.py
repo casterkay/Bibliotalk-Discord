@@ -1,6 +1,6 @@
 import time
 
-from agents_service.guards import RateLimiter
+from agents_service.matrix.guards import RateLimiter
 
 
 def test_rate_limiter_enforces_5_second_cooldown_per_room() -> None:

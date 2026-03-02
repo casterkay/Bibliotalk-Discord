@@ -11,12 +11,21 @@ Auto-generated from all feature plans. Last updated: 2026-03-02
 ```text
 services/
   agents_service/        # Python — appservice + agent runtime
+    src/
+      agent/             # agent factory, orchestration, tools, providers
+      matrix/            # Matrix appservice handling + response formatting
+      models/            # citation + segment domain models
+      database/          # Supabase access helpers
+      voice/             # voice session + backend adapters
   ingestion_service/     # Python — content ingestion pipelines + CLI
+    src/
+      adapters/          # source adapters (gutenberg, youtube, local_text)
+      domain/            # errors, ids, data models
+      pipeline/          # chunking, manifest, ingest, index
+      runtime/           # config + reporting
   voice_call_service/    # Node.js — MatrixRTC/WebRTC sidecar
 packages/
-  bt_common/             # Python — shared library (citations, EMOS client, etc.)
-tools/
-  bt_cli/                # Python — developer CLI
+  bt_common/             # Python — shared infra library (EMOS client, config, logging, exceptions)
 specs/
 docs/
 ```
@@ -38,6 +47,13 @@ Python 3.11+: Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 ## Manual Notes
+
+### Architecture Boundaries
+
+- Treat current repository file layout as the source of truth for imports and ownership.
+- The single `format_ghost_response` implementation is in `services/agents_service/src/matrix/appservice.py`.
+- Citation and segment domain models live in `services/agents_service/src/models/`.
+- `bt_common` is infra-only (`evermemos_client`, `config`, `logging`, `exceptions`) and should not own agent-domain models.
 
 ### ingestion_service
 
