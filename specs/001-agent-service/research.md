@@ -20,7 +20,7 @@ harness and pytest-driven testing first.
   testable approach first. Constitution Principle IV (Incremental
   Delivery) requires MVP text chat to work end-to-end before adding
   advanced features.
-- A `bt_cli` harness (stdin/stdout chat with a Clone) enables
+- A `bt_cli` harness (stdin/stdout chat with a Ghost) enables
   rapid iteration on persona tuning, citation quality, and memory
   search without the Synapse round-trip.
 
@@ -34,7 +34,7 @@ harness and pytest-driven testing first.
 
 **Implementation Order**:
 1. bt_common (EMOS client, citation schemas, segment models) — pytest
-2. Clone agent with ADK — InMemoryRunner + mock EMOS
+2. Ghost agent with ADK — InMemoryRunner + mock EMOS
 3. bt_cli test harness — stdin/stdout end-to-end grounding validation
 4. Matrix appservice layer (agents_service proper)
 5. Multi-agent discussions (A2A)
@@ -60,7 +60,7 @@ harness and pytest-driven testing first.
 from google.adk.agents import LlmAgent
 from google.adk.runners import InMemoryRunner
 
-agent = LlmAgent(name="test_clone", model="gemini-2.5-flash",
+agent = LlmAgent(name="test_ghost", model="gemini-2.5-flash",
                   instruction="You are Confucius.", tools=[memory_search])
 runner = InMemoryRunner(agent=agent)
 response = await runner.run("What is the meaning of virtue?")
@@ -126,13 +126,13 @@ Bedrock's `InvokeModelWithBidirectionalStreamCommand`.
 
 ## R5: A2A Protocol for Multi-Agent Discussions
 
-**Decision**: Each Clone exposes an A2A server (in-process HTTP). The
+**Decision**: Each Ghost exposes an A2A server (in-process HTTP). The
 discussion orchestrator uses ADK's A2A toolset as client.
 
 **Rationale**:
 - A2A is JSON-RPC 2.0 over HTTP with SSE for streaming. Tasks are the
   core lifecycle unit: `submitted → working → completed`.
-- Each Clone's A2A server publishes an AgentCard at
+- Each Ghost's A2A server publishes an AgentCard at
   `/.well-known/agent.json` describing its capabilities.
 - ADK provides built-in A2A integration:
   - `A2aTool` / `A2aToolset` — client-side, wraps remote A2A agents
@@ -140,7 +140,7 @@ discussion orchestrator uses ADK's A2A toolset as client.
   - A2A server wrapper — exposes an ADK agent as an A2A-compliant
     HTTP endpoint.
 - For Bibliotalk: the discussion orchestrator (LoopAgent) is the A2A
-  client. Each Clone runs an in-process A2A server on a unique port
+  client. Each Ghost runs an in-process A2A server on a unique port
   (or uses path-based routing behind a single HTTP server).
 
 **Testing**:
@@ -148,8 +148,8 @@ discussion orchestrator uses ADK's A2A toolset as client.
   mock servers.
 - No external infrastructure required. Each A2A server is a standard
   HTTP endpoint.
-- Test multi-agent flow: orchestrator sends topic → Clone A responds
-  → Clone B responds → verify turn-taking and citation isolation.
+- Test multi-agent flow: orchestrator sends topic → Ghost A responds
+  → Ghost B responds → verify turn-taking and citation isolation.
 
 ## R6: LLM Backend Swapping
 

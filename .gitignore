@@ -63,6 +63,7 @@ venv/
 *.egg-info/
 dist/
 *.log
+.ingestion_service/
 .evermemos_ingest/
 .env*
 !.env.example

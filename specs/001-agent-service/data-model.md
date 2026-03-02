@@ -8,20 +8,20 @@
 
 ### Agent
 
-The core entity representing a Clone (AI digital twin).
+The core entity representing a Ghost (AI digital twin).
 
-| Field          | Type      | Constraints                          | Description                            |
-| -------------- | --------- | ------------------------------------ | -------------------------------------- |
-| id             | UUID      | PK, auto-generated                   | Unique identifier                      |
-| kind           | text      | CHECK ('figure', 'user')             | Figure Clone or user Clone             |
-| display_name   | text      | NOT NULL                             | "Confucius (Clone)"                    |
-| matrix_user_id | text      | NOT NULL, UNIQUE                     | "@bt_confucius_clone:bibliotalk.space" |
-| avatar_url     | text      | NULLABLE                             | Avatar image URL                       |
-| bio            | text      | NULLABLE                             | Short biography                        |
-| persona_prompt | text      | NOT NULL                             | System prompt for this Clone           |
-| llm_model      | text      | NOT NULL, DEFAULT 'gemini-2.5-flash' | LLM backend identifier                 |
-| is_active      | boolean   | NOT NULL, DEFAULT true               | Whether Clone responds to messages     |
-| created_at     | timestamp | NOT NULL, DEFAULT now()              | Creation time                          |
+| Field          | Type      | Constraints                          | Description                           |
+| -------------- | --------- | ------------------------------------ | ------------------------------------- |
+| id             | UUID      | PK, auto-generated                   | Unique identifier                     |
+| kind           | text      | CHECK ('figure', 'user')             | Figure Ghost or user Ghost            |
+| display_name   | text      | NOT NULL                             | "Confucius (Ghost)"                   |
+| matrix_user_id | text      | NOT NULL, UNIQUE                     | "@btghost_confucius:bibliotalk.space" |
+| avatar_url     | text      | NULLABLE                             | Avatar image URL                      |
+| bio            | text      | NULLABLE                             | Short biography                       |
+| persona_prompt | text      | NOT NULL                             | System prompt for this Ghost          |
+| llm_model      | text      | NOT NULL, DEFAULT 'gemini-2.5-flash' | LLM backend identifier                |
+| is_active      | boolean   | NOT NULL, DEFAULT true               | Whether Ghost responds to messages    |
+| created_at     | timestamp | NOT NULL, DEFAULT now()              | Creation time                         |
 
 ### AgentEmosConfig
 

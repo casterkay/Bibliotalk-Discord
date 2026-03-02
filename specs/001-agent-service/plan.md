@@ -5,7 +5,7 @@
 
 ## Summary
 
-Build the core Bibliotalk agent service: Clone agents powered by Google
+Build the core Bibliotalk agent service: Ghost agents powered by Google
 ADK with EverMemOS memory grounding, citation validation, multi-agent
 discussions via A2A protocol, and voice chat via Nova Sonic / Gemini
 Live backends. Matrix integration is deferred after agent core is
@@ -21,7 +21,7 @@ validated via a CLI test harness (see research.md R1).
 **Project Type**: Multi-service backend (appservice + voice sidecar + shared library + CLI harness)
 **Performance Goals**: <5s text response latency, <3s voice response latency, 50 concurrent conversations
 **Constraints**: us-east-1 region (Nova Sonic availability), unencrypted voice in MVP, single homeserver
-**Scale/Scope**: ~25 figure Clones initially, growing to 100+; user Clones unbounded
+**Scale/Scope**: ~25 figure Ghosts initially, growing to 100+; user Ghosts unbounded
 
 ## Constitution Check
 
@@ -52,7 +52,7 @@ specs/001-agent-service/
 │   ├── emos-client.md   # EMOS HTTP API contract
 │   ├── citation-schema.md # Citation object schema
 │   ├── voice-backend.md # VoiceBackend ABC contract
-│   └── a2a-clone.md     # A2A server per Clone
+│   └── a2a-ghost.md     # A2A server per Ghost
 └── tasks.md             # Phase 2 output (/speckit.tasks)
 ```
 
@@ -61,7 +61,7 @@ specs/001-agent-service/
 ```text
 bt_common/                  # Shared Python library (in-repo package)
 ├── __init__.py
-├── emos_client.py          # Async httpx client for EMOS API
+├── evermemos_client.py          # Async httpx client for EMOS API
 ├── citation.py             # Citation Pydantic models + validation
 ├── segment.py              # Segment models + BM25 local re-ranking
 ├── matrix_helpers.py       # Message formatting (HTML + plain + citations field)
@@ -86,7 +86,7 @@ services/agents_service/src/                   # Core agent service (FastAPI app
 │   └── transcript.py       # Voice transcript → text thread posting
 ├── discussion/
 │   ├── orchestrator.py     # LoopAgent + A2A client
-│   └── a2a_server.py       # Per-Clone A2A HTTP server
+│   └── a2a_server.py       # Per-Ghost A2A HTTP server
 └── guards.py               # Rate limiter
 	
 services/voice_call_service/src/           # Node.js MatrixRTC audio bridge
@@ -98,13 +98,13 @@ services/voice_call_service/src/           # Node.js MatrixRTC audio bridge
 	
 bt_cli/                     # CLI test harness (rapid iteration)
 ├── __init__.py
-└── __main__.py             # stdin/stdout chat with a Clone
+└── __main__.py             # stdin/stdout chat with a Ghost
 
 tests/
 ├── unit/
 │   ├── test_citation.py    # Citation validation logic
 │   ├── test_segment.py     # Chunking + BM25 re-ranking
-│   ├── test_emos_client.py # Client serialization + error handling
+│   ├── test_evermemos_client.py # Client serialization + error handling
 │   ├── test_agent.py       # ADK agent with mock LLM
 │   └── test_guards.py      # Rate limiter
 ├── contract/
@@ -112,7 +112,7 @@ tests/
 │   ├── test_matrix_events.py # Matrix event schema compliance
 │   └── test_a2a_protocol.py  # A2A request/response format
 └── integration/
-    ├── test_chat_e2e.py    # Clone text chat end-to-end
+    ├── test_chat_e2e.py    # Ghost text chat end-to-end
     ├── test_citation_roundtrip.py # Memorize → search → cite → validate
     └── test_discussion.py  # Multi-agent discussion flow
 ```
@@ -124,8 +124,8 @@ architecture while keeping shared logic in one place.
 
 ## Complexity Tracking
 
-| Violation                                                  | Why Needed                                                                                                    | Simpler Alternative Rejected Because                                                                                         |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Violation                                                          | Why Needed                                                                                                    | Simpler Alternative Rejected Because                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | 4 packages (bt_common, agents_service, voice_call_service, bt_cli) | Python and Node.js runtimes are incompatible; CLI harness enables rapid testing without Matrix infrastructure | Single Python package would still need a separate Node.js sidecar for WebRTC; CLI harness pays for itself in iteration speed |
-| VoiceBackend abstraction                                   | Two voice backends (Nova Sonic, Gemini Live) with same interface                                              | Direct implementation would duplicate session management, tool-use routing, and transcript handling                          |
+| VoiceBackend abstraction                                           | Two voice backends (Nova Sonic, Gemini Live) with same interface                                              | Direct implementation would duplicate session management, tool-use routing, and transcript handling                          |
 

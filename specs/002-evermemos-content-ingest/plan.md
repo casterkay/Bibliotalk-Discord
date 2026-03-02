@@ -23,14 +23,14 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle                        | Gate                                                                                   | Status |
-| -------------------------------- | -------------------------------------------------------------------------------------- | ------ |
-| I. Design-First Architecture     | Spec + plan exist before coding                                                        | PASS   |
-| II. Test-Driven Quality          | Tests planned for chunking, ID stability, dedup, and EverMemOS client error handling   | PASS   |
-| III. Contract-Driven Integration | Explicit contracts for EverMemOS calls + CLI/manifest schemas                           | PASS   |
-| IV. Incremental Delivery         | P1 single-source ingest → P2 idempotent reruns → P3 roster/batch ingest                | PASS   |
-| V. Observable Systems            | Structured logs + per-source report artifacts without leaking secrets                  | PASS   |
-| VI. Principled Simplicity        | One package + small adapters; defer crawling and large platform integrations           | PASS   |
+| Principle                        | Gate                                                                                 | Status |
+| -------------------------------- | ------------------------------------------------------------------------------------ | ------ |
+| I. Design-First Architecture     | Spec + plan exist before coding                                                      | PASS   |
+| II. Test-Driven Quality          | Tests planned for chunking, ID stability, dedup, and EverMemOS client error handling | PASS   |
+| III. Contract-Driven Integration | Explicit contracts for EverMemOS calls + CLI/manifest schemas                        | PASS   |
+| IV. Incremental Delivery         | P1 single-source ingest → P2 idempotent reruns → P3 roster/batch ingest              | PASS   |
+| V. Observable Systems            | Structured logs + per-source report artifacts without leaking secrets                | PASS   |
+| VI. Principled Simplicity        | One package + small adapters; defer crawling and large platform integrations         | PASS   |
 
 **Post-Phase 1 Re-check**: PASS (design artifacts produced and contracts defined; no principle violations introduced).
 
@@ -65,7 +65,7 @@ services/ingestion_service/src/
 ├── models.py                # typed entities: Source, Segment, Report
 ├── ids.py                   # stable group_id / message_id builders
 ├── chunking.py              # deterministic chunking strategies
-├── evermemos_client.py      # thin wrapper around evermemos SDK
+├── evermevermemos_client.py      # thin wrapper around evermemos SDK
 ├── index.py                 # local SQLite ingestion index (idempotency)
 ├── adapters/
 │   ├── base.py              # adapter interface for input sources

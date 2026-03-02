@@ -20,7 +20,7 @@
 
 ## Matrix Event Extension
 
-Clone responses include structured citations in the event content:
+Ghost responses include structured citations in the event content:
 
 ```json
 {
@@ -37,7 +37,7 @@ Clone responses include structured citations in the event content:
 
 ## Validation Rules
 
-Before posting any Clone response:
+Before posting any Ghost response:
 1. Parse citation markers from response text
 2. Verify each `segment_id` exists in segments table for this agent
 3. Verify each `quote` is a substring of `segments.text`

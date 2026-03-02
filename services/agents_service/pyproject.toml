@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agents_service"
+version = "0.1.0"
+description = "Bibliotalk agents service"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn>=0.30.0",
+  "bt_common @ file:../../packages/bt_common",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.23.8",
+]
+
+[tool.setuptools]
+packages = [
+  "agents_service",
+  "agents_service.tools",
+  "agents_service.discussion",
+  "agents_service.voice",
+  "agents_service.voice.backends",
+]
+
+[tool.setuptools.package-dir]
+"agents_service" = "src"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+

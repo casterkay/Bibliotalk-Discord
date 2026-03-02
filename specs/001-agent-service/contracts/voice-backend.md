@@ -16,7 +16,7 @@ end_session() → None
 
 | Type       | Fields                     | Description                      |
 | ---------- | -------------------------- | -------------------------------- |
-| AudioChunk | pcm_24khz: bytes           | Clone speech audio               |
+| AudioChunk | pcm_24khz: bytes           | Ghost speech audio               |
 | ToolCall   | tool_name: str, args: dict | Model requests a tool invocation |
 | Transcript | text: str, role: str       | Transcription of speech          |
 | EndOfTurn  | (none)                     | Model finished speaking          |

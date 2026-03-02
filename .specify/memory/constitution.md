@@ -62,7 +62,7 @@ implementation. Quality gates are non-negotiable.
 - Contract tests MUST exist for every cross-service boundary
   (appservice endpoints, EMOS API calls, Podwise/Gutenberg clients).
 - Integration tests MUST cover critical user journeys (private chat
-  with Clone, multi-agent discussion, voice call lifecycle).
+  with Ghost, multi-agent discussion, voice call lifecycle).
 - Tests MUST be deterministic, independently runnable, and fast.
   Flaky tests MUST be fixed or removed — never ignored.
 - Code coverage is a guide, not a goal. Focus coverage on
@@ -100,7 +100,7 @@ increments aligned with user story priorities.
 
 - Each user story MUST be implementable, testable, and deployable
   without depending on incomplete peer stories.
-- MVP functionality (private text chat with a single Clone) MUST
+- MVP functionality (private text chat with a single Ghost) MUST
   work end-to-end before adding advanced features (multi-agent
   discussions, voice calls).
 - Every increment MUST leave the system in a working state.

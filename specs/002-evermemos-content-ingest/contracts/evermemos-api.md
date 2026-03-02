@@ -25,7 +25,7 @@ All endpoints are under `/api/v1/memories` (per `/Users/tcai/Projects/Bibliotalk
 
 **Required fields**:
 - `message_id` (string): stable per segment (see ID rules below)
-- `sender` (string): EverMemOS user/tenant ID (the Clone/person being populated)
+- `sender` (string): EverMemOS user/tenant ID (the Ghost/person being populated)
 - `content` (string): verbatim segment text
 - `create_time` (string/date-time): set by client if not provided by SDK defaults
 

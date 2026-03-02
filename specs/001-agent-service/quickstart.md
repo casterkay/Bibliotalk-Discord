@@ -27,10 +27,10 @@ cp .env.example .env
 
 ## 2. Quick Test (CLI Harness)
 
-The fastest way to test a Clone agent — no Matrix/Synapse required:
+The fastest way to test a Ghost agent — no Matrix/Synapse required:
 
 ```bash
-# Start a CLI chat with a Clone (uses mock EMOS data)
+# Start a CLI chat with a Ghost (uses mock EMOS data)
 python -m bt_cli --agent confucius --mock-emos
 
 # Start with real EMOS instance
@@ -40,7 +40,7 @@ python -m bt_cli --agent confucius
 Example session:
 ```
 > What did you say about learning?
-Confucius (Clone): The pursuit of learning is endless.
+Confucius (Ghost): The pursuit of learning is endless.
 As I once reflected, "Learning without thought is labor
 lost; thought without learning is perilous."¹
 
@@ -78,15 +78,15 @@ cd services/voice_call_service && npm start
 ## 5. Verify
 
 1. Open Element, log into `bibliotalk.space`
-2. Start a DM with `@bt_confucius_clone:bibliotalk.space`
+2. Start a DM with `@btghost_confucius:bibliotalk.space`
 3. Send: "What is the meaning of virtue?"
-4. Clone should respond with grounded citations
+4. Ghost should respond with grounded citations
 
 ## Project Structure
 
 ```
 bt_common/                  # Shared Python library
-├── emos_client.py          # Async EMOS HTTP client
+├── evermemos_client.py          # Async EMOS HTTP client
 ├── citation.py             # Citation models + validation
 ├── segment.py              # Segment models + BM25 re-ranking
 └── matrix_helpers.py       # Message formatting
@@ -106,7 +106,7 @@ services/agents_service/src/                   # Core agent service
 │       └── gemini_live.py  # Gemini Live backend
 └── discussion/
     ├── orchestrator.py     # Multi-agent LoopAgent
-    └── a2a_server.py       # Per-Clone A2A endpoint
+    └── a2a_server.py       # Per-Ghost A2A endpoint
 
 services/voice_call_service/src/           # Node.js voice bridge
 ├── index.js                # Entry point
@@ -114,7 +114,7 @@ services/voice_call_service/src/           # Node.js voice bridge
 └── audio_bridge.js         # WebSocket bridge to agents_service
 
 bt_cli/                     # CLI test harness
-└── __main__.py             # stdin/stdout Clone chat
+└── __main__.py             # stdin/stdout Ghost chat
 
 tests/
 ├── unit/                   # No external deps

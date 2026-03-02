@@ -2,25 +2,25 @@
 
 ## Vision
 
-Bibliotalk is a social network where every account — whether a living person, a public figure, or a historical figure like Aristotle — has an AI "Clone" built from their real-world public digital footprint (podcast transcripts, YouTube talks, books, social posts). Users interact with each other and with Clones on a Matrix-based platform via Element.
+Bibliotalk is a social network where every account — whether a living person, a public figure, or a historical figure like Aristotle — has an AI "Ghost" built from their real-world public digital footprint (podcast transcripts, YouTube talks, books, social posts). Users interact with each other and with Ghosts on a Matrix-based platform via Element.
 
-**Core principle: 言必有據** — every Clone utterance must be faithfully grounded in its collected personal memory (EverMemOS), with verifiable citations.
+**Core principle: 言必有據** — every Ghost utterance must be faithfully grounded in its collected personal memory (EverMemOS), with verifiable citations.
 
 ### Rules
 
-1. **Public content originates from real humans only.** Profile rooms display aggregated real-world content. Clones cannot post or comment in public rooms.
-2. **Private chats allow Clones.** Users create private rooms and specify which participants are real users (requires invitation acceptance) or Clones.
-3. **Clones must cite sources.** Every non-trivial factual claim by a Clone must reference an evidence record from its EverMemOS memory. If no evidence exists, the Clone must say so.
+1. **Public content originates from real humans only.** Profile rooms display aggregated real-world content. Ghosts cannot post or comment in public rooms.
+2. **Private chats allow Ghosts.** Users create private rooms and specify which participants are real users (requires invitation acceptance) or Ghosts.
+3. **Ghosts must cite sources.** Every non-trivial factual claim by a Ghost must reference an evidence record from its EverMemOS memory. If no evidence exists, the Ghost must say so.
 
 ### Scope
 
 **MVP:**
 - Matrix + Element as the sole UI (no web portal)
-- Self-hosted Synapse with appservice for Clone virtual users
-- Figure Clones with platform-managed ingestion (Podwise podcasts, Project Gutenberg, YouTube transcripts)
-- User Clones powered by user-provided EverMemOS API keys
-- Private text chat with Clones (1:1 and group)
-- Multi-agent discussion rooms ("agentic podcasts") via A2A protocol
+- Self-hosted Synapse with appservice for Ghost virtual users
+- Figure Ghosts with platform-managed ingestion (Podwise podcasts, Project Gutenberg, YouTube transcripts)
+- User Ghosts powered by user-provided EverMemOS API keys
+- Private text chat with Ghosts (1:1 and group)
+- Multi-agent discussion rooms ("agentic podcasts") via an in-process orchestrator (Matrix-native); optional remote-runner adapter later
 - Voice calls via MatrixRTC with JS sidecar (Nova Sonic / Gemini Live)
 - Google ADK agent framework with swappable LLM (Gemini API / Nova Lite v2)
 
@@ -57,7 +57,7 @@ Bibliotalk is a social network where every account — whether a living person, 
           │           │              │
           │  ┌────────▼───────────┐  │
           │  │ Agent Orchestrator │  │  ← Google ADK (LlmAgent, LoopAgent)
-          │  │                    │  │  ← A2A server per Clone
+          │  │                    │  │  ← per-Ghost ADK runner (optional remote-runner adapter)
           │  │ Tools:             │  │
           │  │  memory_search     │  │  → EverMemOS retrieve
           │  │  emit_citations    │  │  → post citations to Matrix
@@ -104,18 +104,18 @@ Bibliotalk is a social network where every account — whether a living person, 
 The core service. Runs as a Synapse appservice and hosts the agent runtime.
 
 - **Appservice handler** (mautrix): Receives all Matrix room events via Synapse transaction pushes. Sends messages as any virtual user in the `@bt_*` namespace using the appservice `as_token`.
-- **Agent orchestrator** (Google ADK): Each Clone is an ADK `LlmAgent` with persona instructions, memory tools, and grounding rules. Multi-agent discussions use `LoopAgent` orchestration with A2A protocol between Clones.
+- **Agent orchestrator** (Google ADK): Each Ghost is an ADK `LlmAgent` with persona instructions, memory tools, and grounding rules. Multi-agent discussions use `LoopAgent` orchestration; the orchestrator invokes each Ghost runner directly (Matrix remains the shared discussion channel).
 - **Voice bridge**: Coordinates with the JS sidecar for MatrixRTC voice sessions. Routes audio between the sidecar and LLM voice backends (Nova Sonic / Gemini Live).
 
 ### voice_call_service
 
 Node.js process that handles MatrixRTC/WebRTC media.
 
-- Joins Element Call sessions as a Clone's virtual user
+- Joins Element Call sessions as a Ghost's virtual user
 - Handles WebRTC signaling, Opus decode/encode, PCM resampling
 - Bridges audio to agents_service via local WebSocket or IPC:
   - Sends user audio (PCM 16kHz) to agents_service
-  - Receives Clone audio (PCM 24kHz from Nova Sonic, or Gemini Live output) from agents_service
+  - Receives Ghost audio (PCM 24kHz from Nova Sonic, or Gemini Live output) from agents_service
 - One sidecar process can handle multiple concurrent voice sessions
 
 ### ingestion_service
@@ -143,17 +143,17 @@ Shared code used by both agents_service and ingestion_service:
 
 ### Accounts
 
-| Type       | Description                                           | Clone Name                               | Memory Source                              |
+| Type       | Description                                           | Ghost Name                               | Memory Source                              |
 | ---------- | ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------ |
-| **Figure** | Platform-managed. Public figures, historical figures. | "Confucius (Clone)", "Elon Musk (Clone)" | Platform EMOS instance (platform-ingested) |
-| **User**   | Real human on the platform. Registers via Matrix.     | "Alice (Clone)"                          | User-provided EMOS API key                 |
+| **Figure** | Platform-managed. Public figures, historical figures. | "Confucius (Ghost)", "Elon Musk (Ghost)" | Platform EMOS instance (platform-ingested) |
+| **User**   | Real human on the platform. Registers via Matrix.     | "Alice (Ghost)"                          | User-provided EMOS API key                 |
 
 ### Matrix Users
 
-Every Matrix account on the Bibliotalk homeserver is either a real user or a Clone virtual user:
+Every Matrix account on the Bibliotalk homeserver is either a real user or a Ghost virtual user:
 
 - **Real users**: `@alice:bibliotalk.space` — registered normally via Element
-- **Clone virtual users**: `@bt_alice_clone:bibliotalk.space` — created by the appservice when user joins or when a figure is configured
+- **Ghost virtual users**: `@btghost_alice:bibliotalk.space` — created by the appservice when user joins or when a figure is configured
 
 The appservice reserves the `@bt_*` namespace. Synapse routes all events involving these users to agents_service.
 
@@ -185,11 +185,11 @@ rate_limited: false
 create table agents (
   id uuid primary key default gen_random_uuid(),
   kind text not null check (kind in ('figure', 'user')),
-  display_name text not null,           -- "Confucius (Clone)"
-  matrix_user_id text not null unique,  -- "@bt_confucius_clone:bibliotalk.space"
+  display_name text not null,           -- "Confucius (Ghost)"
+  matrix_user_id text not null unique,  -- "@btghost_confucius:bibliotalk.space"
   avatar_url text,
   bio text,
-  persona_prompt text not null,         -- system prompt for this Clone
+  persona_prompt text not null,         -- system prompt for this Ghost
   llm_model text not null default 'gemini-2.5-flash',
   is_active boolean not null default true,
   created_at timestamptz not null default now()
@@ -214,7 +214,7 @@ create table users (
   id uuid primary key default gen_random_uuid(),
   matrix_user_id text not null unique,  -- "@alice:bibliotalk.space"
   display_name text not null,
-  agent_id uuid references agents(id),  -- their Clone
+  agent_id uuid references agents(id),  -- their Ghost
   created_at timestamptz not null default now()
 );
 ```
@@ -322,9 +322,9 @@ create table chat_history (
 );
 ```
 
-For voice calls, each Clone turn is transcribed (Nova Sonic / Gemini Live provide transcripts as `Transcript` events) and stored with `modality = 'voice'`. This enables:
+For voice calls, each Ghost turn is transcribed (Nova Sonic / Gemini Live provide transcripts as `Transcript` events) and stored with `modality = 'voice'`. This enables:
 - Audit trail of what was said in voice calls
-- Future memorization into EMOS (Clone remembers past conversations)
+- Future memorization into EMOS (Ghost remembers past conversations)
 - Users asking "what did Confucius say in our call?"
 
 ---
@@ -378,16 +378,16 @@ For platform-managed figures, `agent_id` is the Postgres UUID. For user agents, 
 
 ## 5. Agent Framework (Google ADK)
 
-### Clone Agent Definition
+### Ghost Agent Definition
 
-Each Clone is an ADK `LlmAgent`:
+Each Ghost is an ADK `LlmAgent`:
 
 ```python
 from google.adk.agents import LlmAgent
 
-def create_clone_agent(agent_row, emos_config) -> LlmAgent:
+def create_ghost_agent(agent_row, emos_config) -> LlmAgent:
     return LlmAgent(
-        name=f"clone_{agent_row.id}",
+        name=f"ghost_{agent_row.id}",
         description=agent_row.bio or agent_row.display_name,
         model=agent_row.llm_model,  # "gemini-2.5-flash" or "amazon.nova-lite-v2:0"
         instruction=build_persona_instruction(agent_row),
@@ -401,7 +401,7 @@ def create_clone_agent(agent_row, emos_config) -> LlmAgent:
 ### Persona Instruction Template
 
 ```
-You are {display_name}, a Clone (digital twin) on Bibliotalk.
+You are {display_name}, a Ghost (digital twin) on Bibliotalk.
 
 {persona_prompt}
 
@@ -420,7 +420,7 @@ Respond naturally in conversation. Use superscript numbers (¹²³) inline for c
 
 ```python
 async def memory_search(query: str, top_k: int = 8) -> list[Evidence]:
-    """Search the Clone's EverMemOS memory for relevant evidence.
+    """Search the Ghost's EverMemOS memory for relevant evidence.
 
     Strategy: Try RRF search first (fast). If results are insufficient
     (few results or low scores), retry with retrieve_method="agentic"
@@ -430,7 +430,7 @@ async def memory_search(query: str, top_k: int = 8) -> list[Evidence]:
     verbatim text for citations, we map group_ids → sources → segments.
     """
     # Step 1: RRF search
-    result = await emos_client.search(
+    result = await evermemos_client.search(
         query=query,
         user_id=agent_id,          # same across all platforms
         retrieve_method="rrf",
@@ -443,7 +443,7 @@ async def memory_search(query: str, top_k: int = 8) -> list[Evidence]:
 
     if len(group_ids) < 3:
         # Step 2: Agentic retrieval (LLM-guided multi-round)
-        result = await emos_client.search(
+        result = await evermemos_client.search(
             query=query,
             user_id=agent_id,
             retrieve_method="agentic",
@@ -471,7 +471,7 @@ async def memory_search(query: str, top_k: int = 8) -> list[Evidence]:
     ) for seg in ranked]
 
 async def emit_citations(citations: list[Citation]) -> str:
-    """Emit structured citations — included in the Clone's response message.
+    """Emit structured citations — included in the Ghost's response message.
 
     The citations are embedded in the Matrix event's com.bibliotalk.citations
     field and rendered as an HTML footer. This tool signals the framework to
@@ -505,81 +505,137 @@ Agents default to `gemini-2.5-flash` (ADK built-in). Per-agent override via `age
 
 ---
 
-## 6. Multi-Agent Discussions (A2A Protocol)
+## 6. Multi-Agent Discussions (Streaming + Floor Control)
 
-### Architecture
+Multi-agent rooms are live chats: participants (users and Ghosts) stream text and/or voice in real time. The system must enforce **at most one speaker at a time**, support **user barge-in** (user can interrupt anytime), and still let Ghosts **autonomously request the floor** (including agent↔agent interruption), without creating reply storms or feedback loops.
 
-Each Clone exposes an A2A server endpoint. The discussion orchestrator acts as an A2A client.
+### Architecture (single authority, Matrix-native)
+
+In MVP, orchestration is centralized in `agents_service` per room (single authority). Matrix is the only shared transcript, but Ghosts do **not** autonomously “reply to whatever they see” by posting directly. Instead:
+
+- Ghost runners observe the room timeline and submit `REQUEST_FLOOR` intents to the controller.
+- A per-room **Discussion Controller** grants the floor to exactly one speaker, streams that speaker’s output to Matrix and/or the call, and can cancel an in-flight stream instantly.
+
+If/when Ghosts become separately deployed services (or third-party plugins), keep the controller contract and add a remote-runner adapter at the runner boundary (optional).
 
 ```
-User creates discussion room with Clone A, Clone B, Clone C
+Room timeline (Matrix events + voice ASR/VAD)
                     │
                     ▼
-         ┌─────────────────┐
-         │  Discussion      │
-         │  Orchestrator    │   ← ADK LoopAgent
-         │  (A2A Client)    │
-         └──┬─────┬─────┬──┘
-            │     │     │
-     A2A    │     │     │   A2A
-   message  │     │     │  message
-            ▼     ▼     ▼
-         Clone  Clone  Clone
-           A      B      C
-        (A2A   (A2A   (A2A
-        Server) Server) Server)
+         ┌──────────────────────┐
+         │ Discussion Controller │  (authoritative)
+         │  - Event Normalizer   │
+         │  - Floor Manager      │
+         │  - Scheduler          │
+         │  - Stream Router      │
+         └──┬────────┬──────────┘
+            │        │
+   invoke   │        │  post/stream
+            ▼        ▼
+        Ghost Runner   Matrix room + Element Call
+        (ADK agent)
 ```
 
-### Agent Card (per Clone)
+### Unified event model
 
-Each Clone's A2A AgentCard:
+Normalize all inputs into a single internal stream of `UtteranceEvent`s:
+
+- Matrix: `m.room.message` (text), edits (streaming text), reactions (optional)
+- Voice: VAD start/end + ASR partial/final (from `voice_call_service`)
+
+Each `UtteranceEvent` includes:
+`room_id`, `event_id`, `speaker_id`, `is_user`, `modality` (`text|voice`), `phase` (`partial|final`), `ts`, `content`, and `addressed_agents` (derived from explicit mentions / name matching, primarily from **user** utterances).
+
+### Floor manager (authoritative state machine)
+
+The Floor Manager is the only source of truth for “who may speak now”:
+
+- States:
+  - `IDLE`
+  - `USER_SPEAKING(user_id)`
+  - `AGENT_SPEAKING(agent_id, generation_id)`
+
+- User barge-in (absolute priority):
+  - On user VAD start or user text send: immediately `CANCEL(generation_id)` if an agent is speaking, stop streaming output, transition to `USER_SPEAKING`.
+
+- Release:
+  - On user end-of-utterance (VAD end + short silence threshold) → `IDLE`
+  - On agent stream completion / timeout / cancel → `IDLE`
+
+Cancellation is a first-class primitive: every agent generation (text stream and/or voice TTS) runs with a cancellation token keyed by `generation_id` and must stop promptly when cancelled.
+
+### `REQUEST_FLOOR` (agent intent API)
+
+Agents never post directly; they submit/update a single outstanding request per room (agent-provided `urgency`/`relevance` are advisory; the controller may recompute scores from context):
 
 ```json
 {
-  "name": "Confucius (Clone)",
-  "description": "Digital twin of Confucius, grounded in the Analects.",
-  "version": "1.0",
-  "skills": [
-    {
-      "id": "grounded_conversation",
-      "name": "Grounded Conversation",
-      "description": "Respond to questions and discussion topics with memory-grounded citations.",
-      "input_modes": ["text/plain"],
-      "output_modes": ["application/json"]
-    }
-  ],
-  "capabilities": {
-    "streaming": true
-  }
+  "type": "REQUEST_FLOOR",
+  "room_id": "!abc:server",
+  "agent_id": "@btghost_confucius:bibliotalk.space",
+  "force": false,
+  "reason": "Answer the user's question about virtue ethics.",
+  "urgency": 0.6,
+  "relevance": 0.8,
+  "estimate_ms": 12000,
+  "max_tokens": 500
 }
 ```
 
-### Discussion Flow (Text)
+Rules:
 
-1. User sends `/discussion start participants:@bt_confucius_clone,@bt_aristotle_clone topic:"Ethics of AI" turns:6`
-2. Orchestrator (LoopAgent) creates a Matrix room, invites Clones + user.
-3. Each iteration:
-   a. Select next speaker (round-robin, or LLM-decided based on conversation flow).
-   b. Send A2A `SendMessage` to that Clone with:
-      - Full conversation history (all prior messages)
-      - Topic/constraints
-   c. Clone calls `memory_search`, generates grounded response, calls `emit_citations`.
-   d. Response + citations posted to Matrix room.
-4. Loop for configured number of turns. User can intervene at any time (their message is included in the next turn's context).
+- `force=true` means “interrupt the current **agent** speaker and take the floor now”.
+- Agents may submit `REQUEST_FLOOR` while the user is speaking, but **must** use `force=false`.
+- The controller may clamp `max_tokens`/`estimate_ms` (especially for `force=true`) and apply cooldowns to prevent thrash.
 
-### Discussion Flow (Voice — Agentic Podcast)
+### Scheduling (who speaks next)
 
-1. User starts an Element Call in a discussion room with multiple Clones.
-2. voice_call_service joins the call as each Clone's virtual user.
-3. Audio routing:
-   - For Clone N: input = mixed audio of all other participants (human + other Clones)
-   - Each Clone runs its own voice LLM session (Nova Sonic or Gemini Live)
-   - Voice LLM uses tool-use (`memory_search`, `emit_citations`) for grounding
-4. Turn management: orchestrator gates audio input to prevent all Clones talking simultaneously. Options:
-   - VAD (voice activity detection) + queue
-   - Explicit turn tokens managed by the orchestrator
-   - User as moderator (unmutes one Clone at a time)
-5. Citations posted to a paired text thread in real-time.
+When the floor becomes available (`IDLE`), the Scheduler selects the next speaker from outstanding requests.
+
+Selection is score-based with hard constraints:
+
+- Hard constraints:
+  - Never preempt `USER_SPEAKING`.
+  - At most one agent speaks at a time.
+  - Per-agent cooldown + max continuous speaking time.
+
+- Score:
+  - `score = w_m * mention_boost + w_r * relevance + w_u * urgency + w_f * fairness + w_e * evidence`
+  - `mention_boost`: if the latest **user** utterance explicitly mentions an agent (Matrix mention, `@btghost_*`, or reliable display-name match), that agent’s next turn is strongly preferred.
+  - `relevance`: overall fit to the current conversational state (topic alignment, direct question answering, continuity); “topic coherence” is part of this.
+  - `evidence`: preference for agents that can cite grounded memory for the asked question (e.g., they already found supporting segments in a preflight search).
+
+Force handling:
+
+- If `AGENT_SPEAKING(...)` and another agent submits `REQUEST_FLOOR(force=true)`:
+  - The controller may grant it only if (a) user is not speaking, (b) the request clears a high threshold, and (c) interrupt rate limits allow it.
+  - On grant, cancel the current agent stream and hand over the floor immediately.
+
+### Streaming output (text)
+
+When an agent is granted the floor, the Stream Router:
+
+1. Posts a placeholder message as that agent (e.g., “…”).
+2. Streams tokens by editing that message (Matrix edit events).
+3. Finalizes the message when complete.
+4. Posts citations either inline (preferred) or as a follow-up message/thread, validated by `validate_citations()`.
+
+If cancelled (user barge-in or forced interruption), stop editing immediately.
+
+### Streaming output (voice)
+
+For Element Calls:
+
+- `voice_call_service` joins as each Ghost virtual user, but only the **floor holder** is unmuted for TTS emission.
+- On user VAD start:
+  - Immediately mute any Ghost audio output, cancel TTS generation, and transition to `USER_SPEAKING`.
+- While user is speaking, agents may continue to observe ASR partials and submit `REQUEST_FLOOR(force=false)` so they can respond quickly when the user stops.
+
+Citations are posted to the room in real time (paired text thread) while voice is playing, or immediately after the utterance ends.
+
+### Optional: remote runners (future)
+
+If Ghost runners become remote services, keep the same controller semantics and replace the “invoke Ghost runner” call with a remote-runner adapter. Floor control, cancellation, scoring, and Matrix/voice streaming remain centralized so behavior stays deterministic.
 
 ---
 
@@ -591,15 +647,15 @@ There are exactly two kinds of rooms. The distinction is structural and immutabl
 
 Each agent (figure or user) has one profile room. Created by the appservice when a figure is configured or a user joins.
 
-- **Room name**: "Confucius (Clone) — Profile"
+- **Room name**: "Confucius (Ghost) — Profile"
 - **Room alias**: `#bt_confucius_profile:bibliotalk.space`
 - **Join rules**: `public` (anyone on the homeserver can join to "follow")
-- **Power levels**: Clone virtual user = 50 (can send messages), all other users = 0 (read-only). `events_default` = 50 so only the Clone can post.
-- **No AI responses here.** Enforced by Matrix room permissions (read-only for non-Clone users). Only ingestion_service posts verbatim ingested content.
+- **Power levels**: Ghost virtual user = 50 (can send messages), all other users = 0 (read-only). `events_default` = 50 so only the Ghost can post.
+- **No AI responses here.** Enforced by Matrix room permissions (read-only for non-Ghost users). Only ingestion_service posts verbatim ingested content.
 - **Content format**: Each ingested source → Matrix thread. Root message = source description. Replies = verbatim segments.
 
 ```
-Thread root (posted by ingestion_service as the Clone's virtual user):
+Thread root (posted by ingestion_service as the Ghost's virtual user):
   📎 New podcast episode: "StarTalk — The Nature of Time" (2024-12-15)
   https://example.com/episode/xyz
 
@@ -631,15 +687,15 @@ Thread root:
     ...
 ```
 
-### Private Rooms (Clones Can Participate)
+### Private Rooms (Ghosts Can Participate)
 
-All other rooms — DMs, group chats, multi-agent discussions, voice calls — are private rooms where Clones can respond.
+All other rooms — DMs, group chats, multi-agent discussions, voice calls — are private rooms where Ghosts can respond.
 
 - **Created by**: A user, via Element's room creation UI or bot commands
 - **Join rules**: `invite` (private)
-- **Power levels**: All participants (users and Clones) = 50
-- **Clone behavior**: Clones respond when mentioned, when directly messaged (DM), or on their turn in a multi-agent discussion. The appservice checks: if a room is NOT in `profile_rooms`, Clones are allowed to respond.
-- **Voice**: Any private room can host an Element Call. Clone virtual users join the call via voice_call_service. A text thread is created in the room for live transcripts + citations.
+- **Power levels**: All participants (users and Ghosts) = 50
+- **Ghost behavior**: Ghosts respond when mentioned, when directly messaged (DM), or on their turn in a multi-agent discussion. The appservice checks: if a room is NOT in `profile_rooms`, Ghosts are allowed to respond.
+- **Voice**: Any private room can host an Element Call. Ghost virtual users join the call via voice_call_service. A text thread is created in the room for live transcripts + citations.
 
 ---
 
@@ -767,7 +823,7 @@ For YouTube citations, `source_url` includes a timestamp deep link:
 
 ### Matrix Message Format
 
-Clone responses are sent as `m.room.message` events with both human-readable rendering and a machine-readable citation payload in the event content:
+Ghost responses are sent as `m.room.message` events with both human-readable rendering and a machine-readable citation payload in the event content:
 
 ```json
 {
@@ -798,7 +854,7 @@ Clone responses are sent as `m.room.message` events with both human-readable ren
 
 ### Validation
 
-Before posting any Clone response:
+Before posting any Ghost response:
 1. Parse citation markers from response text.
 2. Verify each cited `segment_id` exists in the `segments` table for this agent.
 3. Verify each `quote` is a substring of `segments.text` for the corresponding segment.
@@ -821,7 +877,7 @@ Element Call (WebRTC)
 │  livekit-client or matrix-js-sdk  │  ← MatrixRTC participant
 │  WebRTC media track handling      │
 │  Opus decode → PCM 16kHz          │  ← user audio in
-│  PCM 24kHz → Opus encode          │  ← Clone audio out
+│  PCM 24kHz → Opus encode          │  ← Ghost audio out
 │                                   │
 │  WebSocket bridge ──────────────────── agents_service (Python)
 └───────────────────────────────────┘
@@ -885,16 +941,16 @@ Based on the [Gemini Multimodal Live API](https://github.com/GoogleCloudPlatform
 
 ### Multi-Agent Voice (Agentic Podcast)
 
-For a discussion room with N Clones + 1 user in a voice call:
+For a discussion room with N Ghosts + 1 user in a voice call:
 
-1. voice_call_service joins the call as N virtual users (one per Clone).
+1. voice_call_service joins the call as N virtual users (one per Ghost).
 2. Audio routing in agents_service:
    - Receive each participant's audio stream from the sidecar
-   - For Clone_i: mix all other participants' audio → feed to Clone_i's voice backend
-   - Clone_i's output audio → send to sidecar → play as Clone_i's virtual user in the call
+   - For Ghost_i: mix all other participants' audio → feed to Ghost_i's voice backend
+   - Ghost_i's output audio → send to sidecar → play as Ghost_i's virtual user in the call
 3. Turn management via the orchestrator to prevent simultaneous speech.
-4. Citations from each Clone's `emit_citations` tool call → posted to paired text thread.
-5. All voice transcripts (user and Clone turns) stored in `chat_history` with `modality = 'voice'`.
+4. Citations from each Ghost's `emit_citations` tool call → posted to paired text thread.
+5. All voice transcripts (user and Ghost turns) stored in `chat_history` with `modality = 'voice'`.
 
 ---
 
@@ -905,14 +961,14 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 | Command                                                   | Description                                                          |
 | --------------------------------------------------------- | -------------------------------------------------------------------- |
 | `!bt help`                                                | Show available commands                                              |
-| `!bt clone setup`                                         | Link your EMOS API key to activate your Clone                        |
-| `!bt clone status`                                        | Show your Clone's status and memory stats                            |
-| `!bt clone model <model>`                                 | Set your Clone's LLM model (gemini-2.5-flash, amazon.nova-lite-v2:0) |
-| `!bt discuss start <@clone1> <@clone2> [topic] [turns:N]` | Start a multi-agent discussion room                                  |
+| `!bt ghost setup`                                         | Link your EMOS API key to activate your Ghost                        |
+| `!bt ghost status`                                        | Show your Ghost's status and memory stats                            |
+| `!bt ghost model <model>`                                 | Set your Ghost's LLM model (gemini-2.5-flash, amazon.nova-lite-v2:0) |
+| `!bt discuss start <@ghost1> <@ghost2> [topic] [turns:N]` | Start a multi-agent discussion room                                  |
 | `!bt discuss stop`                                        | End the current discussion                                           |
-| `!bt call start <@clone>`                                 | Start a voice call with a Clone (must be in a voice-capable room)    |
+| `!bt call start <@ghost>`                                 | Start a voice call with a Ghost (must be in a voice-capable room)    |
 | `!bt call stop`                                           | End the current voice call                                           |
-| `!bt figure list`                                         | List all available figure Clones                                     |
+| `!bt figure list`                                         | List all available figure Ghosts                                     |
 | `!bt figure info <name>`                                  | Show a figure's profile and memory sources                           |
 | `!bt admin figure create <name>`                          | (Admin) Create a new figure                                          |
 | `!bt admin figure ingest <name> <source>`                 | (Admin) Trigger ingestion for a figure                               |
@@ -924,14 +980,14 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 ### Infrastructure
 
-| Component          | Deployment                                                                    |
-| ------------------ | ----------------------------------------------------------------------------- |
-| Synapse            | ECS Fargate or EC2, with Postgres backend (RDS or Supabase)                   |
-| agents_service     | ECS Fargate                                                                   |
-| voice_call_service | ECS Fargate (same task definition as agents_service, or sidecar container)    |
-| ingestion_service  | ECS Fargate                                                                   |
-| Supabase           | Managed (supabase.com) or self-hosted on ECS                                  |
-| EverMemOS          | Managed cloud instance                                                        |
+| Component          | Deployment                                                                 |
+| ------------------ | -------------------------------------------------------------------------- |
+| Synapse            | ECS Fargate or EC2, with Postgres backend (RDS or Supabase)                |
+| agents_service     | ECS Fargate                                                                |
+| voice_call_service | ECS Fargate (same task definition as agents_service, or sidecar container) |
+| ingestion_service  | ECS Fargate                                                                |
+| Supabase           | Managed (supabase.com) or self-hosted on ECS                               |
+| EverMemOS          | Managed cloud instance                                                     |
 
 ### Region
 
@@ -943,7 +999,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 - `bibliotalk.space` — Synapse homeserver
 - Matrix user IDs: `@alice:bibliotalk.space`
-- Clone user IDs: `@bt_alice_clone:bibliotalk.space`
+- Ghost user IDs: `@btghost_alice:bibliotalk.space`
 
 ---
 
@@ -953,15 +1009,15 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 2. **Supabase schema**: Create tables, seed a test figure
 3. **agents_service core**: Appservice event handler (mautrix), basic message routing
 4. **EMOS client**: Async Python client for `/api/v1/memories` (memorize, search, conversation-meta)
-5. **ADK agent**: Clone agent with persona instruction, memory_search tool, emit_citations tool
-6. **Private text chat**: Clone responds in DMs and group chats with grounded citations
+5. **ADK agent**: Ghost agent with persona instruction, memory_search tool, emit_citations tool
+6. **Private text chat**: Ghost responds in DMs and group chats with grounded citations
 7. **Ingestion — Podwise**: Podcast transcript ingestion pipeline + profile room threads
 8. **Ingestion — Gutenberg**: Book text ingestion pipeline + profile room threads
 9. **Ingestion — YouTube**: Transcript ingestion pipeline + profile room threads
-10. **Multi-agent discussions**: LoopAgent orchestrator + A2A protocol between Clones
+10. **Multi-agent discussions**: LoopAgent orchestrator (in-process; optional remote-runner adapter later)
 11. **voice_call_service**: MatrixRTC join, WebRTC audio handling, audio bridge to Python
 12. **Voice backends**: Nova Sonic + Gemini Live implementations behind VoiceBackend ABC
-13. **Voice calls**: End-to-end 1:1 voice call with a Clone
+13. **Voice calls**: End-to-end 1:1 voice call with a Ghost
 14. **Multi-agent voice**: Audio mixing + orchestrated turn-taking for agentic podcasts
 
 ---
@@ -999,20 +1055,20 @@ ws                          # WebSocket (bridge to agents_service)
 
 ### Hard Rules (enforced)
 
-1. **No AI in profile rooms.** Enforced by Matrix room permissions (profile rooms are read-only to non-Clone users). Only ingestion_service posts verbatim segments.
-2. **Citation validation.** Every Clone response passes through `validate_citations()` before posting. Citations referencing nonexistent segments or mismatched quotes are stripped.
-3. **Appservice namespace isolation.** Only `@bt_*` users are controlled by the appservice. Real users cannot impersonate Clones.
+1. **No AI in profile rooms.** Enforced by Matrix room permissions (profile rooms are read-only to non-Ghost users). Only ingestion_service posts verbatim segments.
+2. **Citation validation.** Every Ghost response passes through `validate_citations()` before posting. Citations referencing nonexistent segments or mismatched quotes are stripped.
+3. **Appservice namespace isolation.** Only `@bt_*` users are controlled by the appservice. Real users cannot impersonate Ghosts.
 
 ### Rate Limits
 
-- Clone responses: max 1 response per 5 seconds per room (prevent spam loops in multi-Clone rooms).
+- Ghost responses: max 1 response per 5 seconds per room (prevent spam loops in multi-Ghost rooms).
 - Ingestion: configurable per-platform rate limits to respect upstream API quotas.
 
 ### MVP Assumptions
 
 - **Unencrypted call media.** Voice bots cannot participate in encrypted Element Call sessions. MVP voice calls are unencrypted. E2EE voice is deferred.
-- **Single homeserver.** No federation in MVP. All users and Clones are on `bibliotalk.space`.
-- **EMOS availability.** If the managed EMOS instance is down, Clones respond with "My memory is temporarily unavailable" rather than hallucinating.
+- **Single homeserver.** No federation in MVP. All users and Ghosts are on `bibliotalk.space`.
+- **EMOS availability.** If the managed EMOS instance is down, Ghosts respond with "My memory is temporarily unavailable" rather than hallucinating.
 
 ### Secrets (AWS Secrets Manager)
 
@@ -1044,17 +1100,17 @@ SUPABASE_SERVICE_ROLE_KEY
 
 ### Integration Tests (with mocked external services)
 
-- **Appservice**: Synapse pushes event → agents_service receives → Clone responds in room with citations.
+- **Appservice**: Synapse pushes event → agents_service receives → Ghost responds in room with citations.
 - **Ingestion end-to-end**: Podwise/Gutenberg/YouTube ingestor creates `sources` + `segments` rows, calls EMOS memorize, posts threads to profile room.
-- **Citation round-trip**: Ingested segment → EMOS memorize → memory_search retrieves it → Clone cites it → validation passes → posted with correct segment_id.
-- **Multi-agent discussion**: Orchestrator sends A2A messages → Clones respond in turn → citations posted to shared room.
-- **Profile rooms**: Verify non-Clone users cannot send messages in profile rooms (Matrix permissions), and only ingestion_service posts verbatim segments.
+- **Citation round-trip**: Ingested segment → EMOS memorize → memory_search retrieves it → Ghost cites it → validation passes → posted with correct segment_id.
+- **Multi-agent discussion**: Orchestrator invokes Ghost runners → Ghosts respond in turn → citations posted to shared room.
+- **Profile rooms**: Verify non-Ghost users cannot send messages in profile rooms (Matrix permissions), and only ingestion_service posts verbatim segments.
 
 ### MVP "Done" Scenarios
 
 1. Admin creates a figure (e.g., Confucius) with Gutenberg + Podwise sources. Ingestion populates `sources`, `segments`, EMOS. Profile room shows content threads with verbatim excerpts.
-2. User joins homeserver. Clone `User (Clone)` is auto-created. User links their EMOS API key via `!bt clone setup`.
-3. User DMs `@bt_confucius_clone`. Clone responds with grounded citations — each citation's `quote` is verifiable as a substring of the referenced segment.
-4. User creates a discussion room with Confucius and Aristotle Clones. Multi-turn discussion proceeds with grounded responses from both, each citing their own memories.
-5. User starts a voice call with a Clone. Clone responds in voice (unencrypted Element Call). Citations appear in a text thread in the same room.
+2. User joins homeserver. Ghost `User (Ghost)` is auto-created. User links their EMOS API key via `!bt ghost setup`.
+3. User DMs `@btghost_confucius`. Ghost responds with grounded citations — each citation's `quote` is verifiable as a substring of the referenced segment.
+4. User creates a discussion room with Confucius and Aristotle Ghosts. Multi-turn discussion proceeds with grounded responses from both, each citing their own memories.
+5. User starts a voice call with a Ghost. Ghost responds in voice (unencrypted Element Call). Citations appear in a text thread in the same room.
 6. Switching voice engine (Nova Sonic ↔ Gemini Live) is a config toggle without changing higher-level call orchestration.

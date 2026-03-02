@@ -48,7 +48,7 @@ description: "Tasks for EverMemOS Content Ingestion Package"
 - [X] T010 Define core Pydantic models (Source, Segment, reports) aligned to `contracts/report-format.md` in `services/ingestion_service/src/models.py`
 - [X] T011 Implement stable ID builders (`group_id`, `message_id`) per `contracts/evermemos-api.md` in `services/ingestion_service/src/ids.py`
 - [X] T012 Implement deterministic chunking for plain text + time-coded transcripts in `services/ingestion_service/src/chunking.py`
-- [X] T013 Implement EverMemOS client wrapper (memorize + conversation-meta + retries + redaction) in `services/ingestion_service/src/evermemos_client.py`
+- [X] T013 Implement EverMemOS client wrapper (memorize + conversation-meta + retries + redaction) in `services/ingestion_service/src/evermevermemos_client.py`
 - [X] T014 Implement local SQLite ingestion index schema + CRUD in `services/ingestion_service/src/index.py`
 - [X] T015 Implement report writer (JSON v1) + redaction rules in `services/ingestion_service/src/reporting.py`
 - [X] T016 Implement ingestion pipeline entrypoint (`ingest_source`, shared helpers) in `services/ingestion_service/src/ingest.py`
@@ -57,7 +57,7 @@ description: "Tasks for EverMemOS Content Ingestion Package"
 
 ---
 
-## Phase 3: User Story 1 - Ingest A Single Source For A Clone (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Ingest A Single Source For A Ghost (Priority: P1) 🎯 MVP
 
 **Goal**: Ingest one operator-provided source (text or local file) into EverMemOS as grouped, ordered segments with a clear per-source report.
 
