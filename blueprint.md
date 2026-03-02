@@ -47,7 +47,7 @@ Bibliotalk is a social network where every account — whether a living person, 
 └──────────────────────┬──────────────────────────────────┘
                        │
           ┌────────────▼─────────────┐
-          │       bt-agent           │
+          │    agents_service        │
           │  (Python — FastAPI)      │
           │                          │
           │  ┌────────────────────┐  │
@@ -70,16 +70,16 @@ Bibliotalk is a social network where every account — whether a living person, 
           └──────────────────────────┘
                        │
           ┌────────────▼─────────────┐
-          │    bt-voice-sidecar      │
+          │  voice_call_service      │
           │  (Node.js)               │
           │                          │
           │  MatrixRTC client        │  ← joins Element Call sessions
           │  WebRTC media handling   │  ← audio encode/decode
-          │  Audio bridge to Python  │  ← WebSocket/IPC to bt-agent
+          │  Audio bridge to Python  │  ← WebSocket/IPC to agents_service
           └──────────────────────────┘
 
           ┌──────────────────────────┐
-          │       bt-workers         │
+          │   ingestion_service      │
           │  (Python — async)        │
           │                          │
           │  Podwise ingestion        │  → podcasts → EMOS + profile room
@@ -99,7 +99,7 @@ Bibliotalk is a social network where every account — whether a living person, 
           └──────────────────────────┘
 ```
 
-### bt-agent
+### agents_service
 
 The core service. Runs as a Synapse appservice and hosts the agent runtime.
 
@@ -107,18 +107,18 @@ The core service. Runs as a Synapse appservice and hosts the agent runtime.
 - **Agent orchestrator** (Google ADK): Each Clone is an ADK `LlmAgent` with persona instructions, memory tools, and grounding rules. Multi-agent discussions use `LoopAgent` orchestration with A2A protocol between Clones.
 - **Voice bridge**: Coordinates with the JS sidecar for MatrixRTC voice sessions. Routes audio between the sidecar and LLM voice backends (Nova Sonic / Gemini Live).
 
-### bt-voice-sidecar
+### voice_call_service
 
 Node.js process that handles MatrixRTC/WebRTC media.
 
 - Joins Element Call sessions as a Clone's virtual user
 - Handles WebRTC signaling, Opus decode/encode, PCM resampling
-- Bridges audio to bt-agent via local WebSocket or IPC:
-  - Sends user audio (PCM 16kHz) to bt-agent
-  - Receives Clone audio (PCM 24kHz from Nova Sonic, or Gemini Live output) from bt-agent
+- Bridges audio to agents_service via local WebSocket or IPC:
+  - Sends user audio (PCM 16kHz) to agents_service
+  - Receives Clone audio (PCM 24kHz from Nova Sonic, or Gemini Live output) from agents_service
 - One sidecar process can handle multiple concurrent voice sessions
 
-### bt-workers
+### ingestion_service
 
 Background job processor for figure content ingestion.
 
@@ -127,9 +127,9 @@ Background job processor for figure content ingestion.
 - Posts content threads to figure profile rooms via appservice API
 - Tracks progress in `ingestion_jobs` table
 
-### bt-common (shared Python library, in-repo package)
+### bt_common (shared Python library, in-repo package)
 
-Shared code used by both bt-agent and bt-workers:
+Shared code used by both agents_service and ingestion_service:
 
 - **EMOS client**: Async httpx client for `/api/v1/memories` endpoints (memorize, search, conversation-meta)
 - **Citation schema**: Pydantic models for citation objects + validation logic
@@ -155,13 +155,13 @@ Every Matrix account on the Bibliotalk homeserver is either a real user or a Clo
 - **Real users**: `@alice:bibliotalk.space` — registered normally via Element
 - **Clone virtual users**: `@bt_alice_clone:bibliotalk.space` — created by the appservice when user joins or when a figure is configured
 
-The appservice reserves the `@bt_*` namespace. Synapse routes all events involving these users to bt-agent.
+The appservice reserves the `@bt_*` namespace. Synapse routes all events involving these users to agents_service.
 
 ### Appservice Registration (YAML)
 
 ```yaml
 id: bibliotalk
-url: "http://bt-agent:8009"
+url: "http://agents-service:8009"
 as_token: <generated>
 hs_token: <generated>
 sender_localpart: bt_system
@@ -595,7 +595,7 @@ Each agent (figure or user) has one profile room. Created by the appservice when
 - **Room alias**: `#bt_confucius_profile:bibliotalk.space`
 - **Join rules**: `public` (anyone on the homeserver can join to "follow")
 - **Power levels**: Clone virtual user = 50 (can send messages), all other users = 0 (read-only). `events_default` = 50 so only the Clone can post.
-- **No AI responses here.** Enforced by Matrix room permissions (read-only for non-Clone users). Only bt-workers posts verbatim ingested content.
+- **No AI responses here.** Enforced by Matrix room permissions (read-only for non-Clone users). Only ingestion_service posts verbatim ingested content.
 - **Content format**: Each ingested source → Matrix thread. Root message = source description. Replies = verbatim segments.
 
 ```
@@ -639,7 +639,7 @@ All other rooms — DMs, group chats, multi-agent discussions, voice calls — a
 - **Join rules**: `invite` (private)
 - **Power levels**: All participants (users and Clones) = 50
 - **Clone behavior**: Clones respond when mentioned, when directly messaged (DM), or on their turn in a multi-agent discussion. The appservice checks: if a room is NOT in `profile_rooms`, Clones are allowed to respond.
-- **Voice**: Any private room can host an Element Call. Clone virtual users join the call via bt-voice-sidecar. A text thread is created in the room for live transcripts + citations.
+- **Voice**: Any private room can host an Element Call. Clone virtual users join the call via voice_call_service. A text thread is created in the room for live transcripts + citations.
 
 ---
 
@@ -655,7 +655,7 @@ Source API → Fetch metadata → Upsert sources row
          → Update segments.matrix_event_id
 ```
 
-All ingestion runs in bt-workers. Progress tracked in `ingestion_jobs`. Content metadata stored in `sources`, canonical chunks in `segments`.
+All ingestion runs in ingestion_service. Progress tracked in `ingestion_jobs`. Content metadata stored in `sources`, canonical chunks in `segments`.
 
 ### 8.1 Podwise (Podcasts)
 
@@ -816,17 +816,17 @@ Element Call (WebRTC)
        │  MatrixRTC signaling + media
        │
 ┌──────▼───────────────────────────┐
-│     bt-voice-sidecar (Node.js)   │
+│   voice_call_service (Node.js)   │
 │                                   │
 │  livekit-client or matrix-js-sdk  │  ← MatrixRTC participant
 │  WebRTC media track handling      │
 │  Opus decode → PCM 16kHz          │  ← user audio in
 │  PCM 24kHz → Opus encode          │  ← Clone audio out
 │                                   │
-│  WebSocket bridge ──────────────────── bt-agent (Python)
+│  WebSocket bridge ──────────────────── agents_service (Python)
 └───────────────────────────────────┘
 
-bt-agent:
+agents_service:
   ┌─────────────────────────────────┐
   │  Voice Session Manager          │
   │                                 │
@@ -887,8 +887,8 @@ Based on the [Gemini Multimodal Live API](https://github.com/GoogleCloudPlatform
 
 For a discussion room with N Clones + 1 user in a voice call:
 
-1. bt-voice-sidecar joins the call as N virtual users (one per Clone).
-2. Audio routing in bt-agent:
+1. voice_call_service joins the call as N virtual users (one per Clone).
+2. Audio routing in agents_service:
    - Receive each participant's audio stream from the sidecar
    - For Clone_i: mix all other participants' audio → feed to Clone_i's voice backend
    - Clone_i's output audio → send to sidecar → play as Clone_i's virtual user in the call
@@ -924,18 +924,18 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 ### Infrastructure
 
-| Component        | Deployment                                                           |
-| ---------------- | -------------------------------------------------------------------- |
-| Synapse          | ECS Fargate or EC2, with Postgres backend (RDS or Supabase)          |
-| bt-agent         | ECS Fargate                                                          |
-| bt-voice-sidecar | ECS Fargate (same task definition as bt-agent, or sidecar container) |
-| bt-workers       | ECS Fargate                                                          |
-| Supabase         | Managed (supabase.com) or self-hosted on ECS                         |
-| EverMemOS        | Managed cloud instance                                               |
+| Component          | Deployment                                                                    |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Synapse            | ECS Fargate or EC2, with Postgres backend (RDS or Supabase)                   |
+| agents_service     | ECS Fargate                                                                   |
+| voice_call_service | ECS Fargate (same task definition as agents_service, or sidecar container)    |
+| ingestion_service  | ECS Fargate                                                                   |
+| Supabase           | Managed (supabase.com) or self-hosted on ECS                                  |
+| EverMemOS          | Managed cloud instance                                                        |
 
 ### Region
 
-- bt-voice-sidecar and bt-agent: **us-east-1** (Nova Sonic availability, Gemini Live latency)
+- voice_call_service and agents_service: **us-east-1** (Nova Sonic availability, Gemini Live latency)
 - Synapse: same region for low-latency event delivery
 - All other services: same region for simplicity
 
@@ -951,7 +951,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 1. **Synapse + appservice scaffold**: Deploy Synapse, register appservice, verify virtual user creation
 2. **Supabase schema**: Create tables, seed a test figure
-3. **bt-agent core**: Appservice event handler (mautrix), basic message routing
+3. **agents_service core**: Appservice event handler (mautrix), basic message routing
 4. **EMOS client**: Async Python client for `/api/v1/memories` (memorize, search, conversation-meta)
 5. **ADK agent**: Clone agent with persona instruction, memory_search tool, emit_citations tool
 6. **Private text chat**: Clone responds in DMs and group chats with grounded citations
@@ -959,7 +959,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 8. **Ingestion — Gutenberg**: Book text ingestion pipeline + profile room threads
 9. **Ingestion — YouTube**: Transcript ingestion pipeline + profile room threads
 10. **Multi-agent discussions**: LoopAgent orchestrator + A2A protocol between Clones
-11. **bt-voice-sidecar**: MatrixRTC join, WebRTC audio handling, audio bridge to Python
+11. **voice_call_service**: MatrixRTC join, WebRTC audio handling, audio bridge to Python
 12. **Voice backends**: Nova Sonic + Gemini Live implementations behind VoiceBackend ABC
 13. **Voice calls**: End-to-end 1:1 voice call with a Clone
 14. **Multi-agent voice**: Audio mixing + orchestrated turn-taking for agentic podcasts
@@ -968,7 +968,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 ## 14. Key Dependencies
 
-### Python (bt-agent, bt-workers)
+### Python (agents_service, ingestion_service)
 
 ```
 google-adk                  # Agent Development Kit
@@ -984,7 +984,7 @@ pydantic-settings           # Env config
 uvicorn                     # ASGI server (appservice HTTP endpoint)
 ```
 
-### Node.js (bt-voice-sidecar)
+### Node.js (voice_call_service)
 
 ```
 matrix-js-sdk               # Matrix client (MatrixRTC signaling)
@@ -999,7 +999,7 @@ ws                          # WebSocket (bridge to bt-agent)
 
 ### Hard Rules (enforced)
 
-1. **No AI in profile rooms.** Enforced by Matrix room permissions (profile rooms are read-only to non-Clone users). Only bt-workers posts verbatim segments.
+1. **No AI in profile rooms.** Enforced by Matrix room permissions (profile rooms are read-only to non-Clone users). Only ingestion_service posts verbatim segments.
 2. **Citation validation.** Every Clone response passes through `validate_citations()` before posting. Citations referencing nonexistent segments or mismatched quotes are stripped.
 3. **Appservice namespace isolation.** Only `@bt_*` users are controlled by the appservice. Real users cannot impersonate Clones.
 
@@ -1044,11 +1044,11 @@ SUPABASE_SERVICE_ROLE_KEY
 
 ### Integration Tests (with mocked external services)
 
-- **Appservice**: Synapse pushes event → bt-agent receives → Clone responds in room with citations.
+- **Appservice**: Synapse pushes event → agents_service receives → Clone responds in room with citations.
 - **Ingestion end-to-end**: Podwise/Gutenberg/YouTube ingestor creates `sources` + `segments` rows, calls EMOS memorize, posts threads to profile room.
 - **Citation round-trip**: Ingested segment → EMOS memorize → memory_search retrieves it → Clone cites it → validation passes → posted with correct segment_id.
 - **Multi-agent discussion**: Orchestrator sends A2A messages → Clones respond in turn → citations posted to shared room.
-- **Profile rooms**: Verify non-Clone users cannot send messages in profile rooms (Matrix permissions), and only bt-workers posts verbatim segments.
+- **Profile rooms**: Verify non-Clone users cannot send messages in profile rooms (Matrix permissions), and only ingestion_service posts verbatim segments.
 
 ### MVP "Done" Scenarios
 

@@ -43,8 +43,8 @@ implementation code is written.
   defined in design artifacts — not discovered during implementation.
 - Architectural decisions MUST be documented with rationale and
   trade-offs considered. Undocumented decisions are technical debt.
-- Cross-service interactions (bt-agent, bt-voice-sidecar,
-  bt-workers, Synapse) MUST have explicit contract definitions
+- Cross-service interactions (agents_service, voice_call_service,
+  ingestion_service, Synapse) MUST have explicit contract definitions
   before integration work begins.
 
 **Rationale**: Bibliotalk is a multi-service, multi-agent system

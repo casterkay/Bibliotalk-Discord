@@ -9,17 +9,24 @@ Auto-generated from all feature plans. Last updated: 2026-03-02
 ## Project Structure
 
 ```text
-bt_agent/
-bt_cli/
-bt_common/
-bt_voice_sidecar/
+services/
+  agents_service/        # Python — appservice + agent runtime
+  ingestion_service/     # Python — content ingestion pipelines + CLI
+  voice_call_service/    # Node.js — MatrixRTC/WebRTC sidecar
+packages/
+  bt_common/             # Python — shared library (citations, EMOS client, etc.)
+tools/
+  bt_cli/                # Python — developer CLI
 specs/
-tests/
+docs/
 ```
 
 ## Commands
 
-python -m pytest
+- Run all tests for a service (from its directory):
+  - `python -m pytest`
+- Run ingestion CLI:
+  - `python -m ingestion_service --help`
 
 ## Code Style
 
@@ -32,17 +39,17 @@ Python 3.11+: Follow standard conventions
 <!-- MANUAL ADDITIONS START -->
 ## Manual Notes
 
-### New Package: `evermemos_ingest/`
+### ingestion_service
 
 - Standalone EverMemOS ingestion library + CLI (see `specs/002-evermemos-content-ingest/`).
 - Local artifacts (gitignored): `.evermemos_ingest/` (SQLite index + JSON reports).
 
 ### Common Commands
 
-- Sync deps (avoids permission issues with the default uv cache dir):
-  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev --extra ingest`
-- Run tests:
-  - `.venv/bin/python -m pytest`
-- CLI help:
-  - `.venv/bin/python -m evermemos_ingest --help`
+- Sync deps (from each service/package directory):
+  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev`
+- Run tests (from each service/package directory):
+  - `python -m pytest`
+- Ingestion CLI help:
+  - `python -m ingestion_service --help`
 <!-- MANUAL ADDITIONS END -->
