@@ -30,4 +30,19 @@ Python 3.11+: Follow standard conventions
 - 002-evermemos-content-ingest: Added Python 3.11+ + `evermemos` (EverMemOS SDK), `httpx`, `pydantic`, `typer`, `rich`, `tenacity`
 
 <!-- MANUAL ADDITIONS START -->
+## Manual Notes
+
+### New Package: `evermemos_ingest/`
+
+- Standalone EverMemOS ingestion library + CLI (see `specs/002-evermemos-content-ingest/`).
+- Local artifacts (gitignored): `.evermemos_ingest/` (SQLite index + JSON reports).
+
+### Common Commands
+
+- Sync deps (avoids permission issues with the default uv cache dir):
+  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev --extra ingest`
+- Run tests:
+  - `.venv/bin/python -m pytest`
+- CLI help:
+  - `.venv/bin/python -m evermemos_ingest --help`
 <!-- MANUAL ADDITIONS END -->
