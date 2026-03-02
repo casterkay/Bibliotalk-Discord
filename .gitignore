@@ -53,11 +53,17 @@ agents/
 
 *.pyc
 __pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
 *.egg-info/
 dist/
 *.log
+.evermemos_ingest/
 .env*
 !.env.example
 Thumbs.db

@@ -55,6 +55,11 @@ sources:
     canonical_url: "https://example.com/walden"
     file_path: "/Users/tcai/Documents/walden_ch1.txt"
 
+  - platform: "local"
+    external_id: "inline-note-1"
+    title: "Operator Note"
+    text: "A short inline note that should be ingested as a single source."
+
   - platform: "gutenberg"
     external_id: "3330"
     title: "The Analects"
@@ -73,4 +78,3 @@ sources:
 - The CLI MUST reject manifests missing required fields with a clear error message.
 - The CLI MUST reject sources that imply interactive crawling (e.g., arbitrary `url` without a supported adapter) with an actionable error.
 - Processing MUST continue for other sources if one source fails.
-

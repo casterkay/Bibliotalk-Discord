@@ -32,7 +32,7 @@ Intended CLI shape:
 
 Expected output:
 - human-readable summary to stdout
-- a JSON report file written to an operator-specified path or a default run directory
+- a JSON report file written to an operator-specified `--report-path`, or by default to `.evermemos_ingest/reports/<run_id>.json`
 
 ## Re-Run Safely (P2)
 
@@ -53,4 +53,3 @@ The manifest format and report format are defined in:
 ## Non-Interactive Constraint
 
 If a source requires interactive browsing (dynamic rendering, login, anti-bot challenges), ingestion must fail with an actionable error. Playwright/browser crawling is explicitly deferred in this feature.
-

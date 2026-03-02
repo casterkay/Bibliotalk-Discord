@@ -15,7 +15,11 @@ dependencies = [
   "evermemos>=0.3.13",
   "pydantic>=2.8.0",
   "pydantic-settings>=2.4.0",
+  "rich>=13.7.0",
+  "tenacity>=8.5.0",
   "supabase>=2.6.0",
+  "typer>=0.12.0",
+  "PyYAML>=6.0.1",
   "boto3>=1.35.0",
 ]
 
@@ -24,9 +28,12 @@ dev = [
   "pytest>=8.3.0",
   "pytest-asyncio>=0.23.8",
 ]
+ingest = [
+  "youtube-transcript-api>=0.6.2",
+]
 
 [tool.setuptools]
-packages = ["bt_common", "bt_agent", "bt_cli", "tests"]
+packages = ["bt_common", "bt_agent", "bt_cli", "evermemos_ingest", "evermemos_ingest.adapters", "tests"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
