@@ -1,42 +1,46 @@
 # Implementation Plan: Agent Service
 
-**Branch**: `001-agent-service` | **Date**: 2026-02-28 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/001-agent-service/spec.md`
+**Feature**: `001-agent-service` | **Date**: 2026-03-02 | **Spec**: [spec.md](./spec.md)  
+**Input**: `BLUEPRINT.md` + the design docs in `specs/001-agent-service/`
 
 ## Summary
 
-Build the core Bibliotalk agent service: Ghost agents powered by Google
-ADK with EverMemOS memory grounding, citation validation, multi-agent
-discussions via streaming floor control, and voice chat via Nova Sonic / Gemini
-Live backends. Matrix integration is deferred after agent core is
-validated via a CLI test harness (see research.md R1).
+Implement `agents_service`, the Matrix appservice + runtime that powers Ghosts (AI digital twins) with EverMemOS-grounded responses and verifiable citations (**言必有據**). The service also owns multi-agent discussion orchestration (floor control) and coordinates with `voice_call_service` for MatrixRTC voice sessions.
+
+This repository already contains a minimal end-to-end skeleton (CLI harness, FastAPI transaction endpoint, citation/segment models, an EverMemOS client wrapper, and voice scaffolding). The target architecture in `BLUEPRINT.md` uses **Google ADK** for the agent runtime; ADK integration remains planned and should preserve the same tool contracts (`memory_search`, `emit_citations`) and citation validation rules.
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ (agents_service, bt_common, bt_cli); Node.js 20+ (voice_call_service)
-**Primary Dependencies**: google-adk, google-genai, mautrix, httpx, supabase, boto3, pydantic, uvicorn, FastAPI
-**Storage**: Supabase (PostgreSQL) for agents, sources, segments, chat_history; EverMemOS for vector memory
-**Testing**: pytest + respx (unit/contract), Docker Compose + EMOS (integration), ADK InMemoryRunner (agent tests)
-**Target Platform**: Linux server (AWS ECS Fargate, us-east-1)
-**Project Type**: Multi-service backend (appservice + voice sidecar + shared library + CLI harness)
-**Performance Goals**: <5s text response latency, <3s voice response latency, 50 concurrent conversations
-**Constraints**: us-east-1 region (Nova Sonic availability), unencrypted voice in MVP, single homeserver
-**Scale/Scope**: ~25 figure Ghosts initially, growing to 100+; user Ghosts unbounded
+**Languages**: Python 3.11+ (`services/agents_service`, `packages/bt_common`); Node.js 20+ (`services/voice_call_service`)  
+**Key deps (current)**:
+- Python: `fastapi`, `uvicorn`, `pydantic`, `pydantic-settings`, `httpx`, `evermemos`, `supabase`
+- Node: `matrix-js-sdk`, `ws`
+**Key deps (target, per blueprint)**: Google ADK, Gemini APIs, AWS Bedrock (Nova Lite v2 / Nova Sonic)
+
+**Storage**: Supabase Postgres (agents, segments, chat_history, …), EverMemOS (memory)  
+**Performance goals**: <5s text response latency; <3s voice response latency  
+**Constraints**: unencrypted voice for MVP; single homeserver; appservice reserves `@bt_*` namespace; Ghosts never respond in profile rooms
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*GATE: Must pass before major implementation changes. Re-check after each milestone.*
 
-| Principle                        | Gate                                                                             | Status                      |
-| -------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
-| I. Design-First Architecture     | spec.md + plan.md exist before coding                                            | PASS                        |
-| II. Test-Driven Quality          | Unit tests for all business logic, contract tests for EMOS/Matrix/floor-control boundaries | PASS — test plan defined    |
-| III. Contract-Driven Integration | Pydantic schemas for EMOS, citations, Matrix events, floor-control messages              | PASS — contracts/ defined   |
-| IV. Incremental Delivery         | P1 (text chat) works before P2 (multi-agent) before P3 (voice)                   | PASS — phased by user story |
-| V. Observable Systems            | Structured logging with correlation IDs on all service entry points              | PASS — included in plan     |
-| VI. Principled Simplicity        | CLI-first testing defers Matrix infrastructure; reuse ADK primitives             | PASS                        |
+| Principle                        | Gate                                                                | Status |
+| -------------------------------- | ------------------------------------------------------------------- | ------ |
+| I. Design-First Architecture     | `spec.md` + `plan.md` exist before deeper build-out                 | PASS   |
+| II. Test-Driven Quality          | Unit tests cover core business logic; contract tests cover EMOS edge | PASS   |
+| III. Contract-Driven Integration | Explicit contracts for EMOS, citations, floor control, voice backend | PASS   |
+| IV. Incremental Delivery         | US1 before US2 before US3 before US4                                | PASS   |
+| V. Observable Systems            | Structured logs + correlation IDs at service entry points           | PASS   |
+| VI. Principled Simplicity        | CLI-first harness for rapid iteration                               | PASS   |
 
-**Post-Phase 1 Re-check**: All gates remain PASS. No violations identified.
+## Repository Ownership (authoritative)
+
+From `BLUEPRINT.md` and the current tree:
+- `format_ghost_response` owner: `services/agents_service/src/matrix/appservice.py`
+- Citation + segment domain models: `services/agents_service/src/models/`
+- Agent runtime + tools: `services/agents_service/src/agent/`
+- Infra-only shared lib (EMOS client, config, logging, exceptions): `packages/bt_common/src/`
 
 ## Project Structure
 
@@ -44,87 +48,88 @@ validated via a CLI test harness (see research.md R1).
 
 ```text
 specs/001-agent-service/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
+├── spec.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
 ├── contracts/
-│   ├── emos-client.md   # EMOS HTTP API contract
-│   ├── citation-schema.md # Citation object schema
-│   ├── voice-backend.md # VoiceBackend ABC contract
-│   └── discussion-floor-control.md # Discussion controller protocol
-└── tasks.md             # Phase 2 output (/speckit.tasks)
+│   ├── emos-client.md
+│   ├── citation-schema.md
+│   ├── voice-backend.md
+│   └── discussion-floor-control.md
+└── tasks.md
 ```
 
 ### Source Code (repository root)
 
 ```text
-bt_common/                  # Shared Python library (in-repo package)
-├── __init__.py
-├── evermemos_client.py          # Async httpx client for EMOS API
-├── citation.py             # Citation Pydantic models + validation
-├── segment.py              # Segment models + BM25 local re-ranking
-├── matrix_helpers.py       # Message formatting (HTML + plain + citations field)
-├── supabase_helpers.py     # Common DB access patterns
-├── config.py               # pydantic-settings env config
-└── exceptions.py           # Typed domain exceptions
+packages/bt_common/src/
+└── bt_common/
+    ├── config.py                 # pydantic-settings + .env loading
+    ├── logging.py                # JSON logging + correlation IDs
+    ├── exceptions.py             # shared exception types
+    └── evermemos_client.py       # EverMemOS SDK wrapper + retry/error mapping
 
-services/agents_service/src/                   # Core agent service (FastAPI appservice)
-├── main.py                 # Uvicorn entry point
-├── appservice.py           # mautrix event handler + room routing
-├── agent_factory.py        # ADK LlmAgent creation from DB rows
-├── llm_registry.py         # NovaLiteBackend + LLMRegistry setup
-├── tools/
-│   ├── memory_search.py    # EMOS search → re-rank → Evidence list
-│   └── emit_citations.py   # Attach citations to current response
-├── voice/
-│   ├── session_manager.py  # Voice session lifecycle management
-│   ├── backends/
-│   │   ├── base.py         # VoiceBackend ABC
-│   │   ├── nova_sonic.py   # Bedrock bidirectional stream
-│   │   └── gemini_live.py  # Gemini Live API WebSocket
-│   └── transcript.py       # Voice transcript → text thread posting
-├── discussion/
-│   ├── orchestrator.py     # Discussion flow orchestration
-│   └── floor_controller.py # Floor Manager + scheduler + cancellation
-└── guards.py               # Rate limiter
-	
-services/voice_call_service/src/           # Node.js MatrixRTC audio bridge
-├── package.json
-├── index.js                # Entry point
-├── matrixrtc.js            # Join Element Call as virtual user
-├── audio_bridge.js         # PCM encode/decode, WebSocket to agents_service
-└── mixer.js                # Audio mixing for multi-agent voice
-	
-bt_cli/                     # CLI test harness (rapid iteration)
-├── __init__.py
-└── __main__.py             # stdin/stdout chat with a Ghost
+services/agents_service/src/
+└── agents_service/
+    ├── __main__.py               # CLI harness (`python -m agents_service ...`)
+    ├── server.py                 # FastAPI appservice transaction endpoint
+    ├── agent/
+    │   ├── agent_factory.py      # Ghost agent creation + caching
+    │   ├── orchestrator.py       # (current) simple multi-ghost orchestration
+    │   ├── providers/            # (target) LLM backends (Gemini/Nova)
+    │   └── tools/
+    │       ├── memory_search.py  # EMOS search + local rerank → Evidence
+    │       └── emit_citations.py # Evidence → validated citations
+    ├── database/
+    │   └── supabase_helpers.py
+    ├── matrix/
+    │   ├── appservice.py         # event handling + `format_ghost_response`
+    │   └── guards.py             # per-room rate limiter
+    ├── models/
+    │   ├── citation.py
+    │   └── segment.py
+    └── voice/
+        ├── session_manager.py
+        ├── transcript.py
+        └── backends/
+            ├── base.py
+            ├── nova_sonic.py
+            └── gemini_live.py
 
-tests/
-├── unit/
-│   ├── test_citation.py    # Citation validation logic
-│   ├── test_segment.py     # Chunking + BM25 re-ranking
-│   ├── test_evermemos_client.py # Client serialization + error handling
-│   ├── test_agent.py       # ADK agent with mock LLM
-│   └── test_guards.py      # Rate limiter
-├── contract/
-│   ├── test_emos_api.py    # Mock EMOS responses, verify parsing
-│   ├── test_matrix_events.py # Matrix event schema compliance
-│   └── test_discussion_floor_control.py  # REQUEST_FLOOR and preemption rules
-└── integration/
-    ├── test_chat_e2e.py    # Ghost text chat end-to-end
-    ├── test_citation_roundtrip.py # Memorize → search → cite → validate
-    └── test_discussion.py  # Multi-agent discussion flow
+services/voice_call_service/src/
+├── index.js
+├── matrixrtc.js
+├── audio_bridge.js
+└── mixer.js
 ```
 
-**Structure Decision**: Multi-package monorepo. `bt_common` is a shared
-Python library used by both `agents_service` and `bt_cli`. `voice_call_service`
-is a separate Node.js package. This follows the blueprint's service
-architecture while keeping shared logic in one place.
+### Tests
+
+```text
+packages/bt_common/tests/
+services/agents_service/tests/
+```
+
+## Phased Delivery (maps to spec priorities)
+
+- **P1 (US1)**: Private text chat with a Ghost, grounded in EverMemOS with verifiable citations.
+- **P2 (US2)**: Multi-agent text discussion with floor control (one speaker at a time; user preemption).
+- **P3 (US3)**: Voice calls (MatrixRTC sidecar + voice backend tool-use + transcript + citations).
+- **P4 (US4)**: Multi-agent voice discussions (floor-gated audio, barge-in, transcript + citations).
 
 ## Complexity Tracking
 
-| Violation                                                          | Why Needed                                                                                                    | Simpler Alternative Rejected Because                                                                                         |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 4 packages (bt_common, agents_service, voice_call_service, bt_cli) | Python and Node.js runtimes are incompatible; CLI harness enables rapid testing without Matrix infrastructure | Single Python package would still need a separate Node.js sidecar for WebRTC; CLI harness pays for itself in iteration speed |
-| VoiceBackend abstraction                                           | Two voice backends (Nova Sonic, Gemini Live) with same interface                                              | Direct implementation would duplicate session management, tool-use routing, and transcript handling                          |
+| Decision | Why it exists | Alternative rejected |
+| --- | --- | --- |
+| Node.js voice sidecar | MatrixRTC/WebRTC media handling is a separate runtime concern | A pure-Python stack still needs WebRTC media plumbing |
+| VoiceBackend abstraction | Swap Nova Sonic ↔ Gemini Live without changing orchestration | Backend-specific logic would sprawl across the session manager |
+| Domain models in `agents_service` | Keeps agent-domain ownership out of infra package (`bt_common`) | Putting agent models in `bt_common` breaks repository boundaries |
+
+## Proposed Improvements (Non-Blocking)
+
+- Wire `services/voice_call_service/package.json` to run `src/index.js` via `npm start`.
+- Make `.env` discovery robust (support repo-root `.env` even when running from service directories).
+- Add a dedicated Matrix event contract doc (appservice transactions + message send payloads).
+- Implement the `BLUEPRINT.md` retrieval narrowing: EverMemOS `group_id` → `sources/segments` before reranking.

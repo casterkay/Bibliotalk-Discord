@@ -1,36 +1,31 @@
 # Specification Quality Checklist: Agent Service
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-02-28
+**Purpose**: validate spec completeness and internal consistency  
+**Created**: 2026-02-28  
+**Last Updated**: 2026-03-02  
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
-- [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
-- [x] All mandatory sections completed
+- [x] Primary focus is user value + testable outcomes
+- [x] Technology-specific details are mostly pushed into plan/contracts (spec may reference external systems at a high level: Matrix, EverMemOS, voice)
+- [x] Terminology is consistent with `BLUEPRINT.md` (Ghosts, profile rooms, citations, EverMemOS)
+- [x] Mandatory sections completed (user scenarios + success criteria + assumptions)
 
 ## Requirement Completeness
 
-- [x] No [NEEDS CLARIFICATION] markers remain
+- [x] No `[NEEDS CLARIFICATION]` markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
-- [x] All acceptance scenarios are defined
-- [x] Edge cases are identified
-- [x] Scope is clearly bounded
-- [x] Dependencies and assumptions identified
+- [x] Acceptance scenarios cover primary flows and key edge cases (no-evidence, profile room ban, citation stripping)
+- [x] Scope is bounded (ingestion pipelines are separate feature; MVP voice unencrypted; single homeserver)
 
 ## Feature Readiness
 
-- [x] All functional requirements have clear acceptance criteria
-- [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [x] Functional requirements map to user stories
+- [x] Contracts exist for high-risk boundaries (EMOS, citations, floor control, voice backend)
+- [x] Plan and quickstart reflect the repository layout and ownership boundaries
 
 ## Notes
 
-- All items pass validation. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
-- No [NEEDS CLARIFICATION] markers present — reasonable defaults applied for all ambiguous areas.
-- Assumptions section explicitly documents scope boundaries (ingestion pipelines are separate, Synapse/schema pre-exist, MVP uses unencrypted voice).
+- `BLUEPRINT.md` + repository tree are authoritative when resolving conflicts.

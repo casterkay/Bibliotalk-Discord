@@ -1,7 +1,9 @@
 # Contract: Citation Schema
 
-**Service**: bt_common (shared across agents_service, ingestion_service)
-**Format**: Pydantic models, embedded in Matrix events and chat_history
+**Owner**: `services/agents_service/src/models/citation.py`  
+**Used by**: `agents_service` (Matrix events + chat_history persistence)
+
+This contract defines the structured citation payload used to keep Ghost responses verifiable (**言必有據**).
 
 ## Citation Object
 
@@ -14,20 +16,24 @@
   "source_url": "https://www.gutenberg.org/ebooks/3330",
   "quote": "Learning without reflection is a waste...",
   "platform": "gutenberg",
-  "timestamp": "2025-01-15"
+  "timestamp": "2025-01-15T10:00:00Z"
 }
 ```
 
+Notes:
+- `timestamp` is optional and may be either an ISO date or ISO date-time.
+- `quote` MUST be a substring of the canonical `segments.text` for the referenced `segment_id`.
+
 ## Matrix Event Extension
 
-Ghost responses include structured citations in the event content:
+Ghost responses include structured citations in the event content under `com.bibliotalk.citations`:
 
 ```json
 {
   "msgtype": "m.text",
-  "body": "Response with [^1] markers...\n\n──────────\nSources:\n[1] Title (platform:id)",
+  "body": "Response with citation markers...",
   "format": "org.matrix.custom.html",
-  "formatted_body": "Response with <sup>[1]</sup>...<hr><b>Sources:</b>...",
+  "formatted_body": "Response with <sup>[1]</sup>...",
   "com.bibliotalk.citations": {
     "version": "1",
     "items": [<Citation>, ...]
@@ -38,14 +44,14 @@ Ghost responses include structured citations in the event content:
 ## Validation Rules
 
 Before posting any Ghost response:
-1. Parse citation markers from response text
-2. Verify each `segment_id` exists in segments table for this agent
-3. Verify each `quote` is a substring of `segments.text`
-4. Strip citations that fail validation; log warning
-5. Cross-agent citations are always invalid (segment.agent_id
-   must match the responding agent's ID)
+1. Verify every cited `segment_id` exists in `segments` and belongs to the responding agent.
+2. Verify `quote` is a substring of the canonical `segments.text`.
+3. Strip citations that fail validation; log a warning.
+4. Cross-agent citations are always invalid (`segments.agent_id` must match the responding agent’s UUID).
 
-## Evidence Object (internal, returned by memory_search tool)
+## Evidence Object (internal)
+
+`memory_search` returns evidence items used to construct citations:
 
 ```json
 {
@@ -54,6 +60,6 @@ Before posting any Ghost response:
   "source_title": "...",
   "source_url": "...",
   "text": "full segment text",
-  "platform": "podwise" | "gutenberg" | "youtube"
+  "platform": "podwise"
 }
 ```

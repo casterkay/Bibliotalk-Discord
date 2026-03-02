@@ -1,175 +1,84 @@
 # Research: Agent Service
 
-**Feature**: 001-agent-service
-**Date**: 2026-02-28
+**Feature**: `001-agent-service`  
+**Created**: 2026-02-28  
+**Last Updated**: 2026-03-02
+
+## R0: Agent Runtime — Google ADK vs Minimal Local Runtime
+
+**Decision**: Treat Google ADK as the *target* runtime (per `BLUEPRINT.md`), but keep a minimal local `GhostAgent` runtime in-repo until retrieval + citation correctness is solid.
+
+**Rationale**:
+- The riskiest/most user-visible behavior is grounding + citation validation. A minimal runtime keeps iteration tight while contracts harden.
+- ADK integration must preserve the same tool contracts (`memory_search`, `emit_citations`) and the same validation rules (quotes must be verifiable substrings of canonical segments).
+
+**Implication**:
+- Specs/contracts assume ADK-style tool usage; current code may implement the same behaviors without ADK while the contracts stabilize.
 
 ## R1: Testing Strategy — CLI Harness vs Matrix-First
 
-**Decision**: Defer Matrix integration. Build agent core with a CLI test
-harness and pytest-driven testing first.
+**Decision**: CLI-first testing. Defer full Synapse/appservice deployment until P1 grounding + citations are reliable.
 
 **Rationale**:
-- Google ADK provides `InMemoryRunner` for programmatic agent invocation
-  without any web server or transport layer. Agents can be instantiated
-  and called from pytest or a CLI script.
-- The core value (agent + memory search + citations) is independent of
-  Matrix. Testing through Matrix requires Synapse deployment, appservice
-  registration, and mautrix setup — heavy infrastructure for validating
-  agent behavior.
-- Constitution Principle VI (Principled Simplicity) favors the simplest
-  testable approach first. Constitution Principle IV (Incremental
-  Delivery) requires MVP text chat to work end-to-end before adding
-  advanced features.
-- A `bt_cli` harness (stdin/stdout chat with a Ghost) enables
-  rapid iteration on persona tuning, citation quality, and memory
-  search without the Synapse round-trip.
+- The core value (agent + memory search + citations) is independent of Matrix transport.
+- A CLI harness reduces infrastructure friction and supports rapid persona/citation tuning.
+- Matrix integration adds additional failure modes (auth, appservice registration, event schemas, rate limits).
 
-**Alternatives Considered**:
-1. **Matrix-first** (blueprint order): Build Synapse + appservice first,
-   then agent. Rejected because it front-loads infrastructure and
-   delays testing of the core agent logic.
-2. **HTTP API first**: Expose agents via FastAPI endpoints, test with
-   curl/httpie. Viable but unnecessary — ADK's InMemoryRunner is
-   lighter. The FastAPI appservice layer comes later with Matrix.
+**Implementation note**:
+- The CLI harness lives at `services/agents_service/src/__main__.py` and is invoked via `python -m agents_service ...`.
+- `format_ghost_response` is owned by `services/agents_service/src/matrix/appservice.py` and reused by the CLI and voice transcript paths (per `BLUEPRINT.md`).
 
-**Implementation Order**:
-1. bt_common (EMOS client, citation schemas, segment models) — pytest
-2. Ghost agent with ADK — InMemoryRunner + mock EMOS
-3. bt_cli test harness — stdin/stdout end-to-end grounding validation
-4. Matrix appservice layer (agents_service proper)
-5. Multi-agent discussions (streaming floor control)
-6. Voice (voice_call_service + voice backends)
+## R2: Contract & Unit Test Placement (Monorepo)
 
-## R2: Google ADK Agent Testing
-
-**Decision**: Use ADK's `InMemoryRunner` for programmatic testing,
-`BaseLlm` subclass for mock LLM responses in deterministic tests.
+**Decision**:
+- Infra/SDK wrapper tests live with infra (`packages/bt_common/tests/`).
+- Agent-domain tests live with the agent service (`services/agents_service/tests/`).
 
 **Rationale**:
-- ADK agents are plain Python objects (`LlmAgent`) that can be
-  instantiated directly. No web server required.
-- `InMemoryRunner` provides a `run()` method that accepts a user
-  message and returns the agent's response, including tool calls.
-- For deterministic unit tests, implement a `MockLlm(BaseLlm)` that
-  returns canned responses. Register via `LLMRegistry.register()`.
-- For integration tests with real LLMs, use `InMemoryRunner` with
-  the actual Gemini or Nova backend.
-
-**Key Code Pattern**:
-```python
-from google.adk.agents import LlmAgent
-from google.adk.runners import InMemoryRunner
-
-agent = LlmAgent(name="test_ghost", model="gemini-2.5-flash",
-                  instruction="You are Confucius.", tools=[memory_search])
-runner = InMemoryRunner(agent=agent)
-response = await runner.run("What is the meaning of virtue?")
-```
+- `bt_common` is infra-only (config/logging/exceptions + EverMemOS wrapper).
+- Citation/segment models are agent-domain and belong to `services/agents_service/src/models/` (per `BLUEPRINT.md`).
 
 ## R3: EverMemOS Client Design
 
-**Decision**: Build an async Python client using `httpx.AsyncClient`
-with Pydantic request/response models.
+**Decision**: Use the `evermemos` SDK with a thin wrapper for retries and domain-specific error mapping.
 
 **Rationale**:
-- EMOS API surface: POST /memories (memorize), GET /memories/search
-  (retrieve), GET/POST/PATCH /memories/conversation-meta (metadata).
-- No API-level authentication — designed for private network. Bibliotalk
-  adds auth at the infrastructure layer.
-- Search uses JSON body on GET request — `httpx.request("GET", ...,
-  json=body)` handles this.
-- Five retrieval methods: keyword, vector, hybrid, rrf, agentic.
-  Bibliotalk uses rrf (fast) with agentic fallback.
+- The SDK already tracks payload conventions and endpoint quirks; the wrapper standardizes retries + error classes.
+- EverMemOS deployments may vary across versions (e.g., API path/version in error envelopes). Contracts should focus on **shapes** and **id conventions**, not fragile URL strings.
 
-**Testing Tiers**:
-| Tier        | Tool                     | What It Tests                       |
-| ----------- | ------------------------ | ----------------------------------- |
-| Unit        | `respx` / `pytest-httpx` | Client serialization, error paths   |
-| Contract    | Fixture JSON files       | Response parsing, schema compliance |
-| Integration | Docker Compose + EMOS    | Full round-trip memorize → search   |
+**Testing tiers**:
+| Tier        | Location                         | What it tests                                  |
+| ----------- | -------------------------------- | ---------------------------------------------- |
+| Unit        | `packages/bt_common/tests/unit/` | retry behavior, error mapping, config loading  |
+| Contract    | `packages/bt_common/tests/contract/` | captured response shape expectations        |
 
-**Key Design Decisions**:
-- Memorize returns `status_info: "extracted" | "accumulated"` — the
-  client must handle both (accumulated means queued, not yet processed).
-- Search response groups memories by type in a nested structure —
-  client must flatten and extract `group_id` values.
-- EMOS requires valid LLM/embedding API keys even for local testing
-  (the extraction pipeline calls LLMs internally).
+## R4: Voice Backends (Nova Sonic / Gemini Live)
 
-## R4: Nova Sonic Voice Backend
-
-**Decision**: Implement `NovaSonicBackend(VoiceBackend)` using
-Bedrock's `InvokeModelWithBidirectionalStreamCommand`.
+**Decision**: Define a `VoiceBackend` ABC and implement backends behind it.
 
 **Rationale**:
-- Nova Sonic uses bidirectional HTTP/2 streaming via an async iterator
-  pattern. Events are sent/received as structured JSON envelopes.
-- Tool-use IS supported mid-conversation. The model can pause audio
-  output, emit a `toolUse` event (with tool name and parameters),
-  wait for the tool result, then resume generating audio.
-- Audio format: PCM 16-bit, 16kHz mono input; PCM 16-bit, 24kHz
-  mono output (configurable).
+- Both engines should support: audio in/out + transcripts + mid-session tool calls.
+- A stable ABC keeps voice orchestration independent of vendor differences.
 
-**Session Lifecycle**:
-1. Send `sessionStart` event (system prompt, tools, audio config)
-2. Send `promptStart` → audio content start → audio chunks (PCM)
-3. Receive: audio chunks, transcript events, tool-use events
-4. On tool-use: send tool result, model resumes
-5. Send `sessionEnd` to close
+**Audio format** (per `BLUEPRINT.md`):
+- Input: PCM 16-bit mono @ 16kHz
+- Output: PCM 16-bit mono @ 24kHz
 
-**Testing**:
-- Can test with pre-recorded PCM audio files — no live mic required.
-- Unit tests: mock the Bedrock client, verify event serialization.
-- Integration: requires AWS credentials and us-east-1 region access.
-- Test tool-use flow: send audio → model requests memory_search →
-  return mock evidence → model generates grounded voice response.
+## R5: Floor-Control Protocol (Multi-Agent Discussions)
 
-## R5: Floor-Control Protocol for Multi-Agent Discussions
-
-**Decision**: Use a per-room in-process Discussion Controller in
-`agents_service` as the single authority for turn-taking, interruption,
-and streaming. Ghost runners never post directly; they submit
-`REQUEST_FLOOR` intents. The controller grants one speaker at a time and
-can cancel in-flight output immediately.
+**Decision**: Single room-level authority inside `agents_service` enforces turn-taking and cancellation.
 
 **Rationale**:
-- Matrix is the shared transcript, but room observation alone is
-  insufficient for live streaming discussions with interruption.
-- A single authority is required to prevent reply storms, enforce
-  deterministic ordering, and support hard preemption (especially user
-  barge-in for voice).
-- `REQUEST_FLOOR(force: bool)` is simpler than separate interrupt APIs:
-  - `force=true` can preempt only an active **agent** speaker.
-  - Agents may request while a user speaks, but must use `force=false`.
-- Scheduler quality improves when scoring includes mention priority and
-  evidence readiness, not only static turn order.
+- Prevents reply storms and non-determinism in multi-Ghost rooms.
+- Required for voice barge-in: user interruption must cancel in-flight agent output immediately.
 
-**Protocol Shape**:
-- Inputs normalized to `UtteranceEvent` from Matrix + VAD/ASR.
-- Floor state machine: `IDLE`, `USER_SPEAKING`, `AGENT_SPEAKING`.
-- User speech has absolute priority; on user start, controller cancels
-  active agent generation/TTS immediately.
-- Scheduler selects next speaker using weighted score:
-  mention boost + relevance + urgency + fairness + evidence.
-  Topic coherence is part of relevance.
-
-**Testing**:
-- Unit tests for state transitions, force rules, and cancellation.
-- Contract tests for `REQUEST_FLOOR` and controller decisions.
-- Integration tests for text and voice barge-in behavior:
-  user interruption stops agent output with bounded latency.
+**Key rule**:
+- Agent identifiers in floor-control should use the **agent UUID** (`agents.id`). Matrix user IDs are a separate field (`agents.matrix_user_id`).
 
 ## R6: LLM Backend Swapping
 
-**Decision**: Use ADK's `LLMRegistry` to register Nova Lite v2 as a
-custom backend alongside built-in Gemini. Per-agent model selection
-via `agents.llm_model` column.
+**Decision**: Model selection is per-agent config (e.g., `agents.llm_model`), resolved at agent creation time.
 
 **Rationale**:
-- ADK resolves models via `LLMRegistry`. Gemini models are built-in.
-  Custom models (Nova Lite v2 via Bedrock Converse API) require a
-  `BaseLlm` subclass registered at startup.
-- Switching models is a config change: update `agents.llm_model`
-  in Supabase, agent recreated on next invocation.
-- Both backends support tool-use (function calling), which is required
-  for `memory_search` and `emit_citations`.
+- Allows switching Gemini ↔ Nova Lite v2 by configuration.
+- Keeps higher-level orchestration stable while swapping generation engines.

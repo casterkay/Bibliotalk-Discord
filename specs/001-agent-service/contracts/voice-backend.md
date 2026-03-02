@@ -1,6 +1,7 @@
 # Contract: Voice Backend Interface
 
-**Service**: agents_service voice session manager
+**Owner**: `services/agents_service/src/voice/backends/base.py`  
+**Service**: `agents_service` voice session manager
 **Pattern**: Abstract base class with pluggable implementations
 
 ## VoiceBackend ABC

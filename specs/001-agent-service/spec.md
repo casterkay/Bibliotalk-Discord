@@ -1,9 +1,12 @@
 # Feature Specification: Agent Service
 
-**Feature Branch**: `001-agent-service`
-**Created**: 2026-02-28
-**Status**: Draft
+**Feature**: `001-agent-service`  
+**Created**: 2026-02-28  
+**Last Updated**: 2026-03-02  
+**Status**: Draft (implementation in progress; synced to `BLUEPRINT.md`)  
 **Input**: User description: "agent service with ADK, EverMemOS, voice chat capability"
+
+**Source of truth**: `BLUEPRINT.md`. If this spec conflicts with the current repository tree, follow the tree (per `BLUEPRINT.md`).
 
 ## User Scenarios & Testing *(mandatory)*
 

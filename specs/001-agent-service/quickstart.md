@@ -1,123 +1,75 @@
 # Quickstart: Agent Service
 
-**Feature**: 001-agent-service
-**Prerequisites**: Python 3.11+, Node.js 20+ (for voice sidecar)
+**Feature**: `001-agent-service`  
+**Created**: 2026-02-28  
+**Last Updated**: 2026-03-02  
+**Prereqs**: Python 3.11+, Node.js 20+ (for `voice_call_service`)
 
-## 1. Setup
+This quickstart focuses on the fastest path to validate the Ghost grounding + citation loop without requiring a Synapse deployment.
+
+## 1) Configure Environment
+
+From the repo root:
 
 ```bash
-# Clone and enter the project
-cd Bibliotalk
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -e ".[dev]"  # or: uv sync
-
-# Copy environment template
 cp .env.example .env
-# Edit .env with your API keys:
-#   GOOGLE_API_KEY=...          (Gemini API)
-#   SUPABASE_URL=...
-#   SUPABASE_SERVICE_ROLE_KEY=...
-#   EMOS_BASE_URL=...
+# edit .env (SUPABASE_*, EMOS_*, MATRIX_*, etc.)
 ```
 
-## 2. Quick Test (CLI Harness)
-
-The fastest way to test a Ghost agent — no Matrix/Synapse required:
+## 2) Install Python deps (agents_service)
 
 ```bash
-# Start a CLI chat with a Ghost (uses mock EMOS data)
-python -m bt_cli --agent confucius --mock-emos
-
-# Start with real EMOS instance
-python -m bt_cli --agent confucius
+cd services/agents_service
+UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev
+source .venv/bin/activate
 ```
 
-Example session:
-```
-> What did you say about learning?
-Confucius (Ghost): The pursuit of learning is endless.
-As I once reflected, "Learning without thought is labor
-lost; thought without learning is perilous."¹
+## 3) Quick Test (CLI harness)
 
-──────────
-Sources:
-[1] The Analects, Book II — gutenberg:3330
-```
-
-## 3. Run Tests
+Run from the repo root so `.env` is discovered:
 
 ```bash
-# Unit tests (no external services needed)
-pytest tests/unit/ -v
-
-# Contract tests (EMOS client mock validation)
-pytest tests/contract/ -v
-
-# Integration tests (requires Docker Compose for EMOS)
-docker compose -f docker-compose.test.yml up -d
-pytest tests/integration/ -v -m integration
-docker compose -f docker-compose.test.yml down
+cd ../..
+python -m agents_service --agent confucius --mock-emos
 ```
 
-## 4. Start the Full Service (with Matrix)
+## 4) Run Tests
+
+`agents_service` tests:
 
 ```bash
-# Ensure Synapse is running and appservice is registered
-# Start agents_service
-uvicorn agents_service.main:app --host 0.0.0.0 --port 8009
-
-# Start voice_call_service (for voice calls)
-cd services/voice_call_service && npm start
+cd services/agents_service
+python -m pytest
 ```
 
-## 5. Verify
+`bt_common` tests (EverMemOS wrapper + infra):
 
-1. Open Element, log into `bibliotalk.space`
-2. Start a DM with `@btghost_confucius:bibliotalk.space`
-3. Send: "What is the meaning of virtue?"
-4. Ghost should respond with grounded citations
-
-## Project Structure
-
+```bash
+cd packages/bt_common
+UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev
+python -m pytest
 ```
-bt_common/                  # Shared Python library
-├── evermemos_client.py          # Async EMOS HTTP client
-├── citation.py             # Citation models + validation
-├── segment.py              # Segment models + BM25 re-ranking
-└── matrix_helpers.py       # Message formatting
 
-services/agents_service/src/                   # Core agent service
-├── main.py                 # FastAPI appservice entry point
-├── appservice.py           # Matrix event handler (mautrix)
-├── agent_factory.py        # ADK agent creation
-├── tools/
-│   ├── memory_search.py    # EMOS retrieve + re-rank
-│   └── emit_citations.py   # Citation attachment
-├── voice/
-│   ├── session_manager.py  # Voice session lifecycle
-│   └── backends/
-│       ├── base.py         # VoiceBackend ABC
-│       ├── nova_sonic.py   # Nova Sonic backend
-│       └── gemini_live.py  # Gemini Live backend
-└── discussion/
-    ├── orchestrator.py     # Multi-agent discussion flow
-    └── floor_controller.py # Floor manager + scheduler
+## 5) Start agents_service (FastAPI)
 
-services/voice_call_service/src/           # Node.js voice bridge
-├── index.js                # Entry point
-├── matrixrtc.js            # MatrixRTC client
-└── audio_bridge.js         # WebSocket bridge to agents_service
-
-bt_cli/                     # CLI test harness
-└── __main__.py             # stdin/stdout Ghost chat
-
-tests/
-├── unit/                   # No external deps
-├── contract/               # Mock HTTP responses
-└── integration/            # Docker Compose + real services
+```bash
+cd ../..
+uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
 ```
+
+Note: `agents_service.server` currently uses a stub `send_message` implementation; use the CLI harness for end-to-end behavior until Matrix sending is wired up.
+
+## 6) Start voice_call_service (Node sidecar)
+
+```bash
+cd services/voice_call_service
+npm install
+npm start
+```
+
+## Repository Map (authoritative)
+
+- `format_ghost_response`: `services/agents_service/src/matrix/appservice.py`
+- Agent runtime/tools: `services/agents_service/src/agent/`
+- Citation/segment models: `services/agents_service/src/models/`
+- EverMemOS wrapper + config/logging/exceptions: `packages/bt_common/src/`

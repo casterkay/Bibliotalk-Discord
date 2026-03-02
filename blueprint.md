@@ -68,7 +68,7 @@ If any section below conflicts with the current tree, follow the tree.
           │                          │
           │  ┌────────────────────┐  │
           │  │ Appservice Handler │  │  ← receives all Matrix events
-          │  │ (mautrix)          │  │  ← sends as virtual users (@bt_*)
+          │  │ (matrix)           │  │  ← sends as virtual users (@bt_*)
           │  └────────┬───────────┘  │
           │           │              │
           │  ┌────────▼───────────┐  │
@@ -1028,7 +1028,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 1. **Synapse + appservice scaffold**: Deploy Synapse, register appservice, verify virtual user creation
 2. **Supabase schema**: Create tables, seed a test figure
-3. **agents_service core**: Appservice event handler (mautrix), basic message routing
+3. **agents_service core**: Appservice event handler (matrix), basic message routing
 4. **EMOS client**: Async Python client for `/api/v1/memories` (memorize, search, conversation-meta)
 5. **ADK agent**: Ghost agent with persona instruction, memory_search tool, emit_citations tool
 6. **Private text chat**: Ghost responds in DMs and group chats with grounded citations
@@ -1050,7 +1050,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 ```
 google-adk                  # Agent Development Kit
 google-genai                # Gemini API client
-mautrix                     # Matrix appservice framework
+matrix                      # Matrix appservice framework
 httpx                       # Async HTTP (EMOS)
 playwright                  # Browser automation (Podwise crawling)
 supabase                    # Supabase Python client
