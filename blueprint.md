@@ -335,7 +335,7 @@ For voice calls, each Clone turn is transcribed (Nova Sonic / Gemini Live provid
 
 | Setting                 | Value                                                                                  |
 | ----------------------- | -------------------------------------------------------------------------------------- |
-| Platform EMOS (figures) | Single managed instance; bt-agent and bt-workers share credentials                     |
+| Platform EMOS (figures) | Single managed instance; agents_service and ingestion_service share credentials        |
 | User EMOS (users)       | User-provided `emos_base_url` + `emos_api_key` stored encrypted in `agent_emos_config` |
 
 ### EMOS HTTP Headers
@@ -570,7 +570,7 @@ Each Clone's A2A AgentCard:
 ### Discussion Flow (Voice — Agentic Podcast)
 
 1. User starts an Element Call in a discussion room with multiple Clones.
-2. bt-voice-sidecar joins the call as each Clone's virtual user.
+2. voice_call_service joins the call as each Clone's virtual user.
 3. Audio routing:
    - For Clone N: input = mixed audio of all other participants (human + other Clones)
    - Each Clone runs its own voice LLM session (Nova Sonic or Gemini Live)
@@ -599,7 +599,7 @@ Each agent (figure or user) has one profile room. Created by the appservice when
 - **Content format**: Each ingested source → Matrix thread. Root message = source description. Replies = verbatim segments.
 
 ```
-Thread root (posted by bt-workers as the Clone's virtual user):
+Thread root (posted by ingestion_service as the Clone's virtual user):
   📎 New podcast episode: "StarTalk — The Nature of Time" (2024-12-15)
   https://example.com/episode/xyz
 
@@ -990,7 +990,7 @@ uvicorn                     # ASGI server (appservice HTTP endpoint)
 matrix-js-sdk               # Matrix client (MatrixRTC signaling)
 livekit-client              # Or direct WebRTC via MatrixRTC
 werift                      # WebRTC implementation for Node.js (alternative)
-ws                          # WebSocket (bridge to bt-agent)
+ws                          # WebSocket (bridge to agents_service)
 ```
 
 ---

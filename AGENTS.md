@@ -42,7 +42,7 @@ Python 3.11+: Follow standard conventions
 ### ingestion_service
 
 - Standalone EverMemOS ingestion library + CLI (see `specs/002-evermemos-content-ingest/`).
-- Local artifacts (gitignored): `.evermemos_ingest/` (SQLite index + JSON reports).
+- Local artifacts (gitignored): `.ingestion_service/` (SQLite index + JSON reports).
 
 ### Common Commands
 

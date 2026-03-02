@@ -1,4 +1,4 @@
-# Contract: CLI Commands (evermemos_ingest)
+# Contract: CLI Commands (ingestion_service)
 
 **Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`  
 **Created**: 2026-03-01
@@ -7,7 +7,7 @@ This contract defines the CLI surface area. The CLI is the primary operator inte
 
 ## Entry Points
 
-- Module: `python -m evermemos_ingest ...`
+- Module: `python -m ingestion_service ...`
 - (Optional packaging) Console script: `evermemos-ingest ...`
 
 ## Global Options

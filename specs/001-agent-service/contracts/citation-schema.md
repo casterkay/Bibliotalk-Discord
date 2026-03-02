@@ -1,6 +1,6 @@
 # Contract: Citation Schema
 
-**Service**: bt_common (shared across bt_agent, bt-workers)
+**Service**: bt_common (shared across agents_service, ingestion_service)
 **Format**: Pydantic models, embedded in Matrix events and chat_history
 
 ## Citation Object

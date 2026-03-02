@@ -1,6 +1,6 @@
 # Contract: Voice Backend Interface
 
-**Service**: bt_agent voice session manager
+**Service**: agents_service voice session manager
 **Pattern**: Abstract base class with pluggable implementations
 
 ## VoiceBackend ABC

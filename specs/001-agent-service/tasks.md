@@ -16,9 +16,9 @@
 ## Path Conventions
 
 - **bt_common/**: Shared Python library (in-repo package)
-- **bt_agent/**: Core agent service (FastAPI appservice)
+- **services/agents_service/src/**: Core agent service (FastAPI appservice)
 - **bt_cli/**: CLI test harness (rapid iteration, no Matrix needed)
-- **bt_voice_sidecar/**: Node.js MatrixRTC audio bridge
+- **services/voice_call_service/src/**: Node.js MatrixRTC audio bridge
 - **tests/**: unit/, contract/, integration/
 
 ---
@@ -27,7 +27,7 @@
 
 **Purpose**: Create monorepo package structure and shared configuration
 
-- [X] T001 Create monorepo package structure with pyproject.toml defining bt_common, bt_agent, bt_cli as installable packages, create bt_common/__init__.py, bt_agent/__init__.py, bt_agent/tools/__init__.py, bt_agent/voice/__init__.py, bt_agent/voice/backends/__init__.py, bt_agent/discussion/__init__.py, bt_cli/__init__.py, and tests/unit/, tests/contract/, tests/integration/ directories with __init__.py files
+- [X] T001 Create monorepo package structure with pyproject.toml defining bt_common, agents_service, bt_cli as installable packages, create bt_common/__init__.py, services/agents_service/src/__init__.py, services/agents_service/src/tools/__init__.py, services/agents_service/src/voice/__init__.py, services/agents_service/src/voice/backends/__init__.py, services/agents_service/src/discussion/__init__.py, bt_cli/__init__.py, and tests/unit/, tests/contract/, tests/integration/ directories with __init__.py files
 - [X] T002 [P] Create pydantic-settings environment configuration in bt_common/config.py with fields: GOOGLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, EMOS_BASE_URL, AWS_REGION (default us-east-1), MATRIX_HOMESERVER_URL, MATRIX_AS_TOKEN, MATRIX_HS_TOKEN, LOG_LEVEL; create structured logging utility in bt_common/logging.py with JSON formatter, correlation ID injection via contextvars, and request-scoped logger factory for use by all service modules
 - [X] T003 [P] Create typed domain exceptions in bt_common/exceptions.py: EMOSError (base), EMOSConnectionError, EMOSNotFoundError, EMOSValidationError, CitationValidationError, AgentNotFoundError, VoiceSessionError
 - [X] T004 [P] Create .env.example template at project root with all config fields from T002 plus comments explaining each key
@@ -69,15 +69,15 @@
 
 ### Implementation for User Story 1
 
-- [X] T016 [P] [US1] Implement memory_search tool in bt_agent/tools/memory_search.py: ADK FunctionTool that takes a query string, calls emos_client.search() with the agent's user_id and rrf retrieve_method, re-ranks results via bm25_rerank(), returns list of Evidence objects with segment_id, source_title, source_url, text, platform
-- [X] T017 [P] [US1] Implement emit_citations tool in bt_agent/tools/emit_citations.py: ADK FunctionTool that takes a list of Evidence references (segment_id + quote substring), creates Citation objects, validates each via validate_citations() against the segments table, strips invalid citations, stores valid citations on the tool context for later attachment to the response
-- [X] T018 [US1] Implement LLM registry with Nova Lite v2 custom backend in bt_agent/llm_registry.py: register Gemini models (built-in), create NovaLiteBackend(BaseLlm) subclass wrapping Bedrock Converse API with tool-use support, register via LLMRegistry.register() so agents.llm_model="nova-lite-v2" resolves correctly
-- [X] T019 [US1] Implement agent_factory in bt_agent/agent_factory.py: async create_clone_agent(agent_id) that loads Agent row from Supabase, loads AgentEmosConfig, creates ADK LlmAgent with name=display_name, model=llm_model, instruction=persona_prompt, tools=[memory_search, emit_citations], returns configured agent; cache agents by ID with TTL
-- [X] T020 [P] [US1] Implement rate limiter in bt_agent/guards.py: RateLimiter class enforcing max 1 response per 5 seconds per room (FR-013), usable as middleware or direct check (profile room restrictions are handled via Matrix room permission settings, not application code)
+- [X] T016 [P] [US1] Implement memory_search tool in services/agents_service/src/tools/memory_search.py: ADK FunctionTool that takes a query string, calls emos_client.search() with the agent's user_id and rrf retrieve_method, re-ranks results via bm25_rerank(), returns list of Evidence objects with segment_id, source_title, source_url, text, platform
+- [X] T017 [P] [US1] Implement emit_citations tool in services/agents_service/src/tools/emit_citations.py: ADK FunctionTool that takes a list of Evidence references (segment_id + quote substring), creates Citation objects, validates each via validate_citations() against the segments table, strips invalid citations, stores valid citations on the tool context for later attachment to the response
+- [X] T018 [US1] Implement LLM registry with Nova Lite v2 custom backend in services/agents_service/src/llm_registry.py: register Gemini models (built-in), create NovaLiteBackend(BaseLlm) subclass wrapping Bedrock Converse API with tool-use support, register via LLMRegistry.register() so agents.llm_model="nova-lite-v2" resolves correctly
+- [X] T019 [US1] Implement agent_factory in services/agents_service/src/agent_factory.py: async create_clone_agent(agent_id) that loads Agent row from Supabase, loads AgentEmosConfig, creates ADK LlmAgent with name=display_name, model=llm_model, instruction=persona_prompt, tools=[memory_search, emit_citations], returns configured agent; cache agents by ID with TTL
+- [X] T020 [P] [US1] Implement rate limiter in services/agents_service/src/guards.py: RateLimiter class enforcing max 1 response per 5 seconds per room (FR-013), usable as middleware or direct check (profile room restrictions are handled via Matrix room permission settings, not application code)
 - [X] T021 [P] [US1] Implement Matrix message formatting in bt_common/matrix_helpers.py: format_clone_response(text, citations) → dict with body (plain text with [^N] markers + Sources footer), formatted_body (HTML with sup tags + hr + sources list), com.bibliotalk.citations extension per contracts/citation-schema.md
 - [X] T022 [US1] Implement CLI test harness in bt_cli/__main__.py: argparse with --agent (slug), --mock-emos flag; create agent via agent_factory, run conversation loop using ADK InMemoryRunner, print responses with formatted citations to stdout; --mock-emos uses respx to intercept EMOS calls with fixture data
-- [X] T023 [US1] Implement mautrix event handler and room routing in bt_agent/appservice.py: handle m.room.message events, extract sender and room_id, check rate limiter, determine addressed Clone (DM → room's Clone, group → mentioned Clone only per edge case), invoke Clone agent via InMemoryRunner, format response via matrix_helpers, send response to room, save to chat_history
-- [X] T024 [US1] Implement FastAPI appservice entry point in bt_agent/main.py: create FastAPI app, register mautrix AppService with transaction endpoint, health check endpoint, startup hook to initialize LLM registry and Supabase client, configure structured logging with correlation IDs
+- [X] T023 [US1] Implement mautrix event handler and room routing in services/agents_service/src/appservice.py: handle m.room.message events, extract sender and room_id, check rate limiter, determine addressed Clone (DM → room's Clone, group → mentioned Clone only per edge case), invoke Clone agent via InMemoryRunner, format response via matrix_helpers, send response to room, save to chat_history
+- [X] T024 [US1] Implement FastAPI appservice entry point in services/agents_service/src/main.py: create FastAPI app, register mautrix AppService with transaction endpoint, health check endpoint, startup hook to initialize LLM registry and Supabase client, configure structured logging with correlation IDs
 
 **Checkpoint**: User Story 1 complete — Clone text chat works via CLI harness (no external infra) and Matrix appservice (with Synapse). Citations are validated, rate limiting is enforced. Profile rooms are restricted via Matrix room permissions.
 
@@ -99,8 +99,8 @@
 
 ### Implementation for User Story 2
 
-- [X] T026 [P] [US2] Implement per-Clone A2A HTTP server in bt_agent/discussion/a2a_server.py: JSON-RPC 2.0 endpoint handling tasks/send method, Agent Card at /.well-known/agent.json with clone name/description/skills, invoke clone agent via agent_factory, return Task with artifacts containing text response + citations DataPart per contracts/a2a-clone.md
-- [X] T027 [US2] Implement discussion orchestrator in bt_agent/discussion/orchestrator.py: ADK LoopAgent that acts as A2A client, accepts topic + list of clone agent_ids + max_turns + turn_order (round-robin or LLM-decided), for each turn sends accumulated context to next Clone via A2A tasks/send, collects response + citations, posts to Matrix room, handles user interjections as context additions, respects stop command, enforces citation isolation (each Clone only cites own memory)
+- [X] T026 [P] [US2] Implement per-Clone A2A HTTP server in services/agents_service/src/discussion/a2a_server.py: JSON-RPC 2.0 endpoint handling tasks/send method, Agent Card at /.well-known/agent.json with clone name/description/skills, invoke clone agent via agent_factory, return Task with artifacts containing text response + citations DataPart per contracts/a2a-clone.md
+- [X] T027 [US2] Implement discussion orchestrator in services/agents_service/src/discussion/orchestrator.py: ADK LoopAgent that acts as A2A client, accepts topic + list of clone agent_ids + max_turns + turn_order (round-robin or LLM-decided), for each turn sends accumulated context to next Clone via A2A tasks/send, collects response + citations, posts to Matrix room, handles user interjections as context additions, respects stop command, enforces citation isolation (each Clone only cites own memory)
 
 **Checkpoint**: User Story 2 complete — Multi-agent discussions work with turn-taking, citation isolation, configurable turn count, and user interjection support.
 
@@ -116,14 +116,14 @@
 
 ### Implementation for User Story 3
 
-- [X] T028 [US3] Implement VoiceBackend ABC in bt_agent/voice/backends/base.py: abstract methods start_session(system_prompt, tools), send_audio_chunk(pcm_16khz_bytes), receive() → AsyncIterator[VoiceEvent], end_session(); VoiceEvent types: AudioChunk(pcm_24khz), ToolCall(tool_name, args), Transcript(text, role), EndOfTurn per contracts/voice-backend.md
-- [X] T029 [US3] Implement NovaSonicBackend in bt_agent/voice/backends/nova_sonic.py: Bedrock InvokeModelWithBidirectionalStreamCommand, session lifecycle (setupPromptStart → setupSystemPrompt → setupStartAudio → stream audio → endAudioContent → endPrompt → close), handle tool-use events (pause audio, emit ToolCall, accept tool result, resume), audio format PCM 16kHz in / 24kHz out, 8-minute session limit handling per research.md R4
-- [X] T030 [US3] Implement GeminiLiveBackend in bt_agent/voice/backends/gemini_live.py: Gemini Live API WebSocket connection, same VoiceBackend interface, tool-use support via Gemini function calling, audio format conversion as needed
-- [X] T031 [US3] Implement voice session manager in bt_agent/voice/session_manager.py: create_session(agent_id, room_id, backend_type) → VoiceSession, manage session lifecycle (start, active, ending, ended), route tool calls to memory_search/emit_citations, handle backend selection (nova_sonic or gemini_live) per agent config, clean session teardown on disconnect or error
-- [X] T032 [US3] Implement voice transcript posting in bt_agent/voice/transcript.py: collect Transcript events from VoiceBackend.receive(), buffer per-turn transcripts, format with citations via matrix_helpers, post to text thread in same Matrix room, save to chat_history with modality="voice"
-- [X] T033 [US3] Initialize bt_voice_sidecar Node.js project in bt_voice_sidecar/package.json with dependencies for MatrixRTC client (matrix-js-sdk), WebSocket (ws), and audio processing
-- [X] T034 [US3] Implement MatrixRTC join in bt_voice_sidecar/matrixrtc.js: join Element Call as virtual user for a Clone, handle call setup/teardown events, establish audio track
-- [X] T035 [US3] Implement audio bridge in bt_voice_sidecar/audio_bridge.js: decode Opus from WebRTC to PCM 16kHz, encode PCM 24kHz to Opus for return path, WebSocket connection to bt_agent voice session manager for bidirectional PCM streaming
+- [X] T028 [US3] Implement VoiceBackend ABC in services/agents_service/src/voice/backends/base.py: abstract methods start_session(system_prompt, tools), send_audio_chunk(pcm_16khz_bytes), receive() → AsyncIterator[VoiceEvent], end_session(); VoiceEvent types: AudioChunk(pcm_24khz), ToolCall(tool_name, args), Transcript(text, role), EndOfTurn per contracts/voice-backend.md
+- [X] T029 [US3] Implement NovaSonicBackend in services/agents_service/src/voice/backends/nova_sonic.py: Bedrock InvokeModelWithBidirectionalStreamCommand, session lifecycle (setupPromptStart → setupSystemPrompt → setupStartAudio → stream audio → endAudioContent → endPrompt → close), handle tool-use events (pause audio, emit ToolCall, accept tool result, resume), audio format PCM 16kHz in / 24kHz out, 8-minute session limit handling per research.md R4
+- [X] T030 [US3] Implement GeminiLiveBackend in services/agents_service/src/voice/backends/gemini_live.py: Gemini Live API WebSocket connection, same VoiceBackend interface, tool-use support via Gemini function calling, audio format conversion as needed
+- [X] T031 [US3] Implement voice session manager in services/agents_service/src/voice/session_manager.py: create_session(agent_id, room_id, backend_type) → VoiceSession, manage session lifecycle (start, active, ending, ended), route tool calls to memory_search/emit_citations, handle backend selection (nova_sonic or gemini_live) per agent config, clean session teardown on disconnect or error
+- [X] T032 [US3] Implement voice transcript posting in services/agents_service/src/voice/transcript.py: collect Transcript events from VoiceBackend.receive(), buffer per-turn transcripts, format with citations via matrix_helpers, post to text thread in same Matrix room, save to chat_history with modality="voice"
+- [X] T033 [US3] Initialize voice_call_service Node.js project in services/voice_call_service/src/package.json with dependencies for MatrixRTC client (matrix-js-sdk), WebSocket (ws), and audio processing
+- [X] T034 [US3] Implement MatrixRTC join in services/voice_call_service/src/matrixrtc.js: join Element Call as virtual user for a Clone, handle call setup/teardown events, establish audio track
+- [X] T035 [US3] Implement audio bridge in services/voice_call_service/src/audio_bridge.js: decode Opus from WebRTC to PCM 16kHz, encode PCM 24kHz to Opus for return path, WebSocket connection to agents_service voice session manager for bidirectional PCM streaming
 
 **Checkpoint**: User Story 3 complete — Single-Clone voice calls work with real-time speech, memory-grounded responses, and text transcript with citations.
 
@@ -139,9 +139,9 @@
 
 ### Implementation for User Story 4
 
-- [X] T036 [P] [US4] Implement audio mixer in bt_voice_sidecar/mixer.js: mix multiple Clone audio streams for user playback, mute non-speaking Clones during turn-taking, support N virtual MatrixRTC participants (one per Clone)
-- [X] T037 [US4] Extend voice session manager for multi-agent sessions in bt_agent/voice/session_manager.py: manage multiple concurrent VoiceBackend instances (one per Clone), coordinate with discussion orchestrator for turn order, route audio to active speaker's backend only, enforce turn-taking (< 5% simultaneous speech per SC-007)
-- [X] T038 [US4] Extend discussion orchestrator for voice mode in bt_agent/discussion/orchestrator.py: add voice_mode flag to discussion config, when voice_mode=true route Clone responses through voice session manager instead of text posting, coordinate audio turn handoffs, post transcript entries to text thread per turn via transcript.py
+- [X] T036 [P] [US4] Implement audio mixer in services/voice_call_service/src/mixer.js: mix multiple Clone audio streams for user playback, mute non-speaking Clones during turn-taking, support N virtual MatrixRTC participants (one per Clone)
+- [X] T037 [US4] Extend voice session manager for multi-agent sessions in services/agents_service/src/voice/session_manager.py: manage multiple concurrent VoiceBackend instances (one per Clone), coordinate with discussion orchestrator for turn order, route audio to active speaker's backend only, enforce turn-taking (< 5% simultaneous speech per SC-007)
+- [X] T038 [US4] Extend discussion orchestrator for voice mode in services/agents_service/src/discussion/orchestrator.py: add voice_mode flag to discussion config, when voice_mode=true route Clone responses through voice session manager instead of text posting, coordinate audio turn handoffs, post transcript entries to text thread per turn via transcript.py
 
 **Checkpoint**: User Story 4 complete — Multi-agent voice discussions work with turn-taking, per-Clone audio streams, and full transcript with citations.
 
@@ -218,11 +218,11 @@ Task: "Write unit test for guards in tests/unit/test_guards.py"           # T014
 Task: "Write contract test for Matrix events in tests/contract/test_matrix_events.py" # T015
 
 # Launch US1 tools together:
-Task: "Implement memory_search tool in bt_agent/tools/memory_search.py"   # T016
-Task: "Implement emit_citations tool in bt_agent/tools/emit_citations.py" # T017
+Task: "Implement memory_search tool in services/agents_service/src/tools/memory_search.py"   # T016
+Task: "Implement emit_citations tool in services/agents_service/src/tools/emit_citations.py" # T017
 
 # Launch US1 guards + formatting together:
-Task: "Implement rate limiter in bt_agent/guards.py"                      # T020
+Task: "Implement rate limiter in services/agents_service/src/guards.py"                      # T020
 Task: "Implement Matrix formatting in bt_common/matrix_helpers.py"        # T021
 ```
 
@@ -233,13 +233,13 @@ Task: "Implement Matrix formatting in bt_common/matrix_helpers.py"        # T021
 
 # Developer A works on US2:
 Task: "Write contract test for A2A protocol"                              # T025
-Task: "Implement A2A server in bt_agent/discussion/a2a_server.py"         # T026
-Task: "Implement orchestrator in bt_agent/discussion/orchestrator.py"     # T027
+Task: "Implement A2A server in services/agents_service/src/discussion/a2a_server.py"         # T026
+Task: "Implement orchestrator in services/agents_service/src/discussion/orchestrator.py"     # T027
 
 # Developer B works on US3:
-Task: "Implement VoiceBackend ABC in bt_agent/voice/backends/base.py"     # T028
+Task: "Implement VoiceBackend ABC in services/agents_service/src/voice/backends/base.py"     # T028
 Task: "Implement NovaSonicBackend"                                        # T029
-Task: "Initialize bt_voice_sidecar"                                       # T033
+Task: "Initialize voice_call_service"                                       # T033
 ```
 
 ---

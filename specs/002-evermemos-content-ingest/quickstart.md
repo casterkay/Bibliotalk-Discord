@@ -26,13 +26,13 @@ Environment variables (recommended):
 Intended CLI shape:
 
 - Ingest local text:
-  - `python -m evermemos_ingest ingest text --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --text "<TEXT>"`
+  - `python -m ingestion_service ingest text --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --text "<TEXT>"`
 - Ingest a local file:
-  - `python -m evermemos_ingest ingest file --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --path /absolute/path/to/file.txt`
+  - `python -m ingestion_service ingest file --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --path /absolute/path/to/file.txt`
 
 Expected output:
 - human-readable summary to stdout
-- a JSON report file written to an operator-specified `--report-path`, or by default to `.evermemos_ingest/reports/<run_id>.json`
+- a JSON report file written to an operator-specified `--report-path`, or by default to `.ingestion_service/reports/<run_id>.json`
 
 ## Re-Run Safely (P2)
 
@@ -44,7 +44,7 @@ Re-running the same command with unchanged content is expected to:
 
 Intended CLI shape:
 
-- `python -m evermemos_ingest ingest manifest --path /absolute/path/to/manifest.yaml`
+- `python -m ingestion_service ingest manifest --path /absolute/path/to/manifest.yaml`
 
 The manifest format and report format are defined in:
 - `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/contracts/ingest-manifest.md`

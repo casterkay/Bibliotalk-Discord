@@ -68,11 +68,11 @@ docker compose -f docker-compose.test.yml down
 
 ```bash
 # Ensure Synapse is running and appservice is registered
-# Start bt_agent
-uvicorn bt_agent.main:app --host 0.0.0.0 --port 8009
+# Start agents_service
+uvicorn agents_service.main:app --host 0.0.0.0 --port 8009
 
-# Start bt_voice_sidecar (for voice calls)
-cd bt_voice_sidecar && npm start
+# Start voice_call_service (for voice calls)
+cd services/voice_call_service && npm start
 ```
 
 ## 5. Verify
@@ -91,7 +91,7 @@ bt_common/                  # Shared Python library
 ├── segment.py              # Segment models + BM25 re-ranking
 └── matrix_helpers.py       # Message formatting
 
-bt_agent/                   # Core agent service
+services/agents_service/src/                   # Core agent service
 ├── main.py                 # FastAPI appservice entry point
 ├── appservice.py           # Matrix event handler (mautrix)
 ├── agent_factory.py        # ADK agent creation
@@ -108,10 +108,10 @@ bt_agent/                   # Core agent service
     ├── orchestrator.py     # Multi-agent LoopAgent
     └── a2a_server.py       # Per-Clone A2A endpoint
 
-bt_voice_sidecar/           # Node.js voice bridge
+services/voice_call_service/src/           # Node.js voice bridge
 ├── index.js                # Entry point
 ├── matrixrtc.js            # MatrixRTC client
-└── audio_bridge.js         # WebSocket bridge to bt_agent
+└── audio_bridge.js         # WebSocket bridge to agents_service
 
 bt_cli/                     # CLI test harness
 └── __main__.py             # stdin/stdout Clone chat

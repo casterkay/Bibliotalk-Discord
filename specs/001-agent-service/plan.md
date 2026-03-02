@@ -13,7 +13,7 @@ validated via a CLI test harness (see research.md R1).
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ (bt_agent, bt_common, bt_cli); Node.js 20+ (bt_voice_sidecar)
+**Language/Version**: Python 3.11+ (agents_service, bt_common, bt_cli); Node.js 20+ (voice_call_service)
 **Primary Dependencies**: google-adk, google-genai, mautrix, httpx, supabase, boto3, pydantic, uvicorn, FastAPI
 **Storage**: Supabase (PostgreSQL) for agents, sources, segments, chat_history; EverMemOS for vector memory
 **Testing**: pytest + respx (unit/contract), Docker Compose + EMOS (integration), ADK InMemoryRunner (agent tests)
@@ -69,7 +69,7 @@ bt_common/                  # Shared Python library (in-repo package)
 ├── config.py               # pydantic-settings env config
 └── exceptions.py           # Typed domain exceptions
 
-bt_agent/                   # Core agent service (FastAPI appservice)
+services/agents_service/src/                   # Core agent service (FastAPI appservice)
 ├── main.py                 # Uvicorn entry point
 ├── appservice.py           # mautrix event handler + room routing
 ├── agent_factory.py        # ADK LlmAgent creation from DB rows
@@ -89,11 +89,11 @@ bt_agent/                   # Core agent service (FastAPI appservice)
 │   └── a2a_server.py       # Per-Clone A2A HTTP server
 └── guards.py               # Rate limiter
 	
-bt_voice_sidecar/           # Node.js MatrixRTC audio bridge
+services/voice_call_service/src/           # Node.js MatrixRTC audio bridge
 ├── package.json
 ├── index.js                # Entry point
 ├── matrixrtc.js            # Join Element Call as virtual user
-├── audio_bridge.js         # PCM encode/decode, WebSocket to bt_agent
+├── audio_bridge.js         # PCM encode/decode, WebSocket to agents_service
 └── mixer.js                # Audio mixing for multi-agent voice
 	
 bt_cli/                     # CLI test harness (rapid iteration)
@@ -118,7 +118,7 @@ tests/
 ```
 
 **Structure Decision**: Multi-package monorepo. `bt_common` is a shared
-Python library used by both `bt_agent` and `bt_cli`. `bt_voice_sidecar`
+Python library used by both `agents_service` and `bt_cli`. `voice_call_service`
 is a separate Node.js package. This follows the blueprint's service
 architecture while keeping shared logic in one place.
 
@@ -126,6 +126,6 @@ architecture while keeping shared logic in one place.
 
 | Violation                                                  | Why Needed                                                                                                    | Simpler Alternative Rejected Because                                                                                         |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 4 packages (bt_common, bt_agent, bt_voice_sidecar, bt_cli) | Python and Node.js runtimes are incompatible; CLI harness enables rapid testing without Matrix infrastructure | Single Python package would still need a separate Node.js sidecar for WebRTC; CLI harness pays for itself in iteration speed |
+| 4 packages (bt_common, agents_service, voice_call_service, bt_cli) | Python and Node.js runtimes are incompatible; CLI harness enables rapid testing without Matrix infrastructure | Single Python package would still need a separate Node.js sidecar for WebRTC; CLI harness pays for itself in iteration speed |
 | VoiceBackend abstraction                                   | Two voice backends (Nova Sonic, Gemini Live) with same interface                                              | Direct implementation would duplicate session management, tool-use routing, and transcript handling                          |
 

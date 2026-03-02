@@ -36,9 +36,9 @@ harness and pytest-driven testing first.
 1. bt_common (EMOS client, citation schemas, segment models) — pytest
 2. Clone agent with ADK — InMemoryRunner + mock EMOS
 3. bt_cli test harness — stdin/stdout end-to-end grounding validation
-4. Matrix appservice layer (bt_agent proper)
+4. Matrix appservice layer (agents_service proper)
 5. Multi-agent discussions (A2A)
-6. Voice (bt_voice_sidecar + voice backends)
+6. Voice (voice_call_service + voice backends)
 
 ## R2: Google ADK Agent Testing
 

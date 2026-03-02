@@ -13,7 +13,7 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 **Primary Dependencies**: `evermemos` (EverMemOS SDK), `httpx`, `pydantic`, `typer`, `rich`, `tenacity`  
 **Storage**: EverMemOS for memory storage; local SQLite ingestion index (default) for idempotency and reporting continuity  
 **Testing**: `pytest`, `pytest-asyncio`, `respx` (HTTP mocking), golden-file tests for segmentation determinism  
-**Target Platform**: CLI for macOS/Linux; library usable from `bt-workers` or other Python services  
+**Target Platform**: CLI for macOS/Linux; library usable from `ingestion_service` or other Python services  
 **Project Type**: Python package (library + CLI)  
 **Performance Goals**: Ingest 50 typical sources in a single run with actionable reporting; segmenting throughput supports multi-hour transcripts without operator intervention  
 **Constraints**: No interactive browsing; deterministic segmentation; stable message/group IDs; secrets never logged; safe retries on transient EverMemOS failures  
@@ -57,9 +57,9 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 
 ```text
 /Users/tcai/Projects/Bibliotalk/
-evermemos_ingest/
+services/ingestion_service/src/
 ├── __init__.py
-├── __main__.py              # `python -m evermemos_ingest ...`
+├── __main__.py              # `python -m ingestion_service ...`
 ├── cli.py                   # CLI command definitions
 ├── config.py                # env + config file loading
 ├── models.py                # typed entities: Source, Segment, Report
@@ -84,7 +84,7 @@ tests/
     └── test_evermemos_api.py
 ```
 
-**Structure Decision**: Single standalone package (`evermemos_ingest`) with a small adapter layer for supported non-interactive inputs. It is intentionally independent of Matrix/Supabase so it can be reused by `bt-workers` or external operators.
+**Structure Decision**: Single standalone package (`ingestion_service`) with a small adapter layer for supported non-interactive inputs. It is intentionally independent of Matrix/Supabase so it can be reused by `ingestion_service` or external operators.
 
 ## Phased Delivery (maps to spec priorities)
 
