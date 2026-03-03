@@ -20,7 +20,7 @@ class _MockSupabase:
         return {
             "id": str(agent_id),
             "display_name": "Confucius (Ghost)",
-            "matrix_user_id": "@btghost_confucius:example",
+            "matrix_user_id": "@bt_ghost_confucius:example",
             "persona_prompt": "You are Confucius.",
             "llm_model": self.model,
             "is_active": True,
@@ -109,7 +109,7 @@ async def _run(agent_slug: str, mock_emos: bool, model: str) -> None:
 
     agent = await create_ghost_agent(
         agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=LLMRegistry,
         memory_search_fn=memory_search_fn,
         emit_citations_fn=emit_citations_fn,

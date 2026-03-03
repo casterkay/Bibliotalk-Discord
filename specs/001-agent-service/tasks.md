@@ -2,7 +2,7 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-02  
+**Last Updated**: 2026-03-03  
 **Input**: `BLUEPRINT.md` + `specs/001-agent-service/*`
 
 This task list is a living checklist for bringing the implementation in `services/agents_service/` in line with `BLUEPRINT.md`.
@@ -115,3 +115,22 @@ Pending:
 - [x] Make `.env` discovery robust (support repo-root `.env` even when running from service directories)
 - [ ] Clarify EverMemOS API versioning in contracts (v0/v1 path strings) while keeping shape-based tests
 - [ ] Add a dedicated Matrix event contract doc for appservice transactions and message send payloads
+
+---
+
+## Local E2E (Dev UX): Synapse + Element Web + PocketBase
+
+**Goal**: A single-command-ish local workflow that provisions Matrix + Ghosts + rooms + profile timelines so you can chat with Ghosts in Element.
+
+Pending:
+
+- [x] Add a DB abstraction and implement PocketBase backend for `agents_service` (replacing Supabase for local dev)
+- [x] Add appservice user query endpoint `GET /_matrix/app/v1/users/{userId}` for virtual user resolution
+- [x] Add `agents_service.bootstrap` CLI:
+  - [x] `seed-ghosts` (agents + agent_emos_config)
+  - [x] `import-segment-cache` (`.ingestion_service/segment_cache/*.jsonl` → `sources`/`segments`)
+  - [x] `provision-matrix` (Space + rooms + invites + power levels)
+  - [x] `post-profile-timeline` (threads from canonical segments)
+  - [x] `smoke-test` (DM → reply → citations)
+- [x] Add `deploy/local/docker-compose.yml` for Synapse + Element Web + PocketBase
+- [x] Add PocketBase migrations under `deploy/local/pocketbase/pb_migrations/`

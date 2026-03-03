@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from agents_service.matrix.appservice import AppServiceHandler
+from agents_service.matrix.appservice import AppServiceHandler, format_ghost_response
 from agents_service.models.citation import Citation
 
 
@@ -63,7 +63,7 @@ async def test_ignores_profile_rooms() -> None:
         agent_resolver=resolve_agent,
         send_message=send_message,
         join_room=join_room,
-        supabase_helpers=supabase,  # type: ignore[arg-type]
+        store=supabase,  # type: ignore[arg-type]
     )
 
     payload = await handler.handle_event(
@@ -82,7 +82,7 @@ async def test_ignores_profile_rooms() -> None:
 async def test_membership_invite_triggers_join() -> None:
     supabase = FakeSupabase()
     agent_id = str(uuid4())
-    ghost_user_id = "@btghost_confucius:example"
+    ghost_user_id = "@bt_ghost_confucius:example"
     supabase.agents_by_matrix[ghost_user_id] = {"id": agent_id, "matrix_user_id": ghost_user_id}
 
     seen: dict[str, str] = {}
@@ -101,7 +101,7 @@ async def test_membership_invite_triggers_join() -> None:
         agent_resolver=resolve_agent,
         send_message=send_message,
         join_room=join_room,
-        supabase_helpers=supabase,  # type: ignore[arg-type]
+        store=supabase,  # type: ignore[arg-type]
     )
 
     await handler.handle_event(
@@ -121,7 +121,7 @@ async def test_membership_invite_triggers_join() -> None:
 async def test_mention_routes_to_correct_ghost_and_sends_as_virtual_user() -> None:
     supabase = FakeSupabase()
     agent_id = str(uuid4())
-    ghost_user_id = "@btghost_confucius:example"
+    ghost_user_id = "@bt_ghost_confucius:example"
     supabase.agents_by_matrix[ghost_user_id] = {"id": agent_id, "matrix_user_id": ghost_user_id}
     supabase.agents_by_id[agent_id] = {"id": agent_id, "matrix_user_id": ghost_user_id}
 
@@ -147,7 +147,7 @@ async def test_mention_routes_to_correct_ghost_and_sends_as_virtual_user() -> No
         agent_resolver=resolve_agent,
         send_message=send_message,
         join_room=join_room,
-        supabase_helpers=supabase,  # type: ignore[arg-type]
+        store=supabase,  # type: ignore[arg-type]
         save_history=save_history,
     )
 
@@ -174,7 +174,7 @@ async def test_mention_routes_to_correct_ghost_and_sends_as_virtual_user() -> No
 async def test_dm_routing_uses_single_joined_ghost() -> None:
     supabase = FakeSupabase()
     agent_id = str(uuid4())
-    ghost_user_id = "@btghost_confucius:example"
+    ghost_user_id = "@bt_ghost_confucius:example"
     supabase.agents_by_matrix[ghost_user_id] = {"id": agent_id, "matrix_user_id": ghost_user_id}
     supabase.agents_by_id[agent_id] = {"id": agent_id, "matrix_user_id": ghost_user_id}
 
@@ -191,7 +191,7 @@ async def test_dm_routing_uses_single_joined_ghost() -> None:
         agent_resolver=resolve_agent,
         send_message=send_message,
         join_room=join_room,
-        supabase_helpers=supabase,  # type: ignore[arg-type]
+        store=supabase,  # type: ignore[arg-type]
     )
 
     # Join event populates index.
@@ -216,3 +216,50 @@ async def test_dm_routing_uses_single_joined_ghost() -> None:
 
     assert payload is not None
 
+
+def _make_citation(*, index: int, source_title: str) -> Citation:
+    return Citation(
+        index=index,
+        segment_id=uuid4(),
+        emos_message_id=f"a:b:c:seg:{index}",
+        source_title=source_title,
+        source_url="https://example.com",
+        quote="Learning without thought is labor lost.",
+        platform="gutenberg",
+    )
+
+
+def test_format_ghost_response_filters_citations_by_markers() -> None:
+    c1 = _make_citation(index=1, source_title="S1")
+    c2 = _make_citation(index=2, source_title="S2")
+
+    payload = format_ghost_response("Hello [^2]", [c1, c2])
+    items = payload["com.bibliotalk.citations"]["items"]
+
+    assert [item["index"] for item in items] == [2]
+    assert "[^2]" in payload["body"]
+    assert "[^1]" not in payload["body"]
+    assert "[2] S2 (gutenberg)" in payload["body"]
+    assert "[1] S1 (gutenberg)" not in payload["body"]
+
+
+def test_format_ghost_response_appends_markers_when_missing() -> None:
+    c1 = _make_citation(index=1, source_title="S1")
+    c2 = _make_citation(index=2, source_title="S2")
+
+    payload = format_ghost_response("Hello", [c1, c2])
+    items = payload["com.bibliotalk.citations"]["items"]
+
+    assert [item["index"] for item in items] == [1, 2]
+    assert "[^1]" in payload["body"]
+    assert "[^2]" in payload["body"]
+
+
+def test_format_ghost_response_strips_unknown_markers() -> None:
+    c1 = _make_citation(index=1, source_title="S1")
+
+    payload = format_ghost_response("Hello [^9]", [c1])
+    items = payload["com.bibliotalk.citations"]["items"]
+
+    assert not items
+    assert "[^9]" not in payload["body"]

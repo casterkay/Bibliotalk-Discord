@@ -24,6 +24,10 @@ class SupabaseHelpers:
     def __init__(self, client: Any):
         self.client = client
 
+    async def aclose(self) -> None:
+        # Supabase async client manages its own HTTP session; keep a no-op for Store compatibility.
+        return None
+
     async def get_agent(self, agent_id: UUID) -> dict[str, Any] | None:
         result = await self.client.table("agents").select("*").eq("id", str(agent_id)).limit(1).execute()
         return result.data[0] if result.data else None

@@ -70,7 +70,7 @@ async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> 
     registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
 
     agent = await create_ghost_agent(
-        supabase.agent_id, supabase_helpers=supabase, llm_registry=registry
+        supabase.agent_id, store=supabase, llm_registry=registry
     )
 
     assert agent.name == "Confucius (Ghost)"
@@ -101,7 +101,7 @@ async def test_agent_calls_memory_search_tool_when_given_factual_question() -> N
 
     agent = await create_ghost_agent(
         supabase.agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=registry,
         memory_search_fn=fake_memory_search,
     )
@@ -138,7 +138,7 @@ async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
 
     agent = await create_ghost_agent(
         supabase.agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=registry,
         memory_search_fn=fake_memory_search,
         emit_citations_fn=fake_emit,
@@ -164,7 +164,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
 
     agent = await create_ghost_agent(
         supabase.agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=registry,
         memory_search_fn=empty_memory_search,
     )
@@ -197,7 +197,7 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
 
     agent = await create_ghost_agent(
         supabase.agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=registry,
         memory_search_fn=fake_memory_search,
     )
@@ -226,7 +226,7 @@ async def test_agent_handles_memory_outage_gracefully() -> None:
 
     agent = await create_ghost_agent(
         supabase.agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=registry,
         memory_search_fn=failing_memory_search,
     )

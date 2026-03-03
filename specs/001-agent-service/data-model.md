@@ -2,10 +2,18 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-02  
+**Last Updated**: 2026-03-03  
 **Source**: `BLUEPRINT.md` sections 2–4 and 9
 
 This document summarizes the database entities `agents_service` reads/writes for Ghost chat, citations, and (eventually) discussion/voice transcripts.
+
+## Storage Backends (Blueprint vs Local Dev)
+
+`BLUEPRINT.md` defines the logical schema in **Supabase Postgres**. For local end-to-end development (“let me chat with ghosts”), the repository plan uses **PocketBase** as a localhost backend that stores the same logical entities.
+
+**Important**: EverMemOS is a *retrieval* system. It is not treated as the canonical store of verbatim segments needed for citation verification and profile-room timeline posting. Canonical segments must exist in a database (`sources` / `segments`), and are mirrored into EverMemOS via ingestion.
+
+This doc uses “tables” as logical names; in local dev these map 1:1 to PocketBase collections.
 
 ## Core Tables
 
@@ -33,7 +41,7 @@ Per-agent EverMemOS connection details.
 | agent_id               | uuid | PK/FK → `agents.id` |
 | emos_base_url          | text | base URL for EverMemOS |
 | emos_api_key_encrypted | text | nullable; platform instances may use service auth |
-| tenant_prefix          | text | EverMemOS user/sender ID (often the agent UUID for figures) |
+| tenant_prefix          | text | EverMemOS `user_id` / `sender` namespace. In local dev this is often a human-readable slug (e.g. `confucius`). In blueprint production it is often the agent UUID for figures. |
 
 ### users
 
@@ -74,7 +82,7 @@ Upstream content items (episodes, books, videos) per Ghost.
 | external_url  | text  | canonical URL |
 | title         | text  | |
 | raw_meta      | jsonb | platform metadata |
-| emos_group_id | text  | unique; `{agent_id}:{platform}:{external_id}` |
+| emos_group_id | text  | unique; `{tenant_prefix}:{platform}:{external_id}` |
 | created_at    | timestamptz | |
 
 ### segments
@@ -93,7 +101,7 @@ Canonical verbatim chunks used for memorize, profile-room posting, and citation 
 | start_ms        | int   | nullable |
 | end_ms          | int   | nullable |
 | sha256          | text  | dedup |
-| emos_message_id | text  | unique; `{agent_id}:{platform}:{external_id}:seg:{seq}` |
+| emos_message_id | text  | unique; `{tenant_prefix}:{platform}:{external_id}:seg:{seq}` |
 | matrix_event_id | text  | nullable (profile-room post event id) |
 | created_at      | timestamptz | |
 
@@ -148,9 +156,14 @@ agents 1──N chat_history
 Per `BLUEPRINT.md`:
 
 ```text
-sender     = "{agent_id}" (figures) or agent_emos_config.tenant_prefix (users)
-group_id   = "{agent_id}:{platform}:{external_id}"
-message_id = "{agent_id}:{platform}:{external_id}:seg:{seq}"
+sender     = "{tenant_prefix}"
+group_id   = "{tenant_prefix}:{platform}:{external_id}"
+message_id = "{tenant_prefix}:{platform}:{external_id}:seg:{seq}"
 ```
+
+Notes:
+- `tenant_prefix` is the first component of the ID and exists to prevent collisions across different memory tenants.
+- For local dev, `tenant_prefix` is typically a slug (`confucius`, `alan_watts`).
+- For production figures, `tenant_prefix` may be the agent UUID (still a string; same format rules apply).
 
 **Retrieval mapping**: EverMemOS search returns memories containing `group_id`. Map `group_id` → `sources.emos_group_id` → candidate `segments`, then locally rerank within those segments to produce citation-friendly verbatim evidence.

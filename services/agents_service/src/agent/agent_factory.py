@@ -12,7 +12,7 @@ from bt_common.config import get_emos_fallback_settings
 from bt_common.evermemos_client import EverMemOSClient
 from bt_common.exceptions import AgentNotFoundError
 
-from ..database.supabase_helpers import SupabaseHelpers
+from ..database.store import Store
 from ..models.citation import Evidence
 from .providers.gemini import GeminiConfigurationError
 from .tools.emit_citations import EmitCitationsTool
@@ -121,7 +121,7 @@ class GhostAgent:
 async def create_ghost_agent(
     agent_id: UUID,
     *,
-    supabase_helpers: SupabaseHelpers | Any,
+    store: Store | Any,
     llm_registry: Any | None = None,
     memory_search_fn: MemorySearchFn | None = None,
     emit_citations_fn: EmitCitationsFn | None = None,
@@ -135,18 +135,21 @@ async def create_ghost_agent(
         if cached and (now - cached[0]) < cache_ttl_seconds:
             return cached[1]
 
-    agent_row = await supabase_helpers.get_agent(agent_id)
+    agent_row = await store.get_agent(agent_id)
     if not agent_row:
         raise AgentNotFoundError(f"Agent {agent_id} not found")
 
     if memory_search_fn is None:
         memory_tool: MemorySearchTool | None = None
+        emos_user_id: str | None = None
 
         async def _default_memory_search(query: str, _agent_id: str) -> list[Evidence]:
             nonlocal memory_tool
+            nonlocal emos_user_id
             if memory_tool is None:
-                emos_config = await supabase_helpers.get_agent_emos_config(agent_id) or {}
+                emos_config = await store.get_agent_emos_config(agent_id) or {}
                 emos_fallback = get_emos_fallback_settings()
+                emos_user_id = str(emos_config.get("tenant_prefix") or agent_id)
                 evermemos_client = EverMemOSClient(
                     emos_config.get("emos_base_url") or emos_fallback.EMOS_BASE_URL or "",
                     api_key=(
@@ -157,23 +160,24 @@ async def create_ghost_agent(
                 )
                 memory_tool = MemorySearchTool(
                     evermemos_client=evermemos_client,
-                    sources_by_group_ids_provider=lambda group_ids: supabase_helpers.get_sources_by_emos_group_ids(
+                    sources_by_group_ids_provider=lambda group_ids: store.get_sources_by_emos_group_ids(
                         group_ids
                     ),
-                    segments_by_source_ids_provider=lambda source_ids: supabase_helpers.get_segments_by_source_ids(
+                    segments_by_source_ids_provider=lambda source_ids: store.get_segments_by_source_ids(
                         source_ids
                     ),
-                    segments_for_agent_provider=lambda lookup_agent_id: supabase_helpers.get_segments_for_agent(
+                    segments_for_agent_provider=lambda lookup_agent_id: store.get_segments_for_agent(
                         UUID(lookup_agent_id)
                     ),
                 )
-            return await memory_tool(query, _agent_id)
+            # EverMemOS user_id is a tenant prefix (local dev: a slug like "confucius").
+            return await memory_tool(query, emos_user_id or str(agent_id))
 
         memory_search_fn = _default_memory_search
 
     if emit_citations_fn is None:
         emit_tool = EmitCitationsTool(
-            segments_by_ids_provider=lambda segment_ids: supabase_helpers.get_segments_by_ids(
+            segments_by_ids_provider=lambda segment_ids: store.get_segments_by_ids(
                 segment_ids
             )
         )

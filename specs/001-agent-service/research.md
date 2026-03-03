@@ -2,7 +2,7 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-02
+**Last Updated**: 2026-03-03
 
 ## R0: Agent Runtime — Google ADK vs Minimal Local Runtime
 
@@ -82,3 +82,12 @@
 **Rationale**:
 - Allows switching Gemini ↔ Nova Lite v2 by configuration.
 - Keeps higher-level orchestration stable while swapping generation engines.
+
+## R7: Local E2E Storage Backend (PocketBase)
+
+**Decision**: For local end-to-end development (“let me chat with ghosts”), use PocketBase as a localhost backend that stores the same logical entities as the blueprint’s Supabase schema.
+
+**Rationale**:
+- Local E2E chat requires a canonical store of verbatim `segments` to validate citations and to post profile-room timelines.
+- EverMemOS retrieval returns `group_id` but is not treated as a canonical segment store for verifiable quotes.
+- PocketBase provides a lightweight, schema-managed local backend suitable for a scripted bootstrap flow (seed Ghosts, import segment cache, provision Matrix rooms).

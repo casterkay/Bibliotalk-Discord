@@ -7,7 +7,7 @@ from html import escape
 from typing import Any, Awaitable, Callable
 from uuid import UUID
 
-from ..database.supabase_helpers import SupabaseHelpers
+from ..database.store import Store
 from ..models.citation import Citation
 from .guards import RateLimiter
 
@@ -16,7 +16,23 @@ SendMessage = Callable[[str, str, dict[str, Any]], Awaitable[str | None]]
 SaveHistory = Callable[[dict[str, Any]], Awaitable[None]]
 JoinRoom = Callable[[str, str], Awaitable[None]]
 
-_BT_USER_RE = re.compile(r"@bt[^\s:]+:[^\s]+")
+_BT_USER_RE = re.compile(r"@bt_[^\s:]+:[^\s]+")
+_CITATION_MARKER_RE = re.compile(r"\[\^(\d+)\]")
+
+
+def _parse_citation_marker_indices(text: str) -> list[int]:
+    seen: set[int] = set()
+    indices: list[int] = []
+    for match in _CITATION_MARKER_RE.finditer(text):
+        try:
+            idx = int(match.group(1))
+        except (TypeError, ValueError):
+            continue
+        if idx < 1 or idx in seen:
+            continue
+        seen.add(idx)
+        indices.append(idx)
+    return indices
 
 
 class _RoomGhostIndex:
@@ -55,14 +71,14 @@ class AppServiceHandler:
         agent_resolver: AgentResolver,
         send_message: SendMessage,
         join_room: JoinRoom,
-        supabase_helpers: SupabaseHelpers,
+        store: Store,
         save_history: SaveHistory | None = None,
         rate_limiter: RateLimiter | None = None,
     ):
         self.agent_resolver = agent_resolver
         self.send_message = send_message
         self.join_room = join_room
-        self.supabase_helpers = supabase_helpers
+        self.store = store
         self.save_history = save_history
         self.rate_limiter = rate_limiter or RateLimiter(cooldown_seconds=5)
         self._ghost_index = _RoomGhostIndex()
@@ -80,7 +96,7 @@ class AppServiceHandler:
         if event_type != "m.room.message":
             return None
 
-        if await self.supabase_helpers.is_profile_room(room_id):
+        if await self.store.is_profile_room(room_id):
             return None
 
         content = event.get("content", {}) or {}
@@ -97,7 +113,7 @@ class AppServiceHandler:
             return None
 
         sender = str(event.get("sender") or "")
-        if sender.startswith("@bt"):
+        if sender.startswith("@bt_"):
             # Prevent bot loops.
             return None
 
@@ -130,7 +146,7 @@ class AppServiceHandler:
 
         ghost_user_id = getattr(agent, "matrix_user_id", None)
         if not ghost_user_id:
-            row = await self.supabase_helpers.get_agent(UUID(agent_id))
+            row = await self.store.get_agent(UUID(agent_id))
             ghost_user_id = row.get("matrix_user_id") if row else None
         if not ghost_user_id:
             return None
@@ -155,13 +171,13 @@ class AppServiceHandler:
     async def _handle_membership(self, event: dict[str, Any]) -> None:
         room_id = str(event.get("room_id") or "")
         state_key = str(event.get("state_key") or "")
-        if not room_id or not state_key.startswith("@bt"):
+        if not room_id or not state_key.startswith("@bt_"):
             return
 
         content = event.get("content", {}) or {}
         membership = str(content.get("membership") or "")
 
-        agent_row = await self.supabase_helpers.get_agent_by_matrix_id(state_key)
+        agent_row = await self.store.get_agent_by_matrix_id(state_key)
         if not agent_row:
             return
         agent_id = str(agent_row["id"])
@@ -184,14 +200,14 @@ class AppServiceHandler:
         mentioned_user_ids = mentions.get("user_ids") or []
         if isinstance(mentioned_user_ids, list):
             for user_id in mentioned_user_ids:
-                if not isinstance(user_id, str) or not user_id.startswith("@bt"):
+                if not isinstance(user_id, str) or not user_id.startswith("@bt_"):
                     continue
-                row = await self.supabase_helpers.get_agent_by_matrix_id(user_id)
+                row = await self.store.get_agent_by_matrix_id(user_id)
                 if row:
                     return str(row["id"])
 
         for user_id in _BT_USER_RE.findall(body):
-            row = await self.supabase_helpers.get_agent_by_matrix_id(user_id)
+            row = await self.store.get_agent_by_matrix_id(user_id)
             if row:
                 return str(row["id"])
 
@@ -200,10 +216,30 @@ class AppServiceHandler:
 
 def format_ghost_response(text: str, citations: list[Citation]) -> dict[str, Any]:
     marker_text = str(text or "").strip()
-    for citation in citations:
-        marker = f"[^{citation.index}]"
-        if marker not in marker_text:
-            marker_text = (marker_text + " " + marker).strip()
+    citations = list(citations or [])
+
+    citations_by_index = {citation.index: citation for citation in citations}
+    referenced_indices = _parse_citation_marker_indices(marker_text)
+    if referenced_indices:
+        citations = [
+            citations_by_index[idx] for idx in referenced_indices if idx in citations_by_index
+        ]
+
+        def _keep_known_markers(match: re.Match[str]) -> str:
+            try:
+                idx = int(match.group(1))
+            except (TypeError, ValueError):
+                return ""
+            return match.group(0) if idx in citations_by_index else ""
+
+        marker_text = _CITATION_MARKER_RE.sub(_keep_known_markers, marker_text)
+        marker_text = re.sub(r"[ \t]{2,}", " ", marker_text).strip()
+    else:
+        # Defensive fallback: if the model forgot to include markers, append them for all citations.
+        for citation in citations:
+            marker = f"[^{citation.index}]"
+            if marker not in marker_text:
+                marker_text = (marker_text + " " + marker).strip()
 
     source_lines = ["", "──────────", "Sources:"]
     html_sources = ["<hr><b>Sources:</b><br>"]

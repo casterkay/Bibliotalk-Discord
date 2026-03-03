@@ -11,8 +11,6 @@ services/
   voice_call_service/    # Node sidecar for MatrixRTC/WebRTC
 packages/
   bt_common/             # Shared Python utilities (incl. EverMemOS client wrapper)
-tools/
-  bt_cli/                # CLI helpers
 specs/                   # Feature specs/plans/tasks
 docs/                    # Reference knowledge docs
 ```
@@ -47,3 +45,17 @@ Local outputs (gitignored by default):
 
 - `.ingestion_service/index.sqlite3`
 - `.ingestion_service/reports/<run_id>.json`
+
+## Local End-to-End: “Chat With Ghosts”
+
+The local E2E dev flow (Synapse + Element Web + PocketBase + `agents_service`) is specified in:
+- `specs/001-agent-service/plan.md`
+
+At a high level:
+- Start local infra with `deploy/local/docker-compose.yml`
+- Generate + enable the Synapse appservice (`deploy/local/bin/generate-appservice.sh`, `deploy/local/bin/enable-appservice.sh`)
+- Run `agents_service` on port 8009
+- Use `ingestion_service` to ingest sources into EverMemOS and emit a segment cache
+- Import the segment cache into PocketBase (canonical segments for citations)
+- Provision Matrix Space + rooms via the `agents_service.bootstrap` CLI
+See `specs/001-agent-service/quickstart.md` for a runnable step-by-step.

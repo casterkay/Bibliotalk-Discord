@@ -32,14 +32,24 @@ class Settings(BaseSettings):
     )
 
     GOOGLE_API_KEY: str | None = None
-    SUPABASE_URL: str
-    SUPABASE_SERVICE_ROLE_KEY: str
+    # Storage backends
+    # - Supabase: blueprint/production target (optional for local dev)
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    # - PocketBase: local-dev canonical store (optional in non-local deployments)
+    POCKETBASE_URL: str | None = None
+    POCKETBASE_SUPERUSER_EMAIL: str | None = None
+    POCKETBASE_SUPERUSER_PASSWORD: str | None = None
     EMOS_BASE_URL: str
     EMOS_API_KEY: str | None = None
     AWS_REGION: str = "us-east-1"
     MATRIX_HOMESERVER_URL: str
     MATRIX_AS_TOKEN: str
     MATRIX_HS_TOKEN: str
+    # Optional: Synapse admin login for scripted local provisioning
+    MATRIX_SERVER_NAME: str | None = None
+    MATRIX_ADMIN_USER: str | None = None
+    MATRIX_ADMIN_PASSWORD: str | None = None
     LOG_LEVEL: str = "INFO"
 
 

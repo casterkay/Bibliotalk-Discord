@@ -1,0 +1,37 @@
+services:
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: bibliotalk-synapse
+    restart: unless-stopped
+    environment:
+      - SYNAPSE_SERVER_NAME=localhost
+      - SYNAPSE_REPORT_STATS=no
+    volumes:
+      - ./synapse/data:/data
+    ports:
+      - "8008:8008"
+
+  element-web:
+    image: vectorim/element-web:latest
+    container_name: bibliotalk-element-web
+    restart: unless-stopped
+    volumes:
+      - ./element/config.json:/app/config.json:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - synapse
+
+  pocketbase:
+    build:
+      context: ./pocketbase
+      args:
+        PB_VERSION: "0.36.5"
+    container_name: bibliotalk-pocketbase
+    restart: unless-stopped
+    volumes:
+      - ./pocketbase/pb_data:/pb/pb_data
+      - ./pocketbase/pb_migrations:/pb/pb_migrations:ro
+    ports:
+      - "8090:8090"
+

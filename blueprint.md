@@ -174,7 +174,7 @@ Shared code used by both agents_service and ingestion_service:
 Every Matrix account on the Bibliotalk homeserver is either a real user or a Ghost virtual user:
 
 - **Real users**: `@alice:bibliotalk.space` — registered normally via Element
-- **Ghost virtual users**: `@btghost_alice:bibliotalk.space` — created by the appservice when user joins or when a figure is configured
+- **Ghost virtual users**: `@bt_ghost_alice:bibliotalk.space` — created by the appservice when user joins or when a figure is configured
 
 The appservice reserves the `@bt_*` namespace. Synapse routes all events involving these users to agents_service.
 
@@ -207,7 +207,7 @@ create table agents (
   id uuid primary key default gen_random_uuid(),
   kind text not null check (kind in ('figure', 'user')),
   display_name text not null,           -- "Confucius (Ghost)"
-  matrix_user_id text not null unique,  -- "@btghost_confucius:bibliotalk.space"
+  matrix_user_id text not null unique,  -- "@bt_ghost_confucius:bibliotalk.space"
   avatar_url text,
   bio text,
   persona_prompt text not null,         -- system prompt for this Ghost
@@ -593,7 +593,7 @@ Agents never post directly; they submit/update a single outstanding request per 
 {
   "type": "REQUEST_FLOOR",
   "room_id": "!abc:server",
-  "agent_id": "@btghost_confucius:bibliotalk.space",
+  "agent_id": "@bt_ghost_confucius:bibliotalk.space",
   "force": false,
   "reason": "Answer the user's question about virtue ethics.",
   "urgency": 0.6,
@@ -622,7 +622,7 @@ Selection is score-based with hard constraints:
 
 - Score:
   - `score = w_m * mention_boost + w_r * relevance + w_u * urgency + w_f * fairness + w_e * evidence`
-  - `mention_boost`: if the latest **user** utterance explicitly mentions an agent (Matrix mention, `@btghost_*`, or reliable display-name match), that agent’s next turn is strongly preferred.
+  - `mention_boost`: if the latest **user** utterance explicitly mentions an agent (Matrix mention, `@bt_ghost_*`, or reliable display-name match), that agent’s next turn is strongly preferred.
   - `relevance`: overall fit to the current conversational state (topic alignment, direct question answering, continuity); “topic coherence” is part of this.
   - `evidence`: preference for agents that can cite grounded memory for the asked question (e.g., they already found supporting segments in a preflight search).
 
@@ -1020,7 +1020,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 - `bibliotalk.space` — Synapse homeserver
 - Matrix user IDs: `@alice:bibliotalk.space`
-- Ghost user IDs: `@btghost_alice:bibliotalk.space`
+- Ghost user IDs: `@bt_ghost_alice:bibliotalk.space`
 
 ---
 
@@ -1131,7 +1131,7 @@ SUPABASE_SERVICE_ROLE_KEY
 
 1. Admin creates a figure (e.g., Confucius) with Gutenberg + Podwise sources. Ingestion populates `sources`, `segments`, EMOS. Profile room shows content threads with verbatim excerpts.
 2. User joins homeserver. Ghost `User (Ghost)` is auto-created. User links their EMOS API key via `!bt ghost setup`.
-3. User DMs `@btghost_confucius`. Ghost responds with grounded citations — each citation's `quote` is verifiable as a substring of the referenced segment.
+3. User DMs `@bt_ghost_confucius`. Ghost responds with grounded citations — each citation's `quote` is verifiable as a substring of the referenced segment.
 4. User creates a discussion room with Confucius and Aristotle Ghosts. Multi-turn discussion proceeds with grounded responses from both, each citing their own memories.
 5. User starts a voice call with a Ghost. Ghost responds in voice (unencrypted Element Call). Citations appear in a text thread in the same room.
 6. Switching voice engine (Nova Sonic ↔ Gemini Live) is a config toggle without changing higher-level call orchestration.

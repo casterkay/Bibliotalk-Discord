@@ -71,7 +71,7 @@ async def test_ghost_text_chat_e2e() -> None:
 
     agent = await create_ghost_agent(
         agent_id,
-        supabase_helpers=supabase,
+        store=supabase,
         llm_registry=FakeRegistry(),
         memory_search_fn=memory_search,
     )

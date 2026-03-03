@@ -2,11 +2,15 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-02  
+**Last Updated**: 2026-03-03  
 **Status**: Draft (implementation in progress; synced to `BLUEPRINT.md`)  
 **Input**: User description: "agent service with ADK, EverMemOS, voice chat capability"
 
 **Source of truth**: `BLUEPRINT.md`. If this spec conflicts with the current repository tree, follow the tree (per `BLUEPRINT.md`).
+
+## Local E2E Note (PocketBase)
+
+`BLUEPRINT.md` models the platform storage layer as Supabase Postgres. For local end-to-end development (“let me chat with ghosts”), this repo’s implementation plan uses PocketBase as a localhost backend that stores the same logical entities (`agents`, `profile_rooms`, `sources`, `segments`, `chat_history`, etc.). This does not change the user-facing behavior or contracts; it only changes the dev storage backend.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -107,6 +111,7 @@ A user starts a voice call in a discussion room with multiple Ghosts. The Ghosts
 - **FR-005**: System MUST validate all citations before delivering a Ghost's response — citations referencing non-existent sources or mismatched quotes MUST be stripped.
 - **FR-006**: When a Ghost has no relevant evidence for a query, it MUST explicitly acknowledge the gap rather than fabricating content.
 - **FR-007**: System MUST enforce that Ghosts never generate responses in profile rooms (public, read-only rooms designated for verbatim ingested content), enforced via Matrix room permissions.
+  - Implementation note: in addition to permissions, `agents_service` must treat rooms listed in `profile_rooms` as “no response” rooms.
 - **FR-008**: System MUST run a per-room Discussion Controller that enforces one active speaker at a time for multi-agent discussions, with configurable turn limits and user interjection.
 - **FR-009**: In multi-agent discussions, each Ghost MUST cite only from its own memory — never from another Ghost's memory.
 - **FR-010**: System MUST support real-time voice conversations between a user and a Ghost, with the Ghost responding in speech grounded in its memory.
@@ -148,8 +153,10 @@ A user starts a voice call in a discussion room with multiple Ghosts. The Ghosts
 
 ### Assumptions
 
-- The chat platform (Matrix/Synapse) and appservice registration are already deployed and operational before this feature is implemented.
-- The database schema for agents, agent configurations, and related tables is already provisioned.
+- For production, the chat platform (Matrix/Synapse) and appservice registration are deployed and operational before this feature is used.
+- For local end-to-end development, the repo provides `deploy/local/*` assets to run Synapse + Element Web, and the appservice registration is generated locally.
+- For production, the database schema for agents, agent configurations, and related tables is provisioned (blueprint target: Supabase Postgres).
+- For local end-to-end development, the logical schema is provisioned in PocketBase via repo migrations (`deploy/local/pocketbase/pb_migrations/`).
 - Content ingestion pipelines (Podwise, Gutenberg, YouTube) are a separate feature — this specification assumes source material already exists in each Ghost's memory when the agent service processes a conversation.
 - The voice sidecar (audio bridge between the chat platform's voice protocol and the agent service) is treated as part of this feature's scope, since voice chat capability is explicitly requested.
 - Unencrypted voice calls are acceptable for MVP. End-to-end encrypted voice is deferred.

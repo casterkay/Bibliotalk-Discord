@@ -9,9 +9,10 @@ import httpx
 from bt_common.config import get_settings
 from bt_common.logging import get_request_logger, set_correlation_id
 from fastapi import FastAPI, HTTPException, Request
-from supabase import create_async_client
 
 from .agent.agent_factory import LLMRegistry, create_ghost_agent
+from .database.pocketbase_store import PocketBaseConfig, PocketBaseStore
+from .database.store import Store
 from .database.supabase_helpers import SupabaseHelpers
 from .matrix.appservice import AppServiceHandler
 from .matrix.client import MatrixClient
@@ -25,10 +26,29 @@ async def startup() -> None:
     settings = get_settings()
     LLMRegistry.init_defaults()
 
-    supabase_client = await create_async_client(
-        settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
-    )
-    supabase_helpers = SupabaseHelpers(client=supabase_client)
+    store: Store | None = None
+    supabase_client: Any | None = None
+    if settings.POCKETBASE_URL:
+        if not settings.POCKETBASE_SUPERUSER_EMAIL or not settings.POCKETBASE_SUPERUSER_PASSWORD:
+            raise RuntimeError("PocketBase configured but POCKETBASE_SUPERUSER_EMAIL/PASSWORD missing")
+        store = PocketBaseStore(
+            config=PocketBaseConfig(
+                url=settings.POCKETBASE_URL,
+                email=settings.POCKETBASE_SUPERUSER_EMAIL,
+                password=settings.POCKETBASE_SUPERUSER_PASSWORD,
+            )
+        )
+    elif settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        # Legacy/blueprint backend path.
+        from supabase import create_async_client
+
+        supabase_client = await create_async_client(
+            settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
+        )
+        store = SupabaseHelpers(client=supabase_client)
+    else:
+        raise RuntimeError("No storage backend configured (set POCKETBASE_URL or SUPABASE_URL)")
+    assert store is not None
 
     matrix_http = httpx.AsyncClient(timeout=15.0)
     matrix_client = MatrixClient(
@@ -39,7 +59,7 @@ async def startup() -> None:
 
     async def _resolve_agent(agent_id: str):
         return await create_ghost_agent(
-            UUID(agent_id), supabase_helpers=supabase_helpers, llm_registry=LLMRegistry
+            UUID(agent_id), store=store, llm_registry=LLMRegistry
         )
 
     async def _join_room(room_id: str, user_id: str) -> None:
@@ -55,13 +75,13 @@ async def startup() -> None:
         agent_resolver=_resolve_agent,
         send_message=_send_message,
         join_room=_join_room,
-        supabase_helpers=supabase_helpers,
-        save_history=supabase_helpers.save_chat_history,
+        store=store,
+        save_history=store.save_chat_history,
     )
 
     app.state.settings = settings
     app.state.supabase_client = supabase_client
-    app.state.supabase_helpers = supabase_helpers
+    app.state.store = store
     app.state.matrix_client = matrix_client
     app.state.handler = handler
 
@@ -73,6 +93,9 @@ async def shutdown() -> None:
     matrix_client: MatrixClient | None = getattr(app.state, "matrix_client", None)
     if matrix_client is not None:
         await matrix_client.aclose()
+    store: Store | None = getattr(app.state, "store", None)
+    if store is not None:
+        await store.aclose()
 
 
 @app.get("/health")
@@ -115,3 +138,23 @@ async def transaction(txn_id: str, body: dict, request: Request) -> dict[str, ob
             continue
 
     return {"ok": True, "processed": len(events), "delivered": delivered}
+
+
+@app.get("/_matrix/app/v1/users/{user_id}")
+async def appservice_user_query(user_id: str, request: Request) -> dict[str, object]:
+    """Synapse appservice user query.
+
+    Synapse calls this to ask whether the appservice "owns" a given user ID.
+    Return 200 for known Ghost users so Synapse can provision them.
+    """
+
+    _require_hs_token(request)
+
+    if not user_id.startswith("@bt_"):
+        raise HTTPException(status_code=404, detail="unknown user")
+
+    store: Store = app.state.store
+    row = await store.get_agent_by_matrix_id(user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="unknown user")
+    return {}
