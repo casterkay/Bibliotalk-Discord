@@ -7,8 +7,38 @@
 
 This quickstart offers two paths:
 
-- **A) Fast dev loop**: CLI harness for grounding + citations (no Synapse).
-- **B) Local E2E (“chat with ghosts”)**: Synapse + Element Web + SQLite + `agents_service` + EverMemOS.
+- **A) One-shot local E2E setup**: run a single script to prepare everything.
+- **B) Fast dev loop**: CLI harness for grounding + citations (no Synapse).
+- **C) Local E2E (“chat with ghosts”)**: Synapse + Element Web + SQLite + `agents_service` + EverMemOS.
+
+## 1) One-Shot Local E2E (recommended)
+
+From the repo root:
+
+```bash
+chmod +x deploy/local/bin/*.sh
+deploy/local/bin/setup-all.sh
+```
+
+This script is **idempotent-ish** and will:
+
+- set up `.env` (if missing),
+- install Python deps for `agents_service` and `ingestion_service` via `uv`,
+- start local Docker infra (Synapse + Element Web),
+- generate + enable the Synapse appservice,
+- create the Synapse admin user (if needed),
+- seed Ghost agents into SQLite,
+- run the local ingestion manifest into EverMemOS,
+- import the resulting segment cache into SQLite, and
+- provision Matrix rooms/permissions + run a smoke test.
+
+When it completes, start `agents_service` in a separate terminal:
+
+```bash
+uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
+```
+
+Then open Element Web at `http://localhost:8080`, log in as `MATRIX_ADMIN_USER`, and chat with a Ghost (e.g. Confucius).
 
 ## 1) Configure Environment
 
@@ -25,7 +55,7 @@ If you want to use Gemini via Google ADK for text generation, set:
 export GOOGLE_API_KEY="..."
 ```
 
-## 2) Install Python deps (agents_service)
+## 3) Install Python deps (agents_service)
 
 ```bash
 cd services/agents_service
@@ -33,7 +63,7 @@ UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev
 source .venv/bin/activate
 ```
 
-## 3A) Fast dev loop: Quick Test (CLI harness)
+## 4A) Fast dev loop: Quick Test (CLI harness)
 
 Run from the repo root so `.env` is discovered:
 
@@ -48,7 +78,7 @@ To exercise Gemini (requires `GOOGLE_API_KEY`):
 python -m agents_service --agent confucius --mock-emos --model gemini-2.5-flash
 ```
 
-## 3B) Local E2E: Synapse + Element Web + SQLite
+## 4B) Local E2E: Synapse + Element Web + SQLite
 
 1. Generate Synapse config + appservice registration (idempotent):
 

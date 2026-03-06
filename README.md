@@ -22,6 +22,24 @@ docs/                    # Reference knowledge docs
 - Run tests (from each service/package directory):
   - `python -m pytest`
 
+## One-Shot Local E2E Setup
+
+To bootstrap a full local “chat with ghosts” environment (Synapse + Element Web + SQLite + `agents_service` + ingestion into EverMemOS), run from the repo root:
+
+```bash
+chmod +x deploy/local/bin/*.sh
+deploy/local/bin/setup-all.sh
+```
+
+When the script completes:
+
+- start `agents_service` in a separate terminal:
+  - `uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
+- open Element Web at `http://localhost:8080`
+- log in as `MATRIX_ADMIN_USER` (from `.env`) and chat with a Ghost DM.
+
+See `specs/001-agent-service/quickstart.md` for details.
+
 ## EverMemOS Ingestion CLI
 
 Docs/spec/tasks live under `specs/002-evermemos-content-ingest/`.
@@ -58,4 +76,4 @@ At a high level:
 - Use `ingestion_service` to ingest sources into EverMemOS and emit a segment cache
 - Import the segment cache into SQLite (canonical segments for citations)
 - Provision Matrix Space + rooms via the `agents_service.bootstrap` CLI
-See `QUICKSTART.md` for a runnable step-by-step.
+See `specs/001-agent-service/quickstart.md` for a runnable step-by-step.

@@ -34,22 +34,22 @@ A user opens a private chat with a Ghost (e.g., Confucius) and asks a question. 
 
 ### User Story 2 - Multi-Agent Text Discussion (Priority: P2)
 
-A user creates a discussion room with two or more Ghosts (e.g., Confucius and Aristotle) and sets a topic (e.g., "Ethics of AI"). The Ghosts autonomously request speaking turns and can request agent-to-agent preemption, while a room-level controller enforces one active speaker at a time. The user can observe, interject, and interrupt at any time; user speech always takes priority. Citations from all participating Ghosts are visible in the shared room.
+A user creates a discussion room with two or more Ghosts (e.g., Confucius and Aristotle) and sets a topic (e.g., "Ethics of AI"). The Ghosts take turns under a room-level controller that enforces one active speaker at a time. The user can observe, interject, and interrupt at any time; user messages always take priority and cancel any in-progress Ghost stream. Citations from all participating Ghosts are visible in the shared room.
 
 **Why this priority**: Multi-agent discussions are a signature differentiator for Bibliotalk — enabling "conversations" between historical or contemporary figures that never happened. This builds on the single-Ghost chat foundation (P1) and reuses the same grounding and citation machinery.
 
-**Independent Test**: Can be tested by starting a discussion with two Ghosts and a topic, then verifying that floor grants are serialized, agents use `REQUEST_FLOOR(force)` correctly, user interruption preempts active Ghost output immediately, and citations remain isolated per Ghost memory.
+**Independent Test**: Can be tested by starting a discussion with two Ghosts and a topic, then verifying that turns are serialized (one active Ghost stream at a time), in-progress Ghost output is cancelable on user interruption, and citations remain isolated per Ghost memory.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user creates a discussion room with two or more Ghosts and specifies a topic, **When** the discussion starts, **Then** Ghosts submit `REQUEST_FLOOR` intents and the controller grants only one Ghost at a time to respond with grounded citations.
+1. **Given** a user creates a discussion room with two or more Ghosts and specifies a topic, **When** the discussion starts, **Then** the controller selects exactly one Ghost at a time to respond with grounded citations.
 2. **Given** an ongoing multi-agent discussion, **When** the user sends a message in the room, **Then** any active Ghost stream is canceled and the user takes priority immediately.
 3. **Given** an ongoing multi-agent discussion, **When** the configured number of turns is reached, **Then** the discussion concludes gracefully (no further automatic Ghost responses).
 4. **Given** a multi-agent discussion, **When** Ghost A cites a source, **Then** that citation references Ghost A's memory only — never a passage from Ghost B's memory.
 5. **Given** a user utterance directly mentions Ghost B, **When** the floor becomes available, **Then** Ghost B is strongly preferred for the next floor grant.
-6. **Given** Ghost B is speaking and Ghost A submits `REQUEST_FLOOR(force=true)`, **When** force thresholds and rate limits pass, **Then** Ghost B is canceled and Ghost A takes the floor.
-7. **Given** the user is speaking, **When** any Ghost submits `REQUEST_FLOOR`, **Then** `force=true` is rejected and only queued non-force requests are accepted.
-8. **Given** a user issues a stop command during a discussion, **When** the command is processed, **Then** all Ghost responses in that room cease.
+6. **Given** Ghost B is speaking and the controller selects Ghost A next, **When** controller preemption rules and rate limits pass, **Then** Ghost B's stream is canceled and Ghost A becomes the active speaker.
+7. **Given** a user issues a stop command during a discussion, **When** the command is processed, **Then** all Ghost responses in that room cease.
+8. **Given** a Ghost is responding in a multi-agent discussion, **When** response streaming is enabled, **Then** the Ghost streams text by editing a single in-progress Matrix message and finalizes it with validated citations.
 
 ---
 
@@ -121,9 +121,9 @@ A user starts a voice call in a discussion room with multiple Ghosts. The Ghosts
 - **FR-014**: System MUST store conversation transcripts (both text and voice) for audit and future reference.
 - **FR-015**: System MUST support swapping between different voice engines without changing the user-facing call experience.
 - **FR-016**: System MUST allow per-Ghost configuration of the underlying language model used for generating responses.
-- **FR-017**: Ghost runners MUST request permission to speak via `REQUEST_FLOOR(force: bool)` and MUST NOT post directly to Matrix rooms.
-- **FR-018**: While a user is speaking, Ghost `REQUEST_FLOOR` intents MUST be accepted only with `force=false`; user speech MUST be non-preemptible.
-- **FR-019**: `REQUEST_FLOOR(force=true)` MAY preempt an active Ghost speaker only when controller thresholds and rate limits pass.
+- **FR-017**: In multi-agent voice discussions, Ghost runners MUST request permission to speak via `REQUEST_FLOOR(force: bool)` and MUST NOT emit audio unless granted the floor.
+- **FR-018**: In multi-agent voice discussions, while a user is speaking, Ghost `REQUEST_FLOOR` intents MUST be accepted only with `force=false`; user speech MUST be non-preemptible.
+- **FR-019**: In multi-agent voice discussions, `REQUEST_FLOOR(force=true)` MAY preempt an active Ghost speaker only when controller thresholds and rate limits pass.
 - **FR-020**: Scheduler MUST boost selection priority for Ghosts explicitly addressed by the latest user utterance (mention/name), with topic coherence included in relevance scoring.
 
 ### Key Entities

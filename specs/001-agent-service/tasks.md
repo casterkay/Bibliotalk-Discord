@@ -60,7 +60,7 @@ Tests:
 
 ---
 
-## US2 (P2): Multi-Agent Text Discussions (Floor Control)
+## US2 (P2): Multi-Agent Text Discussions (Turn-Taking)
 
 **Goal**: Multiple Ghosts can discuss a topic with strict turn-taking; user messages preempt immediately.
 
@@ -68,10 +68,9 @@ Tests:
 
 Pending:
 
-- [ ] Implement floor controller state machine per `contracts/discussion-floor-control.md`
 - [ ] Add cancellation tokens and deterministic scheduling (mention boost + fairness + cooldowns)
 - [ ] Stream text to Matrix via edits (placeholder → streaming → finalize)
-- [ ] Add unit tests for force-preemption rules and cancellation timing
+- [ ] Add unit tests for turn-taking, cancellation, and mention boost
 
 ---
 
@@ -103,6 +102,7 @@ Pending:
 
 Pending:
 
+- [ ] Implement floor controller state machine per `contracts/discussion-floor-control.md` (voice-gated audio)
 - [ ] Integrate floor control with voice session manager (mute non-speakers; zero overlap)
 - [ ] Support multiple concurrent voice backends per room
 - [ ] Sidecar mixing/muting that enforces floor grants (only active speaker audio forwarded)
@@ -115,7 +115,7 @@ Pending:
 - [x] Fix `services/voice_call_service/package.json` to run `src/index.js` via `npm start`
 - [x] Make `.env` discovery robust (support repo-root `.env` even when running from service directories)
 - [ ] Clarify EverMemOS API versioning in contracts (v0/v1 path strings) while keeping shape-based tests
-- [ ] Add a dedicated Matrix event contract doc for appservice transactions and message send payloads
+- [x] Add a dedicated Matrix event contract doc for appservice transactions and message send payloads (`specs/001-agent-service/contracts/matrix-events.md`)
 
 ---
 

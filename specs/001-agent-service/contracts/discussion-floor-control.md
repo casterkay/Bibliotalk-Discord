@@ -1,13 +1,13 @@
 # Contract: Discussion Floor Control
 
 **Service**: per-room Discussion Controller inside `agents_service`  
-**Scope**: multi-agent text and voice discussions (Matrix-native)
+**Scope**: multi-agent voice discussions (Matrix-native); optional coordination for multi-agent text streaming
 
 ## Core Principles
 
 1. Exactly one active speaker per room at any time.
 2. User speech/message has absolute preemption priority.
-3. Ghost runners do not post directly to Matrix; they request the floor.
+3. Ghost runners MAY post text to Matrix directly; only voice/audio output is floor-gated.
 4. Every in-flight agent generation is cancellable.
 
 ## Identifiers
@@ -27,7 +27,7 @@ AGENT_SPEAKING(agent_id, generation_id)
 ```
 
 State transitions:
-- `IDLE -> USER_SPEAKING` on user VAD start or user text event
+- `IDLE -> USER_SPEAKING` on user VAD start
 - `IDLE -> AGENT_SPEAKING` on grant of queued request
 - `AGENT_SPEAKING -> USER_SPEAKING` on user barge-in (cancel required)
 - `AGENT_SPEAKING -> IDLE` on completion/timeout/cancel
@@ -35,7 +35,7 @@ State transitions:
 
 ## `REQUEST_FLOOR`
 
-Ghost runners submit at most one outstanding request per room.
+Ghost runners submit at most one outstanding request per room (voice/audio only).
 
 ```json
 {
@@ -86,10 +86,10 @@ The controller must support:
 ## Streaming Contract
 
 Text:
-1. Post placeholder message as speaking Ghost.
-2. Stream text via Matrix edits.
-3. Finalize message.
-4. Attach validated citations in the final event (`com.bibliotalk.citations`).
+1. (Optional) Post placeholder message as speaking Ghost.
+2. (Optional) Stream text via Matrix edits.
+3. (Optional) Finalize message.
+4. (Optional) Attach validated citations in the final event (`com.bibliotalk.citations`).
 
 Voice:
 1. Only the floor holder is unmuted for TTS emission.

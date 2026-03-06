@@ -146,7 +146,7 @@ services/agents_service/tests/
 ## Phased Delivery (maps to spec priorities)
 
 - **P1 (US1)**: Private text chat with a Ghost, grounded in EverMemOS with verifiable citations.
-- **P2 (US2)**: Multi-agent text discussion with floor control (one speaker at a time; user preemption).
+- **P2 (US2)**: Multi-agent text discussion with strict turn-taking, streaming edits, and user preemption.
 - **P3 (US3)**: Voice calls (MatrixRTC sidecar + voice backend tool-use + transcript + citations).
 - **P4 (US4)**: Multi-agent voice discussions (floor-gated audio, barge-in, transcript + citations).
 

@@ -8,6 +8,20 @@ Primary entry point:
 
 This package focuses on deterministic chunking, stable IDs, safe re-runs (idempotency), and per-source JSON reporting.
 
+## CLI
+
+Web and document ingestion use optional extras:
+
+- Web extraction + blog discovery: `pip install 'ingestion_service[web]'`
+- Document conversion (pdf/docx/epub/html/…): `pip install 'ingestion_service[docs]'`
+
+Commands:
+
+- `python -m ingestion_service ingest web --help`
+- `python -m ingestion_service ingest doc-url --help`
+- `python -m ingestion_service crawl blog --help`
+- `python -m ingestion_service crawl rss --help`
+
 ## FastAPI Server
 
 Run the ingestion API server:
@@ -26,7 +40,7 @@ Endpoints:
 ```json
 {
   "manifest": {
-    "version": "1",
+    "version": "2",
     "sources": [
       {
         "user_id": "confucius",

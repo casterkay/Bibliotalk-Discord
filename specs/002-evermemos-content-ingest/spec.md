@@ -3,7 +3,7 @@
 **Feature Branch**: `[002-evermemos-content-ingest]`  
 **Created**: 2026-03-01  
 **Status**: Draft  
-**Input**: User description: "Create a standalone ingestion package to load curated content into EverMemOS (per BLUEPRINT.md and ROSTER.md), while deferring any interactive web crawling."
+**Input**: User description: "Create a standalone ingestion package to load curated content into EverMemOS (per BLUEPRINT.md and ROSTER.md), without any interactive web crawling."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -74,7 +74,7 @@ As a curator, I can ingest a curated roster of sources for multiple people/figur
 - **FR-006**: System MUST provide an ingestion report for each run that includes per-source status, counts of stored segments, and error details where relevant.
 - **FR-007**: System MUST be safe to re-run for the same source without creating duplicate stored content, and MUST clearly report whether content was newly added, unchanged, or updated.
 - **FR-008**: System MUST support batch ingestion of multiple sources and MUST continue processing remaining sources when individual sources fail.
-- **FR-009**: System MUST NOT use interactive web browsing or automated page interaction to obtain content; if a source cannot be ingested without such interaction, the system MUST fail that source with an explicit, actionable message.
+- **FR-009**: System MUST NOT use interactive web browsing or automated page interaction to obtain content; if a source cannot be ingested without such interaction, the system MUST fail that source with an explicit, actionable message. Non-interactive HTTP fetching + static extraction (for example, `trafilatura`) is allowed.
 - **FR-010**: System MUST protect secrets and sensitive configuration: it MUST NOT write credentials into logs, error messages, or ingestion reports.
 - **FR-011**: System MUST preserve verbatim ingested text such that later citation verification can confirm that cited quotes are exact substrings of the original ingested segments.
 
@@ -107,7 +107,7 @@ This feature covers ingesting curated, consented content into EverMemOS to suppo
 ## Out of Scope
 
 - Automated interactive browsing, account login flows, or dynamic page interaction to obtain content.
-- Social media ingestion and general-purpose web crawling.
+- Social media ingestion and general-purpose, unbounded web crawling.
 - Billing, token metering, or user-facing pricing.
 - Ghost response generation, retrieval prompting strategies, or citation rendering in chat clients (only ingestion prerequisites).
 

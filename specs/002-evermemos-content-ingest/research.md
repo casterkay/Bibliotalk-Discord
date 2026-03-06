@@ -75,13 +75,14 @@ This document records key technical decisions, rationale, and alternatives consi
 - Operator-provided text and local files.
 - Project Gutenberg plain-text download (no browser automation).
 - YouTube transcript retrieval via a transcript API library (no browser automation).
+- Non-interactive web page extraction (single URL → Markdown) and blog discovery (RSS/sitemap/bounded crawl) without browser automation.
 
 **Rationale**:
 - Meets FR-009 (“no interactive browsing”), keeps the package standalone, and avoids fragile scraping.
 
 **Alternatives considered**:
 - Playwright-based crawling: explicitly deferred by feature request.
-- General URL-to-text extraction: deferred because many sites require dynamic rendering, auth, or anti-bot workarounds.
+- General, unbounded URL-to-text crawling: still deferred because many sites require dynamic rendering, auth, or anti-bot workarounds.
 
 ## R7: CLI + Report Artifacts
 

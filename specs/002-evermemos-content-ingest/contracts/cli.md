@@ -50,12 +50,69 @@ Required:
 Optional:
 - `--canonical-url`, `--author`, `--published-at`
 
-### 3) `ingest manifest`
+### 3) `ingest web`
+
+Ingest a single web page/article as a single source (non-interactive; static HTML extraction).
+
+Required:
+- `--user-id`
+- `--url`
+
+Optional:
+- `--platform` (default: `web`)
+- `--external-id` (defaults to a deterministic hash of the canonicalized URL)
+- `--title` (falls back to extracted title, then URL)
+- `--author`
+- `--min-words` (default: `80`)
+
+### 4) `ingest doc-url`
+
+Download a remote document (pdf/docx/epub/html/…) and ingest its extracted Markdown as a single source.
+
+Required:
+- `--user-id`
+- `--url`
+
+Optional:
+- `--platform` (default: `local`)
+- `--external-id` (defaults to a deterministic hash of the canonicalized URL)
+- `--title` (defaults to URL)
+- `--canonical-url`, `--author`, `--published-at`
+
+### 5) `ingest manifest`
 
 Batch ingest one or more sources described by a manifest file.
 
 Required:
 - `--path` (absolute path to YAML/JSON manifest)
+
+### 6) `crawl rss`
+
+Expand an RSS/Atom feed into a reviewable manifest (v2) containing per-entry `web_url` items.
+
+Required:
+- `--rss-url`
+- `--user-id`
+- `--out-path` (path to write YAML manifest)
+
+Optional:
+- `--platform` (default: `web`)
+- `--max-items` (default: `50`)
+
+### 7) `crawl blog`
+
+Discover blog-post URLs from a seed and write a reviewable manifest (v2) containing per-page `web_url` items.
+Discovery is non-interactive and uses RSS/Atom autodiscovery, sitemaps, then a bounded same-host crawl fallback.
+
+Required:
+- `--seed-url`
+- `--user-id`
+- `--out-path` (path to write YAML manifest)
+
+Optional:
+- `--platform` (default: `web`)
+- `--max-items` (default: `50`)
+- `--max-pages` (default: `200`)
 
 ## Exit Codes
 
@@ -67,4 +124,3 @@ Required:
 
 - The CLI MUST write a JSON report (see `report-format.md`) when `--report-path` is provided.
 - The CLI MUST never print secrets (API key, auth header) even at debug log level.
-
