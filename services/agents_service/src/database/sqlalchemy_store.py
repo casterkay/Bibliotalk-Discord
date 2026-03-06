@@ -20,7 +20,16 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .sqlalchemy_models import Agent, AgentEmosConfig, Base, ChatHistory, ProfileRoom, Segment, Source
+from .sqlalchemy_models import (
+    Agent,
+    AgentEmosConfig,
+    Base,
+    ChatHistory,
+    ProfileRoom,
+    Segment,
+    Source,
+)
+from .store import AgentEmosConfigRow, AgentRow, ChatHistoryRow, SegmentRow, SourceRow
 
 
 def _repo_root() -> Path:
@@ -91,15 +100,15 @@ class SQLAlchemyStore:
 
     # ---- Store interface (runtime paths) ----
 
-    async def get_agent(self, agent_id: UUID) -> dict[str, Any] | None:
+    async def get_agent(self, agent_id: UUID) -> AgentRow | None:
         row = await self._one_or_none(select(Agent).where(Agent.id == str(agent_id)))
         return _map_agent(row) if row else None
 
-    async def get_agent_by_matrix_id(self, matrix_user_id: str) -> dict[str, Any] | None:
+    async def get_agent_by_matrix_id(self, matrix_user_id: str) -> AgentRow | None:
         row = await self._one_or_none(select(Agent).where(Agent.matrix_user_id == matrix_user_id))
         return _map_agent(row) if row else None
 
-    async def get_agent_emos_config(self, agent_id: UUID) -> dict[str, Any] | None:
+    async def get_agent_emos_config(self, agent_id: UUID) -> AgentEmosConfigRow | None:
         row = await self._one_or_none(
             select(AgentEmosConfig).where(AgentEmosConfig.agent_id == str(agent_id))
         )
@@ -119,13 +128,13 @@ class SQLAlchemyStore:
         )
         return row is not None
 
-    async def get_sources_by_emos_group_ids(self, emos_group_ids: list[str]) -> list[dict[str, Any]]:
+    async def get_sources_by_emos_group_ids(self, emos_group_ids: list[str]) -> list[SourceRow]:
         if not emos_group_ids:
             return []
         rows = await self._all(select(Source).where(Source.emos_group_id.in_(emos_group_ids)))
         return [_map_source(row) for row in rows]
 
-    async def get_segments_by_source_ids(self, source_ids: list[str]) -> list[dict[str, Any]]:
+    async def get_segments_by_source_ids(self, source_ids: list[str]) -> list[SegmentRow]:
         if not source_ids:
             return []
         rows = await self._all(
@@ -133,20 +142,20 @@ class SQLAlchemyStore:
         )
         return [_map_segment(row) for row in rows]
 
-    async def get_segments_by_ids(self, segment_ids: list[UUID]) -> list[dict[str, Any]]:
+    async def get_segments_by_ids(self, segment_ids: list[UUID]) -> list[SegmentRow]:
         ids = [str(i) for i in segment_ids]
         if not ids:
             return []
         rows = await self._all(select(Segment).where(Segment.id.in_(ids)))
         return [_map_segment(row) for row in rows]
 
-    async def get_segments_for_agent(self, agent_id: UUID) -> list[dict[str, Any]]:
+    async def get_segments_for_agent(self, agent_id: UUID) -> list[SegmentRow]:
         rows = await self._all(
             select(Segment).where(Segment.agent_id == str(agent_id)).order_by(Segment.seq.asc())
         )
         return [_map_segment(row) for row in rows]
 
-    async def save_chat_history(self, record: dict[str, Any]) -> dict[str, Any]:
+    async def save_chat_history(self, record: ChatHistoryRow) -> ChatHistoryRow:
         payload = dict(record)
         payload.setdefault("id", str(uuid4()))
         citations = payload.get("citations")
@@ -161,7 +170,9 @@ class SQLAlchemyStore:
             matrix_room_id=str(payload["matrix_room_id"]),
             sender_agent_id=sender_agent_id,
             sender_matrix_user_id=str(payload["sender_matrix_user_id"]),
-            matrix_event_id=(str(payload["matrix_event_id"]) if payload.get("matrix_event_id") else None),
+            matrix_event_id=(
+                str(payload["matrix_event_id"]) if payload.get("matrix_event_id") else None
+            ),
             modality=str(payload["modality"]),
             content=str(payload["content"]),
             citations=list(citations),
@@ -385,7 +396,7 @@ class SQLAlchemyStore:
         return _map_agent(row) if row else None
 
 
-def _map_agent(row: Agent) -> dict[str, Any]:
+def _map_agent(row: Agent) -> AgentRow:
     return {
         "id": row.id,
         "kind": row.kind,
@@ -398,7 +409,7 @@ def _map_agent(row: Agent) -> dict[str, Any]:
     }
 
 
-def _map_source(row: Source) -> dict[str, Any]:
+def _map_source(row: Source) -> SourceRow:
     return {
         "id": row.id,
         "agent_id": row.agent_id,
@@ -413,7 +424,7 @@ def _map_source(row: Source) -> dict[str, Any]:
     }
 
 
-def _map_segment(row: Segment) -> dict[str, Any]:
+def _map_segment(row: Segment) -> SegmentRow:
     return {
         "id": row.id,
         "source_id": row.source_id,

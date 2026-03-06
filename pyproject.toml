@@ -1,0 +1,12 @@
+[project]
+name = "bibliotalk"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+  "packages/bt_common",
+  "services/agents_service",
+  "services/ingestion_service",
+]

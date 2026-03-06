@@ -1,8 +1,8 @@
 # Quickstart: Agent Service
 
-**Feature**: `001-agent-service`  
-**Created**: 2026-02-28  
-**Last Updated**: 2026-03-06  
+**Feature**: `001-agent-service`
+**Created**: 2026-02-28
+**Last Updated**: 2026-03-06
 **Prereqs**: Python 3.11+, Node.js 20+ (for `voice_call_service`)
 
 This quickstart offers two paths:
@@ -35,7 +35,7 @@ This script is **idempotent-ish** and will:
 When it completes, start `agents_service` in a separate terminal:
 
 ```bash
-uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
+uv run --package agents_service uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
 ```
 
 Then open Element Web at `http://localhost:8080`, log in as `MATRIX_ADMIN_USER`, and chat with a Ghost (e.g. Confucius).
@@ -55,12 +55,10 @@ If you want to use Gemini via Google ADK for text generation, set:
 export GOOGLE_API_KEY="..."
 ```
 
-## 3) Install Python deps (agents_service)
+## 3) Install Python deps (workspace)
 
 ```bash
-cd services/agents_service
-UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev
-source .venv/bin/activate
+UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras
 ```
 
 ## 4A) Fast dev loop: Quick Test (CLI harness)
@@ -68,14 +66,13 @@ source .venv/bin/activate
 Run from the repo root so `.env` is discovered:
 
 ```bash
-cd ../..
-python -m agents_service --agent confucius --mock-emos
+uv run --package agents_service -m agents_service --agent confucius --mock-emos
 ```
 
 To exercise Gemini (requires `GOOGLE_API_KEY`):
 
 ```bash
-python -m agents_service --agent confucius --mock-emos --model gemini-2.5-flash
+uv run --package agents_service -m agents_service --agent confucius --mock-emos --model gemini-2.5-flash
 ```
 
 ## 4B) Local E2E: Synapse + Element Web + SQLite
@@ -104,33 +101,33 @@ docker compose -f deploy/local/docker-compose.yml exec synapse \
 4. Start `agents_service`:
 
 ```bash
-uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
+uv run --package agents_service uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
 ```
 
 5. Seed Ghosts in SQLite:
 
 ```bash
-python -m agents_service.bootstrap seed-ghosts
+uv run --package agents_service -m agents_service.bootstrap seed-ghosts
 ```
 
 6. Replay ingestion (build canonical segments + memorize into EverMemOS):
 
 ```bash
-python -m ingestion_service ingest manifest --path "$(pwd)/deploy/local/ingest/manifest.yaml"
+uv run --package ingestion_service -m ingestion_service ingest manifest --path "$(pwd)/deploy/local/ingest/manifest.yaml"
 ```
 
 7. Import `.ingestion_service/segment_cache/*.jsonl` into SQLite:
 
 ```bash
-python -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache
+uv run --package agents_service -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache
 ```
 
 8. Provision Matrix Space + rooms + profile-room permissions:
 
 ```bash
-python -m agents_service.bootstrap provision-matrix
-python -m agents_service.bootstrap post-profile-timeline
-python -m agents_service.bootstrap smoke-test
+uv run --package agents_service -m agents_service.bootstrap provision-matrix
+uv run --package agents_service -m agents_service.bootstrap post-profile-timeline
+uv run --package agents_service -m agents_service.bootstrap smoke-test
 ```
 
 9. Chat:
@@ -143,23 +140,19 @@ python -m agents_service.bootstrap smoke-test
 `agents_service` tests:
 
 ```bash
-cd services/agents_service
-python -m pytest
+uv --directory services/agents_service run --package agents_service -m pytest
 ```
 
 `bt_common` tests (EverMemOS wrapper + infra):
 
 ```bash
-cd packages/bt_common
-UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev
-python -m pytest
+uv --directory packages/bt_common run --package bt_common -m pytest
 ```
 
 ## 5) Start agents_service (Litestar)
 
 ```bash
-cd ../..
-uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
+uv run --package agents_service uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
 ```
 
 ## 6) Start voice_call_service (Node sidecar)

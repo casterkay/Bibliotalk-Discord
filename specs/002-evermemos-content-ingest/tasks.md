@@ -5,7 +5,7 @@ description: "Tasks for EverMemOS Content Ingestion Package"
 
 # Tasks: EverMemOS Content Ingestion Package
 
-**Input**: Design documents from `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/`  
+**Input**: Design documents from `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/`
 **Prerequisites**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/plan.md`, `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`
 
 **Docs available**: `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
@@ -33,7 +33,7 @@ description: "Tasks for EverMemOS Content Ingestion Package"
 - [X] T006 [P] Add a minimal package README for operators in `services/ingestion_service/README.md`
 - [X] T007 [P] Add `.gitignore` entries for local ingestion index/report outputs in `.gitignore`
 
-**Checkpoint**: `python -m ingestion_service --help` runs (even if commands are stubbed).
+**Checkpoint**: `uv run --package ingestion_service -m ingestion_service --help` runs (even if commands are stubbed).
 
 ---
 
@@ -62,7 +62,7 @@ description: "Tasks for EverMemOS Content Ingestion Package"
 **Goal**: Ingest one operator-provided source (text or local file) into EverMemOS as grouped, ordered segments with a clear per-source report.
 
 **Independent Test**:
-- Run `python -m ingestion_service ingest text ... --report-path ...` and confirm:
+- Run `uv run --package ingestion_service -m ingestion_service ingest text ... --report-path ...` and confirm:
   - segments are created deterministically
   - EverMemOS receives one conversation-meta call + N memorize calls for the source
   - report JSON contains `group_id`, per-segment `message_id`s, and success counts

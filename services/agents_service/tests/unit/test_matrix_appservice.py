@@ -45,7 +45,7 @@ class FakeAgent:
         return {"text": "Answer [^1]", "citations": [citation]}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ignores_profile_rooms() -> None:
     supabase = FakeSupabase()
     supabase.profile_rooms.add("!profile:example")
@@ -78,7 +78,7 @@ async def test_ignores_profile_rooms() -> None:
     assert payload is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_membership_invite_triggers_join() -> None:
     supabase = FakeSupabase()
     agent_id = str(uuid4())
@@ -117,7 +117,7 @@ async def test_membership_invite_triggers_join() -> None:
     assert seen == {"room_id": "!dm:example", "user_id": ghost_user_id}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_mention_routes_to_correct_ghost_and_sends_as_virtual_user() -> None:
     supabase = FakeSupabase()
     agent_id = str(uuid4())
@@ -170,7 +170,7 @@ async def test_mention_routes_to_correct_ghost_and_sends_as_virtual_user() -> No
     assert len(saved) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dm_routing_uses_single_joined_ghost() -> None:
     supabase = FakeSupabase()
     agent_id = str(uuid4())

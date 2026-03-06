@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from ingestion_service.domain.models import PlainTextContent, Source, SourceContent
 from ingestion_service.pipeline.index import IngestionIndex
 from ingestion_service.pipeline.ingest import ingest_sources
@@ -23,7 +22,7 @@ class StubEverMemOS:
         return {"ok": True}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
     tmp_path,
 ) -> None:
@@ -34,9 +33,7 @@ async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
     src = Source(user_id="u1", platform="local", external_id="e1", title="T")
     sc = SourceContent(source=src, content=PlainTextContent(text="One.\n\nTwo.\n\nThree."))
 
-    r1 = await ingest_sources(
-        sources=[sc], index=idx, client=client, segment_cache_dir=cache_dir
-    )
+    r1 = await ingest_sources(sources=[sc], index=idx, client=client, segment_cache_dir=cache_dir)
     assert r1.status == "done"
     assert len(client.memorize_calls) > 0
 
@@ -50,9 +47,7 @@ async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
         assert "segment" not in row
 
     client.memorize_calls.clear()
-    r2 = await ingest_sources(
-        sources=[sc], index=idx, client=client, segment_cache_dir=cache_dir
-    )
+    r2 = await ingest_sources(sources=[sc], index=idx, client=client, segment_cache_dir=cache_dir)
     assert r2.sources[0].segments_skipped_unchanged > 0
     assert len(client.memorize_calls) == 0
     cached_second = [json.loads(line) for line in cache_path.read_text().splitlines()]

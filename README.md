@@ -17,10 +17,12 @@ docs/                    # Reference knowledge docs
 
 ## Development
 
-- Sync deps (from each service/package directory):
-  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev`
-- Run tests (from each service/package directory):
-  - `python -m pytest`
+- Sync deps (workspace; installs all Python members):
+  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Run tests:
+  - `uv --directory services/agents_service run --package agents_service -m pytest`
+  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+  - `uv --directory packages/bt_common run --package bt_common -m pytest`
 
 ## One-Shot Local E2E Setup
 
@@ -34,7 +36,7 @@ deploy/local/bin/setup-all.sh
 When the script completes:
 
 - start `agents_service` in a separate terminal:
-  - `uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
+  - `uv run --package agents_service uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
 - open Element Web at `http://localhost:8080`
 - log in as `MATRIX_ADMIN_USER` (from `.env`) and chat with a Ghost DM.
 
@@ -53,11 +55,11 @@ Environment variables:
 Examples:
 
 - Ingest inline text:
-  - `python -m ingestion_service --emos-base-url "$EMOS_BASE_URL" ingest text --user-id <USER_ID> --platform local --external-id <ID> --title "<TITLE>" --text "<TEXT>"`
+  - `uv run --package ingestion_service -m ingestion_service --emos-base-url "$EMOS_BASE_URL" ingest text --user-id <USER_ID> --platform local --external-id <ID> --title "<TITLE>" --text "<TEXT>"`
 - Ingest a local file:
-  - `python -m ingestion_service --emos-base-url "$EMOS_BASE_URL" ingest file --user-id <USER_ID> --platform local --external-id <ID> --title "<TITLE>" --path /absolute/path/to/file.txt`
+  - `uv run --package ingestion_service -m ingestion_service --emos-base-url "$EMOS_BASE_URL" ingest file --user-id <USER_ID> --platform local --external-id <ID> --title "<TITLE>" --path /absolute/path/to/file.txt`
 - Batch ingest from a manifest:
-  - `python -m ingestion_service --emos-base-url "$EMOS_BASE_URL" ingest manifest --path /absolute/path/to/manifest.yaml`
+  - `uv run --package ingestion_service -m ingestion_service --emos-base-url "$EMOS_BASE_URL" ingest manifest --path /absolute/path/to/manifest.yaml`
 
 Local outputs (gitignored by default):
 

@@ -9,14 +9,14 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: `bt_common` (EverMemOS client wrapper), `httpx`, `pydantic`, `typer`, `rich`, `fastapi`  
-**Storage**: EverMemOS for memory storage; local SQLite ingestion index (default) for idempotency and reporting continuity  
-**Testing**: `pytest`, `pytest-asyncio`  
-**Target Platform**: CLI for macOS/Linux; library usable from `ingestion_service` or other Python services  
-**Project Type**: Python package (library + CLI)  
-**Performance Goals**: Ingest 50 typical sources in a single run with actionable reporting; segmenting throughput supports multi-hour transcripts without operator intervention  
-**Constraints**: No interactive browsing; deterministic segmentation; stable message/group IDs; secrets never logged; safe retries on transient EverMemOS failures  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: `bt_common` (EverMemOS client wrapper), `httpx`, `pydantic`, `typer`, `rich`, `fastapi`
+**Storage**: EverMemOS for memory storage; local SQLite ingestion index (default) for idempotency and reporting continuity
+**Testing**: `pytest`, `pytest-asyncio`
+**Target Platform**: CLI for macOS/Linux; library usable from `ingestion_service` or other Python services
+**Project Type**: Python package (library + CLI)
+**Performance Goals**: Ingest 50 typical sources in a single run with actionable reporting; segmenting throughput supports multi-hour transcripts without operator intervention
+**Constraints**: No interactive browsing; deterministic segmentation; stable message/group IDs; secrets never logged; safe retries on transient EverMemOS failures
 **Scale/Scope**: Batch ingestion for curated rosters (tens to low-hundreds of sources); per-source failures must not block the batch
 
 ## Constitution Check
@@ -59,7 +59,7 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 /Users/tcai/Projects/Bibliotalk/
 services/ingestion_service/src/
 ├── __init__.py
-├── __main__.py              # `python -m ingestion_service ...`
+├── __main__.py              # `uv run --package ingestion_service -m ingestion_service ...`
 ├── server.py                # FastAPI server (optional operator API)
 ├── adapters/
 │   ├── base.py              # adapter interface for input sources

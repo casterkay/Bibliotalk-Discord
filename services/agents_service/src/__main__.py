@@ -83,9 +83,7 @@ async def _resolve_agent_id_and_store(
 ) -> tuple[UUID, Any]:
     if mock_emos:
         agent_id = uuid4()
-        return agent_id, _MockStore(
-            agent_id=agent_id, tenant_prefix=agent_slug, model=model
-        )
+        return agent_id, _MockStore(agent_id=agent_id, tenant_prefix=agent_slug, model=model)
 
     settings = get_settings()
     store = SQLAlchemyStore(
@@ -100,7 +98,7 @@ async def _resolve_agent_id_and_store(
         await store.aclose()
         raise RuntimeError(
             f"Unknown agent tenant_prefix={agent_slug}. Seed via:\n"
-            "  python -m agents_service.bootstrap seed-ghosts"
+            "  uv run --package agents_service -m agents_service.bootstrap seed-ghosts"
         )
     agent_id = UUID(str(agent["id"]))
     return agent_id, store
@@ -114,9 +112,7 @@ async def _run(agent_slug: str, mock_emos: bool, model: str) -> None:
         logging.basicConfig(level=level)
     else:
         settings = get_settings()
-        logging.basicConfig(
-            level=getattr(logging, str(settings.LOG_LEVEL).upper(), logging.INFO)
-        )
+        logging.basicConfig(level=getattr(logging, str(settings.LOG_LEVEL).upper(), logging.INFO))
     LLMRegistry.init_defaults()
     agent_id, store = await _resolve_agent_id_and_store(
         agent_slug=agent_slug, model=model, mock_emos=mock_emos
@@ -187,9 +183,7 @@ def main() -> None:
         required=True,
         help="Agent tenant_prefix (SQLite local dev) or slug (mock mode).",
     )
-    parser.add_argument(
-        "--mock-emos", action="store_true", help="Use mock EMOS responses"
-    )
+    parser.add_argument("--mock-emos", action="store_true", help="Use mock EMOS responses")
     parser.add_argument(
         "--model",
         default="nova-lite-v2",

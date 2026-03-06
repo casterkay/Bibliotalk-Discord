@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from uuid import uuid4
 
 from bt_common.logging import JsonFormatter, get_request_logger

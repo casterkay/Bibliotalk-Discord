@@ -1,15 +1,21 @@
 # Quickstart: EverMemOS Content Ingestion Package
 
-**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`  
+**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`
 **Created**: 2026-03-01
 
 This quickstart describes the intended developer/operator workflow for the ingestion package once implemented.
 
 ## Prerequisites
 
-- Python 3.11+
+- `uv` (workspace; see repo root)
 - EverMemOS base URL and API key (if required by the target EverMemOS instance)
 - Curated source content (text/files/transcripts) and source attribution metadata (title + canonical link)
+
+Install deps (from repo root):
+
+```bash
+UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras
+```
 
 ## Configuration
 
@@ -26,9 +32,9 @@ Environment variables (recommended):
 Intended CLI shape:
 
 - Ingest local text:
-  - `python -m ingestion_service ingest text --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --text "<TEXT>"`
+  - `uv run --package ingestion_service -m ingestion_service ingest text --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --text "<TEXT>"`
 - Ingest a local file:
-  - `python -m ingestion_service ingest file --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --path /absolute/path/to/file.txt`
+  - `uv run --package ingestion_service -m ingestion_service ingest file --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --path /absolute/path/to/file.txt`
 
 Expected output:
 - human-readable summary to stdout
@@ -44,7 +50,7 @@ Re-running the same command with unchanged content is expected to:
 
 Intended CLI shape:
 
-- `python -m ingestion_service ingest manifest --path /absolute/path/to/manifest.yaml`
+- `uv run --package ingestion_service -m ingestion_service ingest manifest --path /absolute/path/to/manifest.yaml`
 
 The manifest format and report format are defined in:
 - `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/contracts/ingest-manifest.md`

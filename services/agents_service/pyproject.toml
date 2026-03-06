@@ -17,6 +17,7 @@ dependencies = [
   "sqlalchemy>=2.0.0",
   "aiosqlite>=0.20.0",
   "alembic>=1.13.0",
+  "greenlet>=3.3.2",
   "sqladmin>=0.16.0",
   "typer>=0.12.0",
   "uvicorn>=0.30.0",
@@ -29,6 +30,7 @@ dependencies = [
 dev = [
   "pytest>=8.3.0",
   "pytest-asyncio>=0.23.8",
+  "ruff>=0.6.9",
 ]
 
 [tool.setuptools]
@@ -48,8 +50,15 @@ packages = [
 "agents_service" = "src"
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
+
 [tool.uv.sources]
-bt_common = { path = "../../packages/bt_common" }
+bt-common = { workspace = true }

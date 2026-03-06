@@ -12,9 +12,7 @@ class FakeLlm:
     model_name: str
     calls: int = 0
 
-    async def generate(
-        self, *, persona_prompt: str, query: str, evidence: list[Evidence]
-    ) -> str:
+    async def generate(self, *, persona_prompt: str, query: str, evidence: list[Evidence]) -> str:
         self.calls += 1
         return f"Answer from {self.model_name}: {query} [^1]"
 
@@ -61,7 +59,7 @@ class FakeSupabase:
         ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> None:
     from agents_service.agent.agent_factory import create_ghost_agent
 
@@ -69,15 +67,13 @@ async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> 
     registry = FakeRegistry()
     registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
 
-    agent = await create_ghost_agent(
-        supabase.agent_id, store=supabase, llm_registry=registry
-    )
+    agent = await create_ghost_agent(supabase.agent_id, store=supabase, llm_registry=registry)
 
     assert agent.name == "Confucius (Ghost)"
     assert agent.instruction == "You are Confucius."
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_calls_memory_search_tool_when_given_factual_question() -> None:
     from agents_service.agent.agent_factory import create_ghost_agent
 
@@ -111,7 +107,7 @@ async def test_agent_calls_memory_search_tool_when_given_factual_question() -> N
     assert called["value"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
     from agents_service.agent.agent_factory import create_ghost_agent
 
@@ -149,10 +145,8 @@ async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
     assert seen["count"] == 1
 
 
-@pytest.mark.asyncio
-async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty() -> (
-    None
-):
+@pytest.mark.anyio
+async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty() -> None:
     from agents_service.agent.agent_factory import create_ghost_agent
 
     supabase = FakeSupabase()
@@ -174,7 +168,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
     assert "no evidence" in response["text"].lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_uses_correct_llm_model_from_config() -> None:
     from agents_service.agent.agent_factory import create_ghost_agent
 
@@ -208,7 +202,7 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
     assert agent.model == "nova-lite-v2"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_handles_memory_outage_gracefully() -> None:
     from agents_service.agent.agent_factory import create_ghost_agent
 

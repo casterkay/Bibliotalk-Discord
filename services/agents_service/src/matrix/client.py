@@ -7,7 +7,6 @@ optionally masquerades as a virtual user via the `user_id` query parameter.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import httpx
 
@@ -50,7 +49,7 @@ class MatrixClient:
         *,
         room_id: str,
         user_id: str,
-        content: dict[str, Any],
+        content: dict[str, object],
         txn_id: str,
     ) -> MatrixSendResult:
         # PUT /_matrix/client/v3/rooms/{roomId}/send/m.room.message/{txnId}

@@ -32,19 +32,18 @@ require_cmd() {
   fi
 }
 
-require_cmd python
 require_cmd docker
 require_cmd uv
+
+export UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/uv-cache}"
 
 COMPOSE_DIR="${REPO_ROOT}/deploy/local"
 COMPOSE=(docker compose --project-directory "${COMPOSE_DIR}" -f "${COMPOSE_DIR}/docker-compose.yml")
 
 AGENTS_DIR="${REPO_ROOT}/services/agents_service"
 INGEST_DIR="${REPO_ROOT}/services/ingestion_service"
-AGENTS_VENV="${AGENTS_DIR}/.venv"
-INGEST_VENV="${INGEST_DIR}/.venv"
-AGENTS_PY="${AGENTS_VENV}/bin/python"
-INGEST_PY="${INGEST_VENV}/bin/python"
+WORKSPACE_VENV="${REPO_ROOT}/.venv"
+WORKSPACE_PY="${WORKSPACE_VENV}/bin/python"
 
 ENV_FILE="${REPO_ROOT}/.env"
 
@@ -71,24 +70,16 @@ fi
 # 2) Install Python deps (agents_service + ingestion_service)
 ###############################################################################
 
-info "Syncing Python deps for agents_service..."
-(
-  cd "${AGENTS_DIR}"
-  UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/uv-cache}" uv sync --extra dev
-)
-
-info "Syncing Python deps for ingestion_service..."
-(
-  cd "${INGEST_DIR}"
-  UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/uv-cache}" uv sync --extra dev
-)
-
-if [[ ! -x "${AGENTS_PY}" ]]; then
-  fail "agents_service venv missing at ${AGENTS_PY}"
+info "Syncing Python deps for workspace (agents_service + ingestion_service + bt_common)..."
+if ! uv sync --all-packages --all-extras; then
+  warn "uv sync failed (possibly a corrupted cache). Retrying with a fresh UV_CACHE_DIR..."
+  export UV_CACHE_DIR
+  UV_CACHE_DIR="$(mktemp -d /tmp/uv-cache.retry.XXXXXX)"
+  uv sync --all-packages --all-extras
 fi
 
-if [[ ! -x "${INGEST_PY}" ]]; then
-  fail "ingestion_service venv missing at ${INGEST_PY}"
+if [[ ! -x "${WORKSPACE_PY}" ]]; then
+  fail "workspace venv missing at ${WORKSPACE_PY}"
 fi
 
 ###############################################################################
@@ -134,7 +125,7 @@ info "Ensuring agents_service local SQLite directory exists..."
 mkdir -p "${REPO_ROOT}/.agents_service"
 
 info "Seeding Ghost agents into SQLite..."
-"${AGENTS_PY}" -m agents_service.bootstrap seed-ghosts
+uv run --package agents_service -m agents_service.bootstrap seed-ghosts
 
 ###############################################################################
 # 7) Run ingestion manifest to build EverMemOS + segment cache
@@ -150,7 +141,7 @@ else
   fi
 
   info "Running ingestion manifest against EverMemOS..."
-  "${INGEST_PY}" -m ingestion_service ingest manifest --path "${MANIFEST_PATH}"
+  uv run --package ingestion_service -m ingestion_service ingest manifest --path "${MANIFEST_PATH}"
 fi
 
 ###############################################################################
@@ -161,7 +152,7 @@ SEGMENT_CACHE_DIR="${REPO_ROOT}/.ingestion_service/segment_cache"
 
 if [[ -d "${SEGMENT_CACHE_DIR}" ]]; then
   info "Importing segment cache into agents_service SQLite..."
-  "${AGENTS_PY}" -m agents_service.bootstrap import-segment-cache --cache-dir "${SEGMENT_CACHE_DIR}"
+  uv run --package agents_service -m agents_service.bootstrap import-segment-cache --cache-dir "${SEGMENT_CACHE_DIR}"
 else
   warn "Segment cache directory ${SEGMENT_CACHE_DIR} not found; skipping import."
 fi
@@ -171,13 +162,13 @@ fi
 ###############################################################################
 
 info "Provisioning Matrix space + rooms..."
-"${AGENTS_PY}" -m agents_service.bootstrap provision-matrix
+uv run --package agents_service -m agents_service.bootstrap provision-matrix
 
 info "Posting profile timelines..."
-"${AGENTS_PY}" -m agents_service.bootstrap post-profile-timeline
+uv run --package agents_service -m agents_service.bootstrap post-profile-timeline
 
 info "Running smoke test..."
-"${AGENTS_PY}" -m agents_service.bootstrap smoke-test
+uv run --package agents_service -m agents_service.bootstrap smoke-test
 
 ###############################################################################
 # 10) Final hints
@@ -187,8 +178,7 @@ info "All-in-one setup complete."
 echo ""
 echo "Next steps:"
 echo "  1) Start agents_service in a separate terminal (from repo root):"
-echo "       uvicorn agents_service.server:app --host 0.0.0.0 --port 8009"
+echo "       uv run --package agents_service uvicorn agents_service.server:app --host 0.0.0.0 --port 8009"
 echo "  2) Open Element Web at: http://localhost:8080"
 echo "  3) Log in as: ${ADMIN_USER}"
 echo "  4) Open a ghost DM (e.g. Confucius) and send a message."
-

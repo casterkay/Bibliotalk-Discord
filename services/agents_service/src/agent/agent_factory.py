@@ -6,8 +6,9 @@ import asyncio
 import logging
 import os
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any, ClassVar
 from uuid import UUID
 
 from bt_common.config import get_emos_fallback_settings
@@ -23,7 +24,7 @@ from .tools.memory_search import MemorySearchTool
 MemorySearchFn = Callable[[str, str], Awaitable[list[Evidence]]]
 EmitCitationsFn = Callable[[list[Evidence], str], Awaitable[list]]
 
-_CACHE: dict[str, tuple[float, "GhostAgent"]] = {}
+_CACHE: dict[str, tuple[float, GhostAgent]] = {}
 _CACHE_LOCK = asyncio.Lock()
 logger = logging.getLogger("agents_service.agent")
 
@@ -32,16 +33,14 @@ logger = logging.getLogger("agents_service.agent")
 class _EchoLLM:
     model_name: str
 
-    async def generate(
-        self, *, persona_prompt: str, query: str, evidence: list[Evidence]
-    ) -> str:
+    async def generate(self, *, persona_prompt: str, query: str, evidence: list[Evidence]) -> str:
         _ = persona_prompt
         _ = evidence
         return query
 
 
 class LLMRegistry:
-    _models: dict[str, Any] = {}
+    _models: ClassVar[dict[str, Any]] = {}
 
     @classmethod
     def register(cls, model: str, llm: Any) -> None:
@@ -55,7 +54,7 @@ class LLMRegistry:
                     from .providers.gemini import AdkGeminiLLM
 
                     cls._models[model] = AdkGeminiLLM(model_name=model)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     cls._models[model] = _EchoLLM(model_name=model)
             else:
                 cls._models[model] = _EchoLLM(model_name=model)
@@ -68,7 +67,7 @@ class LLMRegistry:
             from .providers.gemini import AdkGeminiLLM
 
             cls._models.setdefault("gemini-2.5-flash", AdkGeminiLLM("gemini-2.5-flash"))
-        except Exception:  # noqa: BLE001
+        except Exception:
             cls._models.setdefault("gemini-2.5-flash", _EchoLLM("gemini-2.5-flash"))
         cls._models.setdefault("nova-lite-v2", _EchoLLM("nova-lite-v2"))
 
@@ -88,7 +87,7 @@ class GhostAgent:
     async def run(self, query: str) -> dict[str, Any]:
         try:
             evidence = await self.memory_search_fn(query, self.id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("memory_search failed agent_id=%s", self.id)
             return {
                 "text": "My memory is temporarily unavailable.",
@@ -109,7 +108,7 @@ class GhostAgent:
                 "text": "My language model is not configured right now.",
                 "citations": [],
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("llm.generate failed agent_id=%s model=%s", self.id, self.model)
             if os.getenv("LOG_LEVEL", "").upper() == "DEBUG":
                 detail = str(exc).strip() or type(exc).__name__
@@ -124,7 +123,7 @@ class GhostAgent:
 
         try:
             citations = await self.emit_citations_fn(evidence, self.id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             citations = []
         return {"text": text, "citations": citations}
 
@@ -132,7 +131,7 @@ class GhostAgent:
 async def create_ghost_agent(
     agent_id: UUID,
     *,
-    store: Store | Any,
+    store: Store,
     llm_registry: Any | None = None,
     memory_search_fn: MemorySearchFn | None = None,
     emit_citations_fn: EmitCitationsFn | None = None,
@@ -188,9 +187,7 @@ async def create_ghost_agent(
 
     if emit_citations_fn is None:
         emit_tool = EmitCitationsTool(
-            segments_by_ids_provider=lambda segment_ids: store.get_segments_by_ids(
-                segment_ids
-            )
+            segments_by_ids_provider=lambda segment_ids: store.get_segments_by_ids(segment_ids)
         )
         emit_citations_fn = emit_tool
 

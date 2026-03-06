@@ -1,6 +1,6 @@
 # Implementation Plan: Agent Service
 
-**Feature**: `001-agent-service` | **Date**: 2026-03-06 | **Spec**: [spec.md](./spec.md)  
+**Feature**: `001-agent-service` | **Date**: 2026-03-06 | **Spec**: [spec.md](./spec.md)
 **Input**: `BLUEPRINT.md` + the design docs in `specs/001-agent-service/`
 
 ## Summary
@@ -39,15 +39,15 @@ The local E2E flow uses `server_name=localhost` (so Matrix IDs are `@alice:local
 
 ## Technical Context
 
-**Languages**: Python 3.11+ (`services/agents_service`, `packages/bt_common`); Node.js 20+ (`services/voice_call_service`)  
+**Languages**: Python 3.11+ (`services/agents_service`, `packages/bt_common`); Node.js 20+ (`services/voice_call_service`)
 **Key deps (current)**:
 - Python: `litestar`, `uvicorn`, `sqlalchemy` (+ `aiosqlite`), `pydantic`, `pydantic-settings`, `httpx`, `evermemos`
 - Node: `matrix-js-sdk`, `ws`
 **Key deps (target, per blueprint)**: Google ADK, Gemini APIs, AWS Bedrock (Nova Lite v2 / Nova Sonic)
 
-**Storage (local dev)**: SQLite (agents, sources/segments, profile_rooms, chat_history), EverMemOS (retrieval + memory metadata)  
-**Storage (blueprint/prod target)**: Postgres (same ORM models), EverMemOS (memory)  
-**Performance goals**: <5s text response latency; <3s voice response latency  
+**Storage (local dev)**: SQLite (agents, sources/segments, profile_rooms, chat_history), EverMemOS (retrieval + memory metadata)
+**Storage (blueprint/prod target)**: Postgres (same ORM models), EverMemOS (memory)
+**Performance goals**: <5s text response latency; <3s voice response latency
 **Constraints**: unencrypted voice for MVP; single homeserver; appservice reserves `@bt_*` namespace; Ghosts never respond in profile rooms
 
 ## Constitution Check
@@ -102,7 +102,7 @@ packages/bt_common/src/
 
 services/agents_service/src/
 ├── __init__.py
-├── __main__.py                   # CLI harness (`python -m agents_service ...`)
+├── __main__.py                   # CLI harness (`uv run --package agents_service -m agents_service ...`)
 ├── server.py                     # Litestar appservice transaction endpoint
 ├── agent/
 │   ├── agent_factory.py          # Ghost agent creation + caching
@@ -268,19 +268,19 @@ The intended “happy path” commands (exact scripts/CLIs to be implemented und
      - `(cd deploy/local && ./bin/enable-appservice.sh)`
      - `docker compose -f deploy/local/docker-compose.yml restart synapse`
 2. Start `agents_service`:
-   - `uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
+   - `uv run --package agents_service uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
 3. Seed Ghosts in SQLite:
-   - `python -m agents_service.bootstrap seed-ghosts`
+   - `uv run --package agents_service -m agents_service.bootstrap seed-ghosts`
 4. Replay ingestion:
-   - `python -m ingestion_service ingest manifest --path "$(pwd)/deploy/local/ingest/manifest.yaml"`
+   - `uv run --package ingestion_service -m ingestion_service ingest manifest --path "$(pwd)/deploy/local/ingest/manifest.yaml"`
 5. Import canonical segments to SQLite:
-   - `python -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache`
+   - `uv run --package agents_service -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache`
 6. Provision Matrix Space + rooms:
-   - `python -m agents_service.bootstrap provision-matrix`
+   - `uv run --package agents_service -m agents_service.bootstrap provision-matrix`
 7. Post profile timelines:
-   - `python -m agents_service.bootstrap post-profile-timeline`
+   - `uv run --package agents_service -m agents_service.bootstrap post-profile-timeline`
 8. Validate:
-   - `python -m agents_service.bootstrap smoke-test`
+   - `uv run --package agents_service -m agents_service.bootstrap smoke-test`
 9. Chat:
    - open `http://localhost:8080` (Element Web), login, DM a Ghost
 

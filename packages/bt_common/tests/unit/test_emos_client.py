@@ -11,9 +11,7 @@ class APIConnectionError(Exception):
 
 
 class FakeStatusError(Exception):
-    def __init__(
-        self, status_code: int, body: dict | None = None, message: str = "error"
-    ):
+    def __init__(self, status_code: int, body: dict | None = None, message: str = "error"):
         super().__init__(message)
         self.status_code = status_code
         self.body = body or {}
@@ -60,7 +58,7 @@ class FakeSDK:
         return None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_memorize_request_serialization() -> None:
     memories = FakeMemories()
     memories.add_results = [{"status": "ok", "result": {"status_info": "extracted"}}]
@@ -87,7 +85,7 @@ async def test_memorize_request_serialization() -> None:
     assert call["extra_headers"]["Authorization"] == "Bearer k"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_search_with_rrf_retrieve_method() -> None:
     memories = FakeMemories()
     memories.search_results = [{"status": "ok", "result": {"memories": []}}]
@@ -99,7 +97,7 @@ async def test_search_with_rrf_retrieve_method() -> None:
     assert call["extra_body"]["retrieve_method"] == "rrf"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_delete_memories_request_serialization() -> None:
     memories = FakeMemories()
     memories.delete_results = [{"status": "ok", "result": {"count": 10}}]
@@ -123,7 +121,7 @@ async def test_delete_memories_request_serialization() -> None:
     assert call["extra_headers"]["Authorization"] == "Bearer k"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_status_info_extracted_and_accumulated_handling() -> None:
     memories = FakeMemories()
     memories.add_results = [
@@ -140,7 +138,7 @@ async def test_status_info_extracted_and_accumulated_handling() -> None:
     assert len(memories.add_calls) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_5xx_retry_logic() -> None:
     memories = FakeMemories()
     memories.search_results = [
@@ -148,9 +146,7 @@ async def test_5xx_retry_logic() -> None:
         FakeStatusError(502, {"message": "still down"}),
         {"status": "ok", "result": {"memories": []}},
     ]
-    client = EverMemOSClient(
-        "https://emos.local", retries=3, sdk_client=FakeSDK(memories)
-    )
+    client = EverMemOSClient("https://emos.local", retries=3, sdk_client=FakeSDK(memories))
 
     result = await client.search("virtue", user_id="agent")
 
@@ -158,15 +154,13 @@ async def test_5xx_retry_logic() -> None:
     assert len(memories.search_calls) == 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_4xx_no_retry() -> None:
     memories = FakeMemories()
     memories.search_results = [
         FakeStatusError(422, {"code": "INVALID_PARAMETER", "message": "bad query"})
     ]
-    client = EverMemOSClient(
-        "https://emos.local", retries=3, sdk_client=FakeSDK(memories)
-    )
+    client = EverMemOSClient("https://emos.local", retries=3, sdk_client=FakeSDK(memories))
 
     with pytest.raises(EMOSValidationError):
         await client.search("", user_id="agent")
@@ -174,16 +168,14 @@ async def test_4xx_no_retry() -> None:
     assert len(memories.search_calls) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connection_error_retry() -> None:
     memories = FakeMemories()
     memories.search_results = [
         APIConnectionError("network down"),
         {"status": "ok", "result": {"memories": []}},
     ]
-    client = EverMemOSClient(
-        "https://emos.local", retries=2, sdk_client=FakeSDK(memories)
-    )
+    client = EverMemOSClient("https://emos.local", retries=2, sdk_client=FakeSDK(memories))
 
     result = await client.search("virtue", user_id="agent")
 
@@ -191,16 +183,14 @@ async def test_connection_error_retry() -> None:
     assert len(memories.search_calls) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_httpx_transport_error_retry() -> None:
     memories = FakeMemories()
     memories.search_results = [
         httpx.RemoteProtocolError("peer closed connection"),
         {"status": "ok", "result": {"memories": []}},
     ]
-    client = EverMemOSClient(
-        "https://emos.local", retries=2, sdk_client=FakeSDK(memories)
-    )
+    client = EverMemOSClient("https://emos.local", retries=2, sdk_client=FakeSDK(memories))
 
     result = await client.search("virtue", user_id="agent")
 
@@ -208,30 +198,24 @@ async def test_httpx_transport_error_retry() -> None:
     assert len(memories.search_calls) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_error_envelope_parsing() -> None:
     memories = FakeMemories()
-    memories.search_results = [
-        FakeStatusError(500, {"code": "SYSTEM_ERROR", "message": "boom"})
-    ]
-    client = EverMemOSClient(
-        "https://emos.local", retries=1, sdk_client=FakeSDK(memories)
-    )
+    memories.search_results = [FakeStatusError(500, {"code": "SYSTEM_ERROR", "message": "boom"})]
+    client = EverMemOSClient("https://emos.local", retries=1, sdk_client=FakeSDK(memories))
 
     with pytest.raises(EMOSError):
         await client.search("virtue", user_id="agent")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connection_error_after_retries_raises_connection_error() -> None:
     memories = FakeMemories()
     memories.search_results = [
         APIConnectionError("offline"),
         APIConnectionError("offline"),
     ]
-    client = EverMemOSClient(
-        "https://emos.local", retries=2, sdk_client=FakeSDK(memories)
-    )
+    client = EverMemOSClient("https://emos.local", retries=2, sdk_client=FakeSDK(memories))
 
     with pytest.raises(EMOSConnectionError):
         await client.search("virtue", user_id="agent")

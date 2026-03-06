@@ -4,6 +4,8 @@ import sys
 import types
 from pathlib import Path
 
+import pytest
+
 
 def _ensure_agents_service_package() -> None:
     if "agents_service" in sys.modules:
@@ -33,3 +35,10 @@ def _ensure_bt_common_package() -> None:
 
 
 _ensure_bt_common_package()
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    # Ensure `pytest.mark.anyio` runs on asyncio (not trio) since the code under
+    # test uses `asyncio` primitives.
+    return "asyncio"

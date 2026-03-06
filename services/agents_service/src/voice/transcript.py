@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from ..matrix.appservice import format_ghost_response
-
 from .backends.base import EndOfTurn, Transcript
 from .session_manager import VoiceSession
 
@@ -33,7 +33,7 @@ class TranscriptCollector:
                     {
                         "matrix_room_id": session.room_id,
                         "sender_agent_id": session.agent_id,
-                        "sender_matrix_user_id": session.agent_id,
+                        "sender_matrix_user_id": session.matrix_user_id or session.agent_id,
                         "matrix_event_id": None,
                         "modality": "voice",
                         "content": text,

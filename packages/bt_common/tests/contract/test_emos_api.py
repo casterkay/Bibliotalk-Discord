@@ -6,9 +6,7 @@ from bt_common.exceptions import EMOSNotFoundError
 
 
 class FakeStatusError(Exception):
-    def __init__(
-        self, status_code: int, body: dict | None = None, message: str = "error"
-    ):
+    def __init__(self, status_code: int, body: dict | None = None, message: str = "error"):
         super().__init__(message)
         self.status_code = status_code
         self.body = body or {}
@@ -69,7 +67,7 @@ class FakeSDK:
         return None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_parse_memorize_response_shape() -> None:
     memories = FakeMemories()
     memories.add_results = [
@@ -93,7 +91,7 @@ async def test_parse_memorize_response_shape() -> None:
     assert result["result"]["status_info"] in {"extracted", "accumulated"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_parse_search_nested_memory_types() -> None:
     memories = FakeMemories()
     memories.search_results = [
@@ -124,7 +122,7 @@ async def test_parse_search_nested_memory_types() -> None:
     assert memories_payload[0]["episodic_memory"][0]["group_id"] == "g1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_parse_conversation_meta_response() -> None:
     memories = FakeMemories()
     memories.conversation_meta.get_results = [
@@ -137,7 +135,7 @@ async def test_parse_conversation_meta_response() -> None:
     assert result["result"]["group_id"] == "g1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_parse_error_envelope() -> None:
     memories = FakeMemories()
     memories.conversation_meta.get_results = [

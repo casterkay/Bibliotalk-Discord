@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import UUID, uuid4
 
 import httpx
@@ -10,13 +9,16 @@ from bt_common.config import get_settings
 from bt_common.logging import get_request_logger, set_correlation_id
 from litestar import Litestar, Request, get, post, put
 from litestar.exceptions import ClientException, NotAuthorizedException, NotFoundException
+from litestar.openapi import OpenAPIConfig
 from litestar.status_codes import HTTP_400_BAD_REQUEST
+from pydantic import ValidationError
 
 from .agent.agent_factory import LLMRegistry, create_ghost_agent
 from .database.sqlalchemy_store import SQLAlchemyStore, SQLAlchemyStoreConfig, default_sqlite_url
 from .database.store import Store
 from .matrix.appservice import AppServiceHandler
 from .matrix.client import MatrixClient
+from .matrix.events import AppserviceTransaction
 
 logger = get_request_logger("agents_service.server")
 
@@ -38,29 +40,37 @@ async def health() -> dict[str, str]:
 
 @put("/_matrix/app/v1/transactions/{txn_id:str}")
 @post("/_matrix/app/v1/transactions/{txn_id:str}")
-async def transaction(txn_id: str, request: Request, data: dict[str, Any]) -> dict[str, object]:
+async def transaction(txn_id: str, request: Request, data: dict[str, object]) -> dict[str, object]:
     settings = get_settings()
     _require_hs_token(request, hs_token=settings.MATRIX_HS_TOKEN)
     set_correlation_id(txn_id)
 
     handler: AppServiceHandler = request.app.state.handler
-    events = data.get("events", [])
-    if not isinstance(events, list):
-        raise ClientException(status_code=HTTP_400_BAD_REQUEST, detail="invalid events payload")
+    try:
+        txn = AppserviceTransaction.model_validate(data)
+    except ValidationError as exc:
+        raise ClientException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="invalid transaction payload",
+        ) from exc
 
     delivered = 0
-    for event in events:
-        if not isinstance(event, dict):
-            continue
+    errors = 0
+    for event in txn.events:
         try:
             payload = await handler.handle_event(event)
-            if payload is not None:
-                delivered += 1
-        except Exception:  # noqa: BLE001
-            logger.exception("handle_event failed event_type=%s", event.get("type"))
+        except (httpx.HTTPError, ValueError, TypeError, KeyError):
+            errors += 1
+            logger.exception(
+                "handle_event failed event_type=%s room_id=%s",
+                getattr(event, "type", None),
+                getattr(event, "room_id", None),
+            )
             continue
+        if payload is not None:
+            delivered += 1
 
-    return {"ok": True, "processed": len(events), "delivered": delivered}
+    return {"ok": True, "processed": len(txn.events), "delivered": delivered, "errors": errors}
 
 
 @get("/_matrix/app/v1/users/{user_id:str}")
@@ -89,7 +99,9 @@ async def _on_startup(app: Litestar) -> None:
     LLMRegistry.init_defaults()
 
     database_url = settings.DATABASE_URL or default_sqlite_url()
-    store = SQLAlchemyStore(config=SQLAlchemyStoreConfig(database_url=database_url, create_all=True))
+    store = SQLAlchemyStore(
+        config=SQLAlchemyStoreConfig(database_url=database_url, create_all=True)
+    )
     await store.init()
 
     matrix_http = httpx.AsyncClient(timeout=15.0)
@@ -105,7 +117,7 @@ async def _on_startup(app: Litestar) -> None:
     async def _join_room(room_id: str, user_id: str) -> None:
         await matrix_client.join_room_as(room_id=room_id, user_id=user_id)
 
-    async def _send_message(room_id: str, user_id: str, payload: dict[str, Any]) -> str | None:
+    async def _send_message(room_id: str, user_id: str, payload: dict[str, object]) -> str | None:
         result = await matrix_client.send_message_as(
             room_id=room_id, user_id=user_id, content=payload, txn_id=str(uuid4())
         )
@@ -139,5 +151,8 @@ app = Litestar(
     route_handlers=[health, transaction, appservice_user_query],
     on_startup=[_on_startup],
     on_shutdown=[_on_shutdown],
-    title="Bibliotalk Agent Service",
+    openapi_config=OpenAPIConfig(
+        title="Bibliotalk Agent Service",
+        version="0.1.0",
+    ),
 )

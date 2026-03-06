@@ -3,17 +3,34 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Awaitable, Callable
 from html import escape
-from typing import Any, Awaitable, Callable
+from typing import Protocol
 from uuid import UUID
 
 from ..database.store import Store
 from ..models.citation import Citation
+from .events import (
+    MatrixEvent,
+    MatrixMessageContent,
+    RoomMemberEvent,
+    RoomMessageEvent,
+    UnknownMatrixEvent,
+    parse_matrix_event,
+)
 from .guards import RateLimiter
 
-AgentResolver = Callable[[str], Awaitable[Any]]
-SendMessage = Callable[[str, str, dict[str, Any]], Awaitable[str | None]]
-SaveHistory = Callable[[dict[str, Any]], Awaitable[None]]
+
+class GhostAgent(Protocol):
+    matrix_user_id: str | None
+    is_active: bool
+
+    async def run(self, query: str) -> dict[str, object]: ...
+
+
+AgentResolver = Callable[[str], Awaitable[GhostAgent]]
+SendMessage = Callable[[str, str, dict[str, object]], Awaitable[str | None]]
+SaveHistory = Callable[[dict[str, object]], Awaitable[None]]
 JoinRoom = Callable[[str, str], Awaitable[None]]
 
 _BT_USER_RE = re.compile(r"@bt_[^\s:]+:[^\s]+")
@@ -83,36 +100,42 @@ class AppServiceHandler:
         self.rate_limiter = rate_limiter or RateLimiter(cooldown_seconds=5)
         self._ghost_index = _RoomGhostIndex()
 
-    async def handle_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
-        room_id = str(event.get("room_id") or "")
+    async def handle_event(
+        self, event: MatrixEvent | dict[str, object]
+    ) -> dict[str, object] | None:
+        event_obj = (
+            event
+            if isinstance(event, (RoomMessageEvent, RoomMemberEvent, UnknownMatrixEvent))
+            else parse_matrix_event(event)
+        )
+        room_id = str(getattr(event_obj, "room_id", "") or "")
         if not room_id:
             return None
 
-        event_type = event.get("type")
-        if event_type == "m.room.member":
-            await self._handle_membership(event)
+        if isinstance(event_obj, RoomMemberEvent):
+            await self._handle_membership(event_obj)
             return None
 
-        if event_type != "m.room.message":
+        if not isinstance(event_obj, RoomMessageEvent):
             return None
 
         if await self.store.is_profile_room(room_id):
             return None
 
-        content = event.get("content", {}) or {}
-        msgtype = str(content.get("msgtype") or "")
+        content = event_obj.content
+        msgtype = str(content.msgtype or "")
         if msgtype not in {"m.text", "m.notice"}:
             return None
 
-        relates_to = content.get("m.relates_to") or {}
-        if isinstance(relates_to, dict) and relates_to.get("rel_type") == "m.replace":
+        relates_to = content.relates_to
+        if relates_to is not None and relates_to.rel_type == "m.replace":
             return None
 
-        body = str(content.get("body") or "").strip()
+        body = str(content.body or "").strip()
         if not body:
             return None
 
-        sender = str(event.get("sender") or "")
+        sender = str(event_obj.sender or "")
         if sender.startswith("@bt_"):
             # Prevent bot loops.
             return None
@@ -134,7 +157,7 @@ class AppServiceHandler:
                     "matrix_room_id": room_id,
                     "sender_agent_id": None,
                     "sender_matrix_user_id": sender,
-                    "matrix_event_id": event.get("event_id"),
+                    "matrix_event_id": event_obj.event_id,
                     "modality": "text",
                     "content": body,
                     "citations": [],
@@ -168,14 +191,13 @@ class AppServiceHandler:
 
         return payload
 
-    async def _handle_membership(self, event: dict[str, Any]) -> None:
-        room_id = str(event.get("room_id") or "")
-        state_key = str(event.get("state_key") or "")
+    async def _handle_membership(self, event: RoomMemberEvent) -> None:
+        room_id = str(event.room_id or "")
+        state_key = str(event.state_key or "")
         if not room_id or not state_key.startswith("@bt_"):
             return
 
-        content = event.get("content", {}) or {}
-        membership = str(content.get("membership") or "")
+        membership = str(event.content.membership or "")
 
         agent_row = await self.store.get_agent_by_matrix_id(state_key)
         if not agent_row:
@@ -194,13 +216,12 @@ class AppServiceHandler:
             self._ghost_index.discard(room_id, agent_id)
 
     async def _resolve_addressed_agent_id(
-        self, room_id: str, body: str, content: dict[str, Any]
+        self, room_id: str, body: str, content: MatrixMessageContent
     ) -> str | None:
-        mentions = content.get("m.mentions") or {}
-        mentioned_user_ids = mentions.get("user_ids") or []
-        if isinstance(mentioned_user_ids, list):
-            for user_id in mentioned_user_ids:
-                if not isinstance(user_id, str) or not user_id.startswith("@bt_"):
+        mentions = getattr(content, "mentions", None)
+        if mentions is not None:
+            for user_id in mentions.user_ids:
+                if not user_id.startswith("@bt_"):
                     continue
                 row = await self.store.get_agent_by_matrix_id(user_id)
                 if row:
@@ -214,7 +235,7 @@ class AppServiceHandler:
         return self._ghost_index.single_agent(room_id)
 
 
-def format_ghost_response(text: str, citations: list[Citation]) -> dict[str, Any]:
+def format_ghost_response(text: str, citations: list[Citation]) -> dict[str, object]:
     marker_text = str(text or "").strip()
     citations = list(citations or [])
 
@@ -245,9 +266,7 @@ def format_ghost_response(text: str, citations: list[Citation]) -> dict[str, Any
     html_sources = ["<hr><b>Sources:</b><br>"]
 
     for citation in citations:
-        source_lines.append(
-            f"[{citation.index}] {citation.source_title} ({citation.platform})"
-        )
+        source_lines.append(f"[{citation.index}] {citation.source_title} ({citation.platform})")
         html_sources.append(
             f'[{citation.index}] <a href="{escape(citation.source_url)}">{escape(citation.source_title)}</a><br>'
         )

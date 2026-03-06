@@ -6,7 +6,7 @@ import pytest
 from agents_service.agent.orchestrator import DiscussionConfig, DiscussionOrchestrator
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_multi_agent_discussion_flow() -> None:
     agent_a = str(uuid4())
     agent_b = str(uuid4())
@@ -44,12 +44,8 @@ async def test_multi_agent_discussion_flow() -> None:
     async def post_message(_room_id: str, payload: dict):
         posted.append(payload)
 
-    orchestrator = DiscussionOrchestrator(
-        a2a_client=a2a_client, post_message=post_message
-    )
-    config = DiscussionConfig(
-        topic="virtue", ghost_agent_ids=[agent_a, agent_b], max_turns=3
-    )
+    orchestrator = DiscussionOrchestrator(a2a_client=a2a_client, post_message=post_message)
+    config = DiscussionConfig(topic="virtue", ghost_agent_ids=[agent_a, agent_b], max_turns=3)
 
     history = await orchestrator.run("!room:example", config)
 

@@ -18,6 +18,7 @@ dependencies = [
 dev = [
   "pytest>=8.3.0",
   "pytest-asyncio>=0.23.8",
+  "ruff>=0.6.9",
 ]
 
 [tool.setuptools]
@@ -27,5 +28,12 @@ packages = ["bt_common"]
 "bt_common" = "src"
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]

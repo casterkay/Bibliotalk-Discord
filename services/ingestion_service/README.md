@@ -4,7 +4,7 @@ Standalone Python package + CLI for ingesting curated, operator-provided content
 
 Primary entry point:
 
-- `python -m ingestion_service --help`
+- `uv run --package ingestion_service -m ingestion_service --help`
 
 This package focuses on deterministic chunking, stable IDs, safe re-runs (idempotency), and per-source JSON reporting.
 
@@ -12,21 +12,23 @@ This package focuses on deterministic chunking, stable IDs, safe re-runs (idempo
 
 Web and document ingestion use optional extras:
 
-- Web extraction + blog discovery: `pip install 'ingestion_service[web]'`
-- Document conversion (pdf/docx/epub/html/…): `pip install 'ingestion_service[docs]'`
+- In this repo workspace (recommended): `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- As a standalone package:
+  - Web extraction + blog discovery: `pip install 'ingestion_service[web]'`
+  - Document conversion (pdf/docx/epub/html/…): `pip install 'ingestion_service[docs]'`
 
 Commands:
 
-- `python -m ingestion_service ingest web --help`
-- `python -m ingestion_service ingest doc-url --help`
-- `python -m ingestion_service crawl blog --help`
-- `python -m ingestion_service crawl rss --help`
+- `uv run --package ingestion_service -m ingestion_service ingest web --help`
+- `uv run --package ingestion_service -m ingestion_service ingest doc-url --help`
+- `uv run --package ingestion_service -m ingestion_service crawl blog --help`
+- `uv run --package ingestion_service -m ingestion_service crawl rss --help`
 
 ## FastAPI Server
 
 Run the ingestion API server:
 
-- `uv run uvicorn ingestion_service.server:app --host 0.0.0.0 --port 8080`
+- `uv run --package ingestion_service uvicorn ingestion_service.server:app --host 0.0.0.0 --port 8080`
 
 Endpoints:
 
@@ -62,7 +64,7 @@ Script:
 
 Example:
 
-- `uv run python scripts/ingest_from_figures_json.py --input /absolute/path/to/figures.json`
+- `uv --directory services/ingestion_service run --package ingestion_service python scripts/ingest_from_figures_json.py --input /absolute/path/to/figures.json`
 
 What it does:
 

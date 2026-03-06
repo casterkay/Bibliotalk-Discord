@@ -1,47 +1,172 @@
-# Codebase Map (kept current; edit when structure changes)
+.
+├── AGENTS.md
+├── BLUEPRINT.md
+├── CLAUDE.md -> AGENTS.md
+├── CODEBASE.txt
+├── deploy
+│   └── local
+│       ├── bin
+│       │   ├── enable-appservice.sh
+│       │   ├── generate-appservice.sh
+│       │   ├── setup-all.sh
+│       │   └── setup-appservice.sh
+│       ├── docker-compose.yml
+│       ├── element
+│       │   └── config.json
+│       ├── ghosts.yaml
+│       ├── ingest
+│       │   └── manifest.yaml
+│       └── synapse
+│           ├── appservice
+│           │   └── bibliotalk-appservice.example.yaml
+│           ├── data
+│           │   ├── appservices
+│           │   ├── homeserver.db
+│           │   ├── homeserver.db-shm
+│           │   ├── homeserver.db-wal
+│           │   ├── homeserver.yaml
+│           │   ├── localhost.macaroon.key
+│           │   ├── localhost.registration.key
+│           │   ├── localhost.signing.key
+│           │   ├── localhost.tls.crt
+│           │   ├── localhost.tls.key
+│           │   ├── log.config
+│           │   └── media
+│           └── README.md
+├── docs
+│   └── knowledge
+│       ├── evermemos-api.md
+│       ├── evermemos.md
+│       ├── google-a2a.md
+│       ├── google-adk.md
+│       ├── google-gemini-live-guide.md
+│       ├── google-gemini-live.md
+│       ├── matrix-synapse.md
+│       ├── matrix-webrtc.md
+│       ├── nova-act-browser-automation.md
+│       ├── nova-act-overview.md
+│       ├── nova-act.md
+│       ├── nova-sonic-example.md
+│       ├── nova-sonic.md
+│       ├── openclaw-custom-plugin.md
+│       ├── openclaw-extension.md
+│       ├── openclaw-overview.md
+│       └── youtube-transcript-api.md
+├── packages
+│   └── bt_common
+│       ├── pyproject.toml
+│       └── src
+│           ├── config.py
+│           ├── evermemos_client.py
+│           ├── exceptions.py
+│           └── logging.py
+├── pyproject.toml
+├── README.md
+├── ROSTER.md
+├── scripts
+│   └── outline-codebase.sh
+├── services
+│   ├── agents_service
+│   │   ├── alembic
+│   │   │   ├── env.py
+│   │   │   ├── README
+│   │   │   ├── script.py.mako
+│   │   │   └── versions
+│   │   │       └── 87ce04bfe41c_init_schema.py
+│   │   ├── alembic.ini
+│   │   ├── pyproject.toml
+│   │   └── src
+│   │       ├── agent
+│   │       │   ├── agent_factory.py
+│   │       │   ├── orchestrator.py
+│   │       │   ├── providers
+│   │       │   └── tools
+│   │       ├── bootstrap.py
+│   │       ├── database
+│   │       │   ├── sqlalchemy_models.py
+│   │       │   ├── sqlalchemy_store.py
+│   │       │   └── store.py
+│   │       ├── matrix
+│   │       │   ├── appservice.py
+│   │       │   ├── client.py
+│   │       │   ├── events.py
+│   │       │   └── guards.py
+│   │       ├── models
+│   │       │   ├── citation.py
+│   │       │   └── segment.py
+│   │       ├── server.py
+│   │       └── voice
+│   │           ├── backends
+│   │           ├── session_manager.py
+│   │           └── transcript.py
+│   ├── ingestion_service
+│   │   ├── pyproject.toml
+│   │   ├── README.md
+│   │   ├── scripts
+│   │   │   └── ingest_from_figures_json.py
+│   │   └── src
+│   │       ├── adapters
+│   │       │   ├── base.py
+│   │       │   ├── blog_crawl.py
+│   │       │   ├── document.py
+│   │       │   ├── gutenberg.py
+│   │       │   ├── http_fetch.py
+│   │       │   ├── local_text.py
+│   │       │   ├── rss_feed.py
+│   │       │   ├── url_tools.py
+│   │       │   ├── web_page.py
+│   │       │   └── youtube_transcript.py
+│   │       ├── domain
+│   │       │   ├── errors.py
+│   │       │   ├── ids.py
+│   │       │   └── models.py
+│   │       ├── pipeline
+│   │       │   ├── chunking.py
+│   │       │   ├── index.py
+│   │       │   ├── ingest.py
+│   │       │   └── manifest.py
+│   │       ├── runtime
+│   │       │   ├── config.py
+│   │       │   └── reporting.py
+│   │       └── server.py
+│   └── voice_call_service
+│       ├── eslint.config.js
+│       ├── package.json
+│       └── src
+│           ├── audio_bridge.js
+│           ├── index.js
+│           ├── matrixrtc.js
+│           └── mixer.js
+├── specs
+│   ├── 001-agent-service
+│   │   ├── checklists
+│   │   │   └── requirements.md
+│   │   ├── contracts
+│   │   │   ├── citation-schema.md
+│   │   │   ├── discussion-floor-control.md
+│   │   │   ├── emos-client.md
+│   │   │   ├── matrix-events.md
+│   │   │   └── voice-backend.md
+│   │   ├── data-model.md
+│   │   ├── plan.md
+│   │   ├── quickstart.md
+│   │   ├── research.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   └── 002-evermemos-content-ingest
+│       ├── checklists
+│       │   └── requirements.md
+│       ├── contracts
+│       │   ├── cli.md
+│       │   ├── evermemos-api.md
+│       │   ├── ingest-manifest.md
+│       │   └── report-format.md
+│       ├── data-model.md
+│       ├── plan.md
+│       ├── quickstart.md
+│       ├── research.md
+│       ├── spec.md
+│       └── tasks.md
+└── uv.lock
 
-packages/
-└── bt_common/
-    ├── pyproject.toml
-    ├── src/
-    │   ├── config.py              # shared env settings (DATABASE_URL, Matrix, EMOS, etc.)
-    │   ├── evermemos_client.py    # EverMemOS SDK wrapper
-    │   ├── logging.py             # JSON logging + correlation IDs
-    │   └── exceptions.py
-    ├── tests/
-    └── uv.lock
-
-services/
-├── agents_service/
-│   ├── pyproject.toml
-│   ├── uv.lock
-│   ├── alembic.ini
-│   ├── alembic/
-│   │   ├── env.py
-│   │   └── versions/
-│   ├── src/
-│   │   ├── server.py             # Litestar ASGI app (Synapse appservice endpoints)
-│   │   ├── bootstrap.py          # local E2E provisioning CLI (SQLite-backed)
-│   │   ├── agent/                # agent factory + tools + providers
-│   │   ├── matrix/               # Matrix appservice handler + client
-│   │   ├── models/               # Evidence/Citation + Segment domain models
-│   │   ├── database/             # SQLAlchemy ORM + Store (SQLite local / Postgres prod)
-│   │   └── voice/                # voice session orchestration + backends
-│   └── tests/
-├── ingestion_service/
-│   ├── pyproject.toml
-│   ├── uv.lock
-│   ├── src/                      # ingestion pipelines + adapters
-│   └── tests/
-└── voice_call_service/
-    ├── package.json
-    └── src/                      # MatrixRTC/WebRTC sidecar
-
-deploy/
-└── local/
-    ├── docker-compose.yml         # Synapse + Element Web
-    ├── element/config.json
-    ├── ingest/manifest.yaml
-    ├── ghosts.yaml
-    ├── bin/
-    └── synapse/
+46 directories, 124 files

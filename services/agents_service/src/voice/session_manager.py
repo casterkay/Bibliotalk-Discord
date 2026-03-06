@@ -18,6 +18,7 @@ class VoiceSession:
     id: str
     agent_id: str
     room_id: str
+    matrix_user_id: str | None
     backend_type: str
     backend: VoiceBackend
     state: str = "created"
@@ -37,13 +38,19 @@ class VoiceSessionManager:
         raise VoiceSessionError(f"Unsupported backend {backend_type}")
 
     async def create_session(
-        self, agent_id: str, room_id: str, backend_type: str
+        self,
+        agent_id: str,
+        room_id: str,
+        backend_type: str,
+        *,
+        matrix_user_id: str | None = None,
     ) -> VoiceSession:
         backend = self._make_backend(backend_type)
         session = VoiceSession(
             id=str(uuid4()),
             agent_id=agent_id,
             room_id=room_id,
+            matrix_user_id=matrix_user_id,
             backend_type=backend_type,
             backend=backend,
             state="active",

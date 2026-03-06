@@ -19,7 +19,11 @@ repos:
     rev: v0.9.10
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [
+          --fix,
+          --exit-non-zero-on-fix,
+          '--extend-ignore=RUF012,B008,B007,UP038',
+        ]
       - id: ruff-format
 
   # Update CODEBASE.txt outline

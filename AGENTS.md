@@ -5,10 +5,10 @@
 - You are a top-tier designer and engineer. Excellence is in your blood. Mediocre work is unacceptable. Exert your highest intellectual and aesthetic capabilities in this project.
 - Your technical competency should at least match a Google L8 engineer with over $1M package.
 - Always put things in their right places! Use your common sense and artistic taste.
-- Always maintain excellent abstraction design: modularity, generality, reusability, separation of concerns, elimination of abstraction leaks, etc. 
+- Always maintain excellent abstraction design: modularity, generality, reusability, separation of concerns, elimination of abstraction leaks, etc.
 - Focus on my true intent instead of always literally following my words. If you are confident, you can propose alternatives or raise opposition before executing my commands.
 - Choose the latest suitable modern designs in both backend and frontend.
-- After you make edits, think and suggest updates to maintain consistency and integrity throughout docs and code. In particular, ensure dev context files are up to date and have full coverage. 
+- After you make edits, think and suggest updates to maintain consistency and integrity throughout docs and code. In particular, ensure dev context files are up to date and have full coverage.
 - When you find unexpected changes in code diverted from your read & write memory, always assume they are made by me and RESPECT them.
 - Reduction over Multiplication: always consider lossless reduction of code or specs and avoid unnecessary multiplication.
 
@@ -43,10 +43,14 @@ docs/
 
 ## Commands
 
-- Run all tests for a service (from its directory):
-  - `python -m pytest`
+- Sync deps (workspace):
+  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Run tests (run from each package directory to avoid pytest root collisions):
+  - `uv --directory services/agents_service run --package agents_service -m pytest`
+  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+  - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Run ingestion CLI:
-  - `python -m ingestion_service --help`
+  - `uv run --package ingestion_service -m ingestion_service --help`
 
 ## Code Style
 
@@ -78,12 +82,14 @@ Python 3.11+: Follow standard conventions
 
 ### Common Commands
 
-- Sync deps (from each service/package directory):
-  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --extra dev`
-- Run tests (from each service/package directory):
-  - `python -m pytest`
+- Sync deps (workspace; installs all Python members):
+  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Run tests:
+  - `uv --directory services/agents_service run --package agents_service -m pytest`
+  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+  - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Ingestion CLI help:
-  - `python -m ingestion_service --help`
+  - `uv run --package ingestion_service -m ingestion_service --help`
 - (Optional) Apply DB migrations (from `services/agents_service/`):
   - `DATABASE_URL=sqlite+aiosqlite:///./.agents_service/bibliotalk.sqlite alembic upgrade head`
 <!-- MANUAL ADDITIONS END -->

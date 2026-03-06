@@ -52,7 +52,7 @@ class FakeRegistry:
         return None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ghost_text_chat_e2e() -> None:
     agent_id = uuid4()
     supabase = FakeSupabase(agent_id)

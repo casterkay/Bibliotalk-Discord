@@ -1,11 +1,11 @@
 """Local E2E bootstrap tooling (Synapse + SQLite).
 
 Usage examples (repo root):
-  python -m agents_service.bootstrap seed-ghosts
-  python -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache
-  python -m agents_service.bootstrap provision-matrix
-  python -m agents_service.bootstrap post-profile-timeline
-  python -m agents_service.bootstrap smoke-test --ghost confucius
+  uv run --package agents_service -m agents_service.bootstrap seed-ghosts
+  uv run --package agents_service -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache
+  uv run --package agents_service -m agents_service.bootstrap provision-matrix
+  uv run --package agents_service -m agents_service.bootstrap post-profile-timeline
+  uv run --package agents_service -m agents_service.bootstrap smoke-test --ghost confucius
 """
 
 from __future__ import annotations
@@ -46,9 +46,7 @@ def _load_roster(path: Path) -> list[dict[str, Any]]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     ghosts = data.get("ghosts") or []
     if not isinstance(ghosts, list):
-        raise typer.BadParameter(
-            "roster file must contain a top-level 'ghosts: []' list"
-        )
+        raise typer.BadParameter("roster file must contain a top-level 'ghosts: []' list")
     return [g for g in ghosts if isinstance(g, dict)]
 
 
@@ -151,9 +149,7 @@ class MatrixAdminClient:
         if visibility:
             payload["visibility"] = visibility
 
-        data = await self._request(
-            "POST", "/_matrix/client/v3/createRoom", json_body=payload
-        )
+        data = await self._request("POST", "/_matrix/client/v3/createRoom", json_body=payload)
         return str(data["room_id"])
 
     async def send_state(
@@ -187,9 +183,7 @@ class MatrixAdminClient:
         )
         return str(data.get("event_id", ""))
 
-    async def get_recent_messages(
-        self, *, room_id: str, limit: int = 20
-    ) -> list[dict[str, Any]]:
+    async def get_recent_messages(self, *, room_id: str, limit: int = 20) -> list[dict[str, Any]]:
         if not self._session:
             raise RuntimeError("MatrixAdminClient not logged in")
         resp = await self._http.get(
@@ -214,9 +208,7 @@ def seed_ghosts(
         None,
         help="Matrix server name for user IDs (default: MATRIX_SERVER_NAME or 'localhost').",
     ),
-    llm_model: str = typer.Option(
-        "gemini-2.5-flash", help="Default model for seeded Ghosts."
-    ),
+    llm_model: str = typer.Option("gemini-2.5-flash", help="Default model for seeded Ghosts."),
 ) -> None:
     async def _run() -> None:
         settings = get_settings()
@@ -231,17 +223,11 @@ def seed_ghosts(
                 raise typer.BadParameter("roster contains no ghosts")
 
             for ghost in ghosts:
-                tenant_prefix = str(
-                    ghost.get("tenant_prefix") or ghost.get("slug") or ""
-                ).strip()
+                tenant_prefix = str(ghost.get("tenant_prefix") or ghost.get("slug") or "").strip()
                 if not tenant_prefix:
                     raise typer.BadParameter("ghost missing tenant_prefix/slug")
-                localpart = str(
-                    ghost.get("matrix_localpart") or f"ghost_{tenant_prefix}"
-                ).strip()
-                display_name = str(
-                    ghost.get("display_name") or tenant_prefix.title()
-                ).strip()
+                localpart = str(ghost.get("matrix_localpart") or f"ghost_{tenant_prefix}").strip()
+                display_name = str(ghost.get("display_name") or tenant_prefix.title()).strip()
                 persona_prompt = str(
                     ghost.get("persona_prompt") or f"You are {display_name}."
                 ).strip()
@@ -306,9 +292,7 @@ def import_segment_cache(
                 tenant_prefix = path.stem
                 agent = await store.get_agent_by_tenant_prefix(tenant_prefix)
                 if not agent:
-                    console.print(
-                        f"Skip {path.name}: no agent for tenant_prefix={tenant_prefix}"
-                    )
+                    console.print(f"Skip {path.name}: no agent for tenant_prefix={tenant_prefix}")
                     skipped += 1
                     continue
                 agent_uuid = UUID(str(agent["id"]))
@@ -323,9 +307,7 @@ def import_segment_cache(
                         platform = str(payload["platform"])
                         external_id = str(payload["external_id"])
                         title = str(
-                            payload.get("group_name")
-                            or payload.get("title")
-                            or external_id
+                            payload.get("group_name") or payload.get("title") or external_id
                         )
                         source_url = payload.get("source_url")
 
@@ -375,9 +357,7 @@ def provision_matrix(
         True, help="Create a Bibliotalk Space and add rooms as children."
     ),
     space_name: str = typer.Option("Bibliotalk", help="Space name."),
-    group_room_name: str = typer.Option(
-        "Bibliotalk — Group Chat", help="Group chat room name."
-    ),
+    group_room_name: str = typer.Option("Bibliotalk — Group Chat", help="Group chat room name."),
 ) -> None:
     async def _run() -> None:
         settings = get_settings()
@@ -420,9 +400,7 @@ def provision_matrix(
                 invite=ghost_user_ids,
             )
             for ghost_user_id in ghost_user_ids:
-                await matrix_as.join_room_as(
-                    room_id=group_room_id, user_id=ghost_user_id
-                )
+                await matrix_as.join_room_as(room_id=group_room_id, user_id=ghost_user_id)
             console.print(f"Created group room: {group_room_id}")
 
             if space_room_id:
@@ -450,9 +428,7 @@ def provision_matrix(
                         visibility="public",
                         invite=[ghost_user_id],
                     )
-                    await matrix_as.join_room_as(
-                        room_id=profile_room_id, user_id=ghost_user_id
-                    )
+                    await matrix_as.join_room_as(room_id=profile_room_id, user_id=ghost_user_id)
 
                     # Make room read-only for default users; only admin + ghost can send.
                     await matrix_admin.send_state(
@@ -496,9 +472,7 @@ def provision_matrix(
 
 @app.command("post-profile-timeline")
 def post_profile_timeline(
-    max_segments_per_source: int = typer.Option(
-        5, help="Max segments to post per source."
-    ),
+    max_segments_per_source: int = typer.Option(5, help="Max segments to post per source."),
     max_sources: int = typer.Option(5, help="Max sources to post per agent."),
 ) -> None:
     async def _run() -> None:
@@ -599,9 +573,7 @@ def post_profile_timeline(
                         )
                         posted += 1
 
-                console.print(
-                    f"Posted {posted} profile segments for {agent['display_name']}"
-                )
+                console.print(f"Posted {posted} profile segments for {agent['display_name']}")
 
         finally:
             await store.aclose()
@@ -615,9 +587,7 @@ def smoke_test(
     ghost: str = typer.Option(
         "confucius", help="Ghost tenant_prefix to DM (must exist in the SQLite store)."
     ),
-    prompt: str = typer.Option(
-        "What did you say about learning?", help="Message text."
-    ),
+    prompt: str = typer.Option("What did you say about learning?", help="Message text."),
     timeout_s: int = typer.Option(20, help="How long to wait for a reply."),
 ) -> None:
     async def _run() -> None:
@@ -638,9 +608,7 @@ def smoke_test(
             )
             agent = await store.get_agent_by_tenant_prefix(ghost)
             if not agent:
-                raise typer.BadParameter(
-                    f"Unknown ghost tenant_prefix={ghost} (run seed-ghosts)"
-                )
+                raise typer.BadParameter(f"Unknown ghost tenant_prefix={ghost} (run seed-ghosts)")
             ghost_user_id = str(agent["matrix_user_id"])
 
             room_id = await matrix_admin.create_room(
@@ -654,9 +622,7 @@ def smoke_test(
 
             deadline = asyncio.get_event_loop().time() + timeout_s
             while asyncio.get_event_loop().time() < deadline:
-                events = await matrix_admin.get_recent_messages(
-                    room_id=room_id, limit=20
-                )
+                events = await matrix_admin.get_recent_messages(room_id=room_id, limit=20)
                 for ev in events:
                     if ev.get("type") != "m.room.message":
                         continue
@@ -664,17 +630,13 @@ def smoke_test(
                         continue
                     content = ev.get("content") or {}
                     body = content.get("body") or ""
-                    citations = (content.get("com.bibliotalk.citations") or {}).get(
-                        "items"
-                    ) or []
+                    citations = (content.get("com.bibliotalk.citations") or {}).get("items") or []
                     console.print(f"Reply: {body}")
                     console.print(f"Citations: {len(citations)}")
                     return
                 await asyncio.sleep(1.0)
 
-            raise RuntimeError(
-                "Timed out waiting for ghost reply (is agents_service running?)"
-            )
+            raise RuntimeError("Timed out waiting for ghost reply (is agents_service running?)")
         finally:
             await store.aclose()
             await matrix_admin.aclose()

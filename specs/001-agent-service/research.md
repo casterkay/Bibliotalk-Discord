@@ -1,7 +1,7 @@
 # Research: Agent Service
 
-**Feature**: `001-agent-service`  
-**Created**: 2026-02-28  
+**Feature**: `001-agent-service`
+**Created**: 2026-02-28
 **Last Updated**: 2026-03-03
 
 ## R0: Agent Runtime — Google ADK vs Minimal Local Runtime
@@ -25,7 +25,7 @@
 - Matrix integration adds additional failure modes (auth, appservice registration, event schemas, rate limits).
 
 **Implementation note**:
-- The CLI harness lives at `services/agents_service/src/__main__.py` and is invoked via `python -m agents_service ...`.
+- The CLI harness lives at `services/agents_service/src/__main__.py` and is typically invoked via `uv run --package agents_service -m agents_service ...` (workspace).
 - `format_ghost_response` is owned by `services/agents_service/src/matrix/appservice.py` and reused by the CLI and voice transcript paths (per `BLUEPRINT.md`).
 
 ## R2: Contract & Unit Test Placement (Monorepo)
