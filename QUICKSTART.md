@@ -50,19 +50,17 @@ python -m agents_service --agent confucius --mock-emos --model gemini-2.5-flash
 
 ## 3B) Local E2E: Synapse + Element Web + PocketBase
 
-1. Start infrastructure (Synapse + Element Web + PocketBase):
-
-```bash
-docker compose -f deploy/local/docker-compose.yml up -d
-```
-
-2. Generate the Synapse appservice registration and enable it:
+1. Generate Synapse config + appservice registration (idempotent):
 
 ```bash
 chmod +x deploy/local/bin/*.sh
-deploy/local/bin/generate-appservice.sh
-(cd deploy/local && ./bin/enable-appservice.sh)
-docker compose -f deploy/local/docker-compose.yml restart synapse
+deploy/local/bin/setup-appservice.sh
+```
+
+2. Start infrastructure (Synapse + Element Web + PocketBase):
+
+```bash
+docker compose -f deploy/local/docker-compose.yml up -d
 ```
 
 3. Create a PocketBase superuser (first run only):

@@ -53,9 +53,9 @@ The local E2E dev flow (Synapse + Element Web + PocketBase + `agents_service`) i
 
 At a high level:
 - Start local infra with `deploy/local/docker-compose.yml`
-- Generate + enable the Synapse appservice (`deploy/local/bin/generate-appservice.sh`, `deploy/local/bin/enable-appservice.sh`)
+- Generate + enable the Synapse appservice (`deploy/local/bin/setup-appservice.sh`)
 - Run `agents_service` on port 8009
 - Use `ingestion_service` to ingest sources into EverMemOS and emit a segment cache
 - Import the segment cache into PocketBase (canonical segments for citations)
 - Provision Matrix Space + rooms via the `agents_service.bootstrap` CLI
-See `specs/001-agent-service/quickstart.md` for a runnable step-by-step.
+See `QUICKSTART.md` for a runnable step-by-step.
