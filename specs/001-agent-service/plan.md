@@ -11,7 +11,7 @@ This repository contains an end-to-end text chat loop (Matrix appservice → ret
 
 ## Conflicts / Decisions (Read First)
 
-This plan is sourced from `BLUEPRINT.md`, but it includes **local-dev** decisions that intentionally diverge from the blueprint’s proposed Supabase setup.
+This plan is sourced from `BLUEPRINT.md`, but it includes **local-dev** decisions that intentionally diverge from the blueprint’s production-oriented relational setup.
 
 ### C0: Postgres (blueprint/prod) vs SQLite (local dev)
 
@@ -54,14 +54,14 @@ The local E2E flow uses `server_name=localhost` (so Matrix IDs are `@alice:local
 
 *GATE: Must pass before major implementation changes. Re-check after each milestone.*
 
-| Principle                        | Gate                                                                | Status |
-| -------------------------------- | ------------------------------------------------------------------- | ------ |
-| I. Design-First Architecture     | `spec.md` + `plan.md` exist before deeper build-out                 | PASS   |
+| Principle                        | Gate                                                                 | Status |
+| -------------------------------- | -------------------------------------------------------------------- | ------ |
+| I. Design-First Architecture     | `spec.md` + `plan.md` exist before deeper build-out                  | PASS   |
 | II. Test-Driven Quality          | Unit tests cover core business logic; contract tests cover EMOS edge | PASS   |
 | III. Contract-Driven Integration | Explicit contracts for EMOS, citations, floor control, voice backend | PASS   |
-| IV. Incremental Delivery         | US1 before US2 before US3 before US4                                | PASS   |
-| V. Observable Systems            | Structured logs + correlation IDs at service entry points           | PASS   |
-| VI. Principled Simplicity        | CLI-first harness for rapid iteration                               | PASS   |
+| IV. Incremental Delivery         | US1 before US2 before US3 before US4                                 | PASS   |
+| V. Observable Systems            | Structured logs + correlation IDs at service entry points            | PASS   |
+| VI. Principled Simplicity        | CLI-first harness for rapid iteration                                | PASS   |
 
 ## Repository Ownership (authoritative)
 
@@ -165,13 +165,13 @@ services/agents_service/tests/
 
 ### Local Topology
 
-| Component | Runtime | URL / Port | Notes |
-| --- | --- | --- | --- |
-| Synapse homeserver | Docker | `http://localhost:8008` | Matrix Client-Server API |
-| Element Web | Docker | `http://localhost:8080` | Local dev UI |
-| SQLite DB | Local file | `.agents_service/bibliotalk.sqlite` | Canonical local data store (SQLAlchemy ORM) |
-| agents_service | Host python | `http://localhost:8009` | Matrix appservice + agent runtime |
-| EverMemOS | external/local | `EMOS_BASE_URL` | Retrieval; must already be reachable |
+| Component          | Runtime        | URL / Port                          | Notes                                       |
+| ------------------ | -------------- | ----------------------------------- | ------------------------------------------- |
+| Synapse homeserver | Docker         | `http://localhost:8008`             | Matrix Client-Server API                    |
+| Element Web        | Docker         | `http://localhost:8080`             | Local dev UI                                |
+| SQLite DB          | Local file     | `.agents_service/bibliotalk.sqlite` | Canonical local data store (SQLAlchemy ORM) |
+| agents_service     | Host python    | `http://localhost:8009`             | Matrix appservice + agent runtime           |
+| EverMemOS          | external/local | `EMOS_BASE_URL`                     | Retrieval; must already be reachable        |
 
 ### Environment Variables (local dev)
 
@@ -286,10 +286,10 @@ The intended “happy path” commands (exact scripts/CLIs to be implemented und
 
 ## Complexity Tracking
 
-| Decision | Why it exists | Alternative rejected |
-| --- | --- | --- |
-| Node.js voice sidecar | MatrixRTC/WebRTC media handling is a separate runtime concern | A pure-Python stack still needs WebRTC media plumbing |
-| VoiceBackend abstraction | Swap Nova Sonic ↔ Gemini Live without changing orchestration | Backend-specific logic would sprawl across the session manager |
+| Decision                          | Why it exists                                                   | Alternative rejected                                             |
+| --------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Node.js voice sidecar             | MatrixRTC/WebRTC media handling is a separate runtime concern   | A pure-Python stack still needs WebRTC media plumbing            |
+| VoiceBackend abstraction          | Swap Nova Sonic ↔ Gemini Live without changing orchestration    | Backend-specific logic would sprawl across the session manager   |
 | Domain models in `agents_service` | Keeps agent-domain ownership out of infra package (`bt_common`) | Putting agent models in `bt_common` breaks repository boundaries |
 
 ## Proposed Improvements (Non-Blocking)

@@ -19,7 +19,7 @@ This document records key technical decisions, rationale, and alternatives consi
 
 ## R2: Stable Tenant + Source + Segment IDs
 
-**Decision**: Follow the ID convention described in `/Users/tcai/Projects/Bibliotalk/BLUEPRINT.md`:
+**Decision**: Follow the ID convention described in `BLUEPRINT.md`:
 - `sender` (EverMemOS user) = operator-provided `user_id`
 - `group_id` (per source) = `{user_id}:{platform}:{external_id}`
 - `message_id` (per segment) = `{user_id}:{platform}:{external_id}:seg:{seq}`
@@ -96,4 +96,3 @@ This document records key technical decisions, rationale, and alternatives consi
 
 **Alternatives considered**:
 - Logs only, no report file: rejected because it weakens auditing and makes batch runs harder to manage.
-

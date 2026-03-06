@@ -2,7 +2,7 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-03  
+**Last Updated**: 2026-03-06  
 **Input**: `BLUEPRINT.md` + `specs/001-agent-service/*`
 
 This task list is a living checklist for bringing the implementation in `services/agents_service/` in line with `BLUEPRINT.md`.
@@ -26,6 +26,7 @@ This task list is a living checklist for bringing the implementation in `service
 ## Phase 0: Spec/Contract Sync
 
 - [x] Align `specs/001-agent-service/` docs to `BLUEPRINT.md` ownership boundaries and repo layout
+  - NOTE: The canonical design doc file is `BLUEPRINT.md` (lowercase, repo-tracked).
 
 ---
 

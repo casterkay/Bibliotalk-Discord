@@ -1,98 +1,47 @@
+# Codebase Map (kept current; edit when structure changes)
+
 packages/
-└── bt_common
+└── bt_common/
     ├── pyproject.toml
-    ├── src
-    │   ├── __init__.py
-    │   ├── config.py
-    │   ├── evermemos_client.py
-    │   ├── exceptions.py
-    │   └── logging.py
+    ├── src/
+    │   ├── config.py              # shared env settings (DATABASE_URL, Matrix, EMOS, etc.)
+    │   ├── evermemos_client.py    # EverMemOS SDK wrapper
+    │   ├── logging.py             # JSON logging + correlation IDs
+    │   └── exceptions.py
+    ├── tests/
     └── uv.lock
 
-3 directories, 7 files
 services/
-├── agents_service
-│   ├── alembic
-│   │   ├── env.py
-│   │   └── versions
-│   │       └── 20260306_0001_init_schema.py
+├── agents_service/
+│   ├── pyproject.toml
+│   ├── uv.lock
 │   ├── alembic.ini
+│   ├── alembic/
+│   │   ├── env.py
+│   │   └── versions/
+│   ├── src/
+│   │   ├── server.py             # Litestar ASGI app (Synapse appservice endpoints)
+│   │   ├── bootstrap.py          # local E2E provisioning CLI (SQLite-backed)
+│   │   ├── agent/                # agent factory + tools + providers
+│   │   ├── matrix/               # Matrix appservice handler + client
+│   │   ├── models/               # Evidence/Citation + Segment domain models
+│   │   ├── database/             # SQLAlchemy ORM + Store (SQLite local / Postgres prod)
+│   │   └── voice/                # voice session orchestration + backends
+│   └── tests/
+├── ingestion_service/
 │   ├── pyproject.toml
-│   ├── src
-│   │   ├── __init__.py
-│   │   ├── __main__.py
-│   │   ├── agent
-│   │   │   ├── __init__.py
-│   │   │   ├── agent_factory.py
-│   │   │   ├── orchestrator.py
-│   │   │   ├── providers
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── aws_nova.py
-│   │   │   │   └── gemini.py
-│   │   │   └── tools
-│   │   │       ├── __init__.py
-│   │   │       ├── emit_citations.py
-│   │   │       └── memory_search.py
-│   │   ├── bootstrap.py
-│   │   ├── database
-│   │   │   ├── sqlalchemy_models.py
-│   │   │   ├── sqlalchemy_store.py
-│   │   │   └── store.py
-│   │   ├── matrix
-│   │   │   ├── appservice.py
-│   │   │   ├── client.py
-│   │   │   └── guards.py
-│   │   ├── models
-│   │   │   ├── citation.py
-│   │   │   └── segment.py
-│   │   ├── server.py
-│   │   └── voice
-│   │       ├── __init__.py
-│   │       ├── backends
-│   │       │   ├── __init__.py
-│   │       │   ├── base.py
-│   │       │   ├── gemini_live.py
-│   │       │   └── nova_sonic.py
-│   │       ├── session_manager.py
-│   │       └── transcript.py
-│   └── uv.lock
-├── ingestion_service
-│   ├── pyproject.toml
-│   ├── README.md
-│   ├── scripts
-│   │   └── ingest_from_figures_json.py
-│   ├── src
-│   │   ├── __init__.py
-│   │   ├── __main__.py
-│   │   ├── adapters
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   ├── gutenberg.py
-│   │   │   ├── local_text.py
-│   │   │   └── youtube_transcript.py
-│   │   ├── domain
-│   │   │   ├── __init__.py
-│   │   │   ├── errors.py
-│   │   │   ├── ids.py
-│   │   │   └── models.py
-│   │   ├── pipeline
-│   │   │   ├── __init__.py
-│   │   │   ├── chunking.py
-│   │   │   ├── index.py
-│   │   │   ├── ingest.py
-│   │   │   └── manifest.py
-│   │   ├── runtime
-│   │   │   ├── __init__.py
-│   │   │   ├── config.py
-│   │   │   └── reporting.py
-│   │   └── server.py
-│   └── uv.lock
-└── voice_call_service
+│   ├── uv.lock
+│   ├── src/                      # ingestion pipelines + adapters
+│   └── tests/
+└── voice_call_service/
     ├── package.json
-    └── src
-        ├── audio_bridge.js
-        ├── index.js
-        ├── matrixrtc.js
-        └── mixer.js
+    └── src/                      # MatrixRTC/WebRTC sidecar
 
-22 directories, 62 files
+deploy/
+└── local/
+    ├── docker-compose.yml         # Synapse + Element Web
+    ├── element/config.json
+    ├── ingest/manifest.yaml
+    ├── ghosts.yaml
+    ├── bin/
+    └── synapse/

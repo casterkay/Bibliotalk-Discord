@@ -55,6 +55,7 @@ Python 3.11+: Follow standard conventions
 ## Recent Changes
 
 - 002-evermemos-content-ingest: Added Python 3.11+ + `evermemos` (EverMemOS SDK), `httpx`, `pydantic`, `typer`, `rich`, `tenacity`
+- 001-agent-service: Switched local canonical store to SQLite via SQLAlchemy; switched appservice server to Litestar
 
 <!-- MANUAL ADDITIONS START -->
 ## Manual Notes
@@ -83,4 +84,6 @@ Python 3.11+: Follow standard conventions
   - `python -m pytest`
 - Ingestion CLI help:
   - `python -m ingestion_service --help`
+- (Optional) Apply DB migrations (from `services/agents_service/`):
+  - `DATABASE_URL=sqlite+aiosqlite:///./.agents_service/bibliotalk.sqlite alembic upgrade head`
 <!-- MANUAL ADDITIONS END -->

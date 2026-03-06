@@ -47,10 +47,10 @@
 - EverMemOS deployments may vary across versions (e.g., API path/version in error envelopes). Contracts should focus on **shapes** and **id conventions**, not fragile URL strings.
 
 **Testing tiers**:
-| Tier        | Location                         | What it tests                                  |
-| ----------- | -------------------------------- | ---------------------------------------------- |
-| Unit        | `packages/bt_common/tests/unit/` | retry behavior, error mapping, config loading  |
-| Contract    | `packages/bt_common/tests/contract/` | captured response shape expectations        |
+| Tier     | Location                             | What it tests                                 |
+| -------- | ------------------------------------ | --------------------------------------------- |
+| Unit     | `packages/bt_common/tests/unit/`     | retry behavior, error mapping, config loading |
+| Contract | `packages/bt_common/tests/contract/` | captured response shape expectations          |
 
 ## R4: Voice Backends (Nova Sonic / Gemini Live)
 

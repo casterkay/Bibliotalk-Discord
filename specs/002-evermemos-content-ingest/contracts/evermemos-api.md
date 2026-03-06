@@ -14,7 +14,7 @@ This contract defines how the ingestion package interacts with EverMemOS.
 
 ## Endpoints
 
-All endpoints are under `/api/v1/memories` (per `/Users/tcai/Projects/Bibliotalk/BLUEPRINT.md`).
+All endpoints are under `/api/v1/memories` (per `BLUEPRINT.md`).
 
 ### 1) Memorize Segment
 
@@ -59,7 +59,7 @@ Because EverMemOS payload shapes may vary across versions, the ingestion package
 
 ## Stable ID Rules
 
-Following `/Users/tcai/Projects/Bibliotalk/BLUEPRINT.md` conventions:
+Following `BLUEPRINT.md` conventions:
 
 - `sender` = `{user_id}`
 - `group_id` = `{user_id}:{platform}:{external_id}`
@@ -72,4 +72,3 @@ The client MUST:
 - Retry transient failures (timeouts, connection errors, HTTP 5xx) with exponential backoff.
 - Fail fast on validation/auth failures (HTTP 400/401/403/422) and surface actionable messages.
 - Never log secrets (API keys, auth headers) or raw request bodies that may contain secrets.
-

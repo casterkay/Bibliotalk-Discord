@@ -481,8 +481,8 @@ async def memory_search(query: str, top_k: int = 8) -> list[Evidence]:
         group_ids = extract_group_ids(result.memories)
 
     # Step 3: Map EMOS group_ids → sources → segments for verbatim text
-    sources = await supabase.fetch_sources_by_emos_group_ids(group_ids)
-    all_segments = await supabase.fetch_segments_by_source_ids(
+    sources = await store.fetch_sources_by_emos_group_ids(group_ids)
+    all_segments = await store.fetch_segments_by_source_ids(
         [s.id for s in sources]
     )
 
@@ -1014,7 +1014,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 | agents_service     | ECS Fargate                                                                |
 | voice_call_service | ECS Fargate (same task definition as agents_service, or sidecar container) |
 | ingestion_service  | ECS Fargate                                                                |
-| Supabase           | Managed (supabase.com) or self-hosted on ECS                               |
+| Postgres           | Managed (e.g., RDS) or self-hosted on ECS                                  |
 | EverMemOS          | Managed cloud instance                                                     |
 
 ### Region
@@ -1113,8 +1113,6 @@ EMOS_BASE_URL               # Platform EMOS instance
 EMOS_API_KEY
 AWS_BEDROCK_REGION          # us-east-1
 GOOGLE_API_KEY              # Gemini API
-SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
 ```
 
 ---
