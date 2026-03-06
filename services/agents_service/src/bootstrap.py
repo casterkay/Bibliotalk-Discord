@@ -167,6 +167,60 @@ class MatrixAdminClient:
         data = await self._request("PUT", path, json_body=content)
         return str(data.get("event_id", ""))
 
+    async def register_user(
+        self,
+        *,
+        localpart: str,
+        displayname: str | None = None,
+        password: str = "ghost_user_password",
+        admin: bool = False,
+    ) -> str:
+        # Synapse admin registration requires HMAC-SHA1 authentication:
+        # 1. GET /_synapse/admin/v1/register to get a nonce
+        # 2. Calculate HMAC-SHA1 of nonce + credentials
+        # 3. POST with the nonce + mac
+        import hashlib
+        import hmac
+
+        settings = get_settings()
+        shared_secret = settings.MATRIX_REGISTRATION_SHARED_SECRET
+        if not shared_secret:
+            raise RuntimeError("MATRIX_REGISTRATION_SHARED_SECRET not configured")
+
+        # Step 1: Get nonce
+        nonce_resp = await self._http.get(
+            self._url("/_synapse/admin/v1/register"),
+        )
+        nonce_resp.raise_for_status()
+        nonce_data = nonce_resp.json()
+        nonce = str(nonce_data["nonce"])
+
+        # Step 2: Calculate HMAC
+        # Format: nonce \0 username \0 password \0 admin|notadmin
+        admin_flag = "admin" if admin else "notadmin"
+        mac_input = f"{nonce}\0{localpart}\0{password}\0{admin_flag}".encode()
+        mac = hmac.new(
+            shared_secret.encode("utf-8"),
+            mac_input,
+            hashlib.sha1,
+        ).hexdigest()
+
+        # Step 3: Register
+        resp = await self._http.post(
+            self._url("/_synapse/admin/v1/register"),
+            json={
+                "nonce": nonce,
+                "username": localpart,
+                "password": password,
+                "admin": admin,
+                "displayname": displayname,
+                "mac": mac,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return str(data["user_id"])
+
     async def invite(self, *, room_id: str, user_id: str) -> None:
         await self._request(
             "POST",
@@ -209,12 +263,27 @@ def seed_ghosts(
         help="Matrix server name for user IDs (default: MATRIX_SERVER_NAME or 'localhost').",
     ),
     llm_model: str = typer.Option("gemini-2.5-flash", help="Default model for seeded Ghosts."),
+    register_on_homeserver: bool = typer.Option(
+        True,
+        help="Register ghost users on Synapse homeserver (requires admin credentials).",
+    ),
 ) -> None:
     async def _run() -> None:
         settings = get_settings()
         matrix_domain = server_name or settings.MATRIX_SERVER_NAME or "localhost"
         if not roster.exists():
             raise typer.BadParameter(f"roster file not found: {roster}")
+
+        # Optional: Register ghost users on Synapse homeserver using shared secret
+        matrix_admin: MatrixAdminClient | None = None
+        if register_on_homeserver:
+            if not settings.MATRIX_REGISTRATION_SHARED_SECRET:
+                console.print(
+                    "[yellow]MATRIX_REGISTRATION_SHARED_SECRET not set; skipping homeserver registration.[/yellow]"
+                )
+            else:
+                matrix_admin = MatrixAdminClient(homeserver_url=settings.MATRIX_HOMESERVER_URL)
+                console.print("[green]Using shared secret for homeserver registration.[/green]")
 
         store = await _store()
         try:
@@ -241,6 +310,17 @@ def seed_ghosts(
                 )
                 matrix_user_id = f"@bt_{localpart}:{matrix_domain}"
 
+                # Register on Synapse homeserver (idempotent - safe to re-run)
+                if matrix_admin:
+                    try:
+                        await matrix_admin.register_user(
+                            localpart=f"bt_{localpart}",
+                            displayname=display_name,
+                        )
+                        console.print(f"  → Registered on homeserver: {matrix_user_id}")
+                    except Exception as e:
+                        console.print(f"  → [yellow]Skipped homeserver registration: {e}[/yellow]")
+
                 await store.upsert_agent(
                     agent_uuid=agent_uuid,
                     kind=kind,
@@ -262,6 +342,8 @@ def seed_ghosts(
                 )
         finally:
             await store.aclose()
+            if matrix_admin:
+                await matrix_admin.aclose()
 
     asyncio.run(_run())
 

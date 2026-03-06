@@ -3,10 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from bt_common.config import load_repo_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..domain.errors import ConfigError
+
+# Ensure the shared repo-root `.env` is loaded for ingestion_service.
+load_repo_dotenv()
 
 
 class IngestSettings(BaseSettings):
@@ -43,9 +47,13 @@ def load_runtime_config(
 
     base_url = (emos_base_url or settings.emos_base_url or "").strip()
     if not base_url:
-        raise ConfigError("Missing EverMemOS base URL. Set `EMOS_BASE_URL` or pass `--emos-base-url`.")
+        raise ConfigError(
+            "Missing EverMemOS base URL. Set `EMOS_BASE_URL` or pass `--emos-base-url`."
+        )
 
-    resolved_index = Path(index_path or settings.ingest_index_path or default_index_path()).expanduser()
+    resolved_index = Path(
+        index_path or settings.ingest_index_path or default_index_path()
+    ).expanduser()
     if not resolved_index.is_absolute():
         resolved_index = (Path.cwd() / resolved_index).resolve()
 

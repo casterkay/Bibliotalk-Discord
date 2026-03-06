@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,12 +25,22 @@ def _resolve_repo_env_file(filename: str = ".env") -> str | None:
 _ENV_FILE = _resolve_repo_env_file(".env")
 
 
+def load_repo_dotenv(*, override: bool = False) -> None:
+    """Load the repo-root `.env` into `os.environ` for all packages.
+
+    This is a thin wrapper around `python-dotenv` that centralizes how we
+    discover and load the shared `.env` file. It is safe to call multiple
+    times; later calls will be no-ops unless `override=True`.
+    """
+
+    if _ENV_FILE:
+        load_dotenv(_ENV_FILE, override=override)
+
+
 class Settings(BaseSettings):
     """Environment-backed settings used by all service modules."""
 
-    model_config = SettingsConfigDict(
-        env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
     GOOGLE_API_KEY: str | None = None
     # Storage (agents_service canonical store)
@@ -46,20 +57,20 @@ class Settings(BaseSettings):
     MATRIX_SERVER_NAME: str | None = None
     MATRIX_ADMIN_USER: str | None = None
     MATRIX_ADMIN_PASSWORD: str | None = None
+    MATRIX_REGISTRATION_SHARED_SECRET: str | None = None
     LOG_LEVEL: str = "INFO"
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    load_repo_dotenv()
     return Settings()
 
 
 class EMOSFallbackSettings(BaseSettings):
     """Optional EMOS values loaded from .env for local/dev fallback."""
 
-    model_config = SettingsConfigDict(
-        env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
     EMOS_BASE_URL: str | None = None
     EMOS_API_KEY: str | None = None

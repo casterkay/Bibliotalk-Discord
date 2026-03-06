@@ -24,6 +24,11 @@ docs/                    # Reference knowledge docs
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 
+Environment configuration:
+
+- All Python packages (`bt_common`, `agents_service`, `ingestion_service`) load a shared repo-root `.env` file via `python-dotenv` (see `bt_common.config.load_repo_dotenv`).
+- Values from the process environment still take precedence; `.env` is intended for local dev defaults.
+
 ## Admin Panel (agents_service)
 
 - URL: `http://localhost:8009/admin`
