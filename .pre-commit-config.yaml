@@ -1,0 +1,33 @@
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: debug-statements
+        language_version: python3.11
+
+  # Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Update CODEBASE.txt outline
+  - repo: local
+    hooks:
+      - id: outline-codebase
+        name: Update CODEBASE.txt
+        entry: scripts/outline-codebase.sh
+        language: script
+        pass_filenames: false
+        always_run: true

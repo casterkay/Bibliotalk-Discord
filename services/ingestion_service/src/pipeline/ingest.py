@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from ..domain.models import (
     ReportError,
     ReportSummary,
     SegmentResult,
+    Source,
     SourceContent,
     SourceResult,
     TranscriptContent,
@@ -151,6 +153,149 @@ async def _source_content_from_resolved(
             video_id=resolved.youtube_video_id,
             source_url=resolved.source.source_url,
         )
+
+    raise InvalidInputError(f"Unsupported manifest source mode: {resolved.mode}")
+
+
+@dataclass(frozen=True, slots=True)
+class _ExpandedSource:
+    source: Source
+    source_content: SourceContent | None
+    error: IngestError | None = None
+
+
+def _merge_raw_meta(left: dict[str, Any] | None, right: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not left and not right:
+        return None
+    out: dict[str, Any] = {}
+    if left:
+        out.update(left)
+    if right:
+        out.update(right)
+    return out
+
+
+async def _expand_resolved(resolved: ResolvedManifestSource) -> list[_ExpandedSource]:
+    if resolved.mode in {"text", "gutenberg", "youtube"}:
+        sc = await _source_content_from_resolved(resolved)
+        return [_ExpandedSource(source=sc.source, source_content=sc)]
+
+    if resolved.mode == "file":
+        if resolved.file_path is None:
+            raise InvalidInputError("Manifest source mode=file missing file_path")
+        from ..adapters.document import load_document_file_source
+
+        sc = await load_document_file_source(source=resolved.source, path=resolved.file_path)
+        return [_ExpandedSource(source=sc.source, source_content=sc)]
+
+    if resolved.mode == "doc_url":
+        if resolved.doc_url is None:
+            raise InvalidInputError("Manifest source mode=doc_url missing doc_url")
+        from ..adapters.document import load_document_url_source
+
+        sc = await load_document_url_source(source=resolved.source, url=resolved.doc_url)
+        return [_ExpandedSource(source=sc.source, source_content=sc)]
+
+    if resolved.mode == "web_url":
+        if resolved.web_url is None:
+            raise InvalidInputError("Manifest source mode=web_url missing web_url")
+        from ..adapters.web_page import extract_web_page_markdown
+
+        extracted = await extract_web_page_markdown(resolved.web_url)
+        src = resolved.source.model_copy(deep=True)
+        src.source_url = extracted.canonical_url
+        if extracted.title:
+            src.title = extracted.title
+            src.group_name = extracted.title
+        if extracted.published_at and not src.published_at:
+            src.published_at = extracted.published_at
+        src.raw_meta = _merge_raw_meta(src.raw_meta, extracted.raw_meta)
+        sc = SourceContent(source=src, content=PlainTextContent(text=extracted.markdown))
+        return [_ExpandedSource(source=src, source_content=sc)]
+
+    if resolved.mode == "rss_url":
+        if resolved.rss_url is None:
+            raise InvalidInputError("Manifest source mode=rss_url missing rss_url")
+        from ..adapters.rss_feed import parse_feed
+        from ..adapters.url_tools import url_external_id
+        from ..adapters.web_page import extract_web_page_markdown
+
+        max_items = int(resolved.max_items or 50)
+        entries = await parse_feed(resolved.rss_url, max_items=max_items)
+
+        out: list[_ExpandedSource] = []
+        for entry in entries:
+            src = Source(
+                user_id=resolved.source.user_id,
+                platform=resolved.source.platform,
+                external_id=url_external_id(entry.url),
+                title=entry.title or entry.url.rsplit("/", 1)[-1] or "Untitled",
+                source_url=entry.url,
+                author=resolved.source.author,
+                published_at=entry.published_at,
+                raw_meta=_merge_raw_meta(
+                    resolved.source.raw_meta,
+                    _merge_raw_meta(entry.raw_meta, {"discovered_via": "rss_url", "rss_url": resolved.rss_url}),
+                ),
+            )
+            try:
+                extracted = await extract_web_page_markdown(entry.url)
+                if extracted.title:
+                    src.title = extracted.title
+                    src.group_name = extracted.title
+                if extracted.published_at and not src.published_at:
+                    src.published_at = extracted.published_at
+                src.source_url = extracted.canonical_url
+                src.raw_meta = _merge_raw_meta(src.raw_meta, extracted.raw_meta)
+                sc = SourceContent(source=src, content=PlainTextContent(text=extracted.markdown))
+                out.append(_ExpandedSource(source=src, source_content=sc))
+            except Exception as exc:  # noqa: BLE001
+                err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
+                out.append(_ExpandedSource(source=src, source_content=None, error=err))
+        return out
+
+    if resolved.mode == "crawl_seed_url":
+        if resolved.crawl_seed_url is None:
+            raise InvalidInputError("Manifest source mode=crawl_seed_url missing crawl_seed_url")
+        from ..adapters.blog_crawl import CrawlConfig, discover_blog_urls
+        from ..adapters.url_tools import url_external_id
+        from ..adapters.web_page import extract_web_page_markdown
+
+        max_items = int(resolved.max_items or 50)
+        max_pages = int(resolved.max_pages or 200)
+        urls = await discover_blog_urls(
+            resolved.crawl_seed_url,
+            cfg=CrawlConfig(max_items=max_items, max_pages=max_pages),
+        )
+        out: list[_ExpandedSource] = []
+        for url in urls:
+            src = Source(
+                user_id=resolved.source.user_id,
+                platform=resolved.source.platform,
+                external_id=url_external_id(url),
+                title=url.rsplit("/", 1)[-1] or "Untitled",
+                source_url=url,
+                author=resolved.source.author,
+                raw_meta=_merge_raw_meta(
+                    resolved.source.raw_meta,
+                    {"discovered_via": "crawl_seed_url", "crawl_seed_url": resolved.crawl_seed_url},
+                ),
+            )
+            try:
+                extracted = await extract_web_page_markdown(url)
+                if extracted.title:
+                    src.title = extracted.title
+                    src.group_name = extracted.title
+                if extracted.published_at:
+                    src.published_at = extracted.published_at
+                src.source_url = extracted.canonical_url
+                src.raw_meta = _merge_raw_meta(src.raw_meta, extracted.raw_meta)
+                sc = SourceContent(source=src, content=PlainTextContent(text=extracted.markdown))
+                out.append(_ExpandedSource(source=src, source_content=sc))
+            except Exception as exc:  # noqa: BLE001
+                err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
+                out.append(_ExpandedSource(source=src, source_content=None, error=err))
+        return out
 
     raise InvalidInputError(f"Unsupported manifest source mode: {resolved.mode}")
 
@@ -474,16 +619,7 @@ async def ingest_manifest(
 
     for resolved in resolve_manifest_sources(manifest):
         try:
-            source_content = await _source_content_from_resolved(resolved)
-            result = await ingest_source(
-                source_content=source_content,
-                index=index,
-                client=client,
-                run_id=run_id,
-                include_segment_details=include_segment_details,
-                redact_secrets=redact_secrets,
-                segment_cache_dir=segment_cache_dir,
-            )
+            expanded = await _expand_resolved(resolved)
         except Exception as exc:  # noqa: BLE001
             err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
             result = _failed_source_result(
@@ -492,10 +628,32 @@ async def ingest_manifest(
                 redact_secrets=redact_secrets,
                 include_segment_details=include_segment_details,
             )
-
-        results.append(result)
-        if result.status == "failed":
+            results.append(result)
             any_failed = True
+            continue
+
+        for item in expanded:
+            if item.source_content is None:
+                err = item.error or IngestError("Failed to load source content")
+                result = _failed_source_result(
+                    source=item.source,
+                    err=err,
+                    redact_secrets=redact_secrets,
+                    include_segment_details=include_segment_details,
+                )
+            else:
+                result = await ingest_source(
+                    source_content=item.source_content,
+                    index=index,
+                    client=client,
+                    run_id=run_id,
+                    include_segment_details=include_segment_details,
+                    redact_secrets=redact_secrets,
+                    segment_cache_dir=segment_cache_dir,
+                )
+            results.append(result)
+            if result.status == "failed":
+                any_failed = True
 
     summary = ReportSummary(
         sources_total=len(results),

@@ -7,7 +7,7 @@ from bt_common.evermemos_client import EverMemOSClient
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from .adapters.local_text import load_file_source, load_text_source
+from .adapters.local_text import load_text_source
 from .domain.errors import ConfigError, IngestError, InvalidInputError
 from .domain.models import IngestReport
 from .pipeline.index import IngestionIndex
@@ -133,16 +133,19 @@ async def ingest_file(req: FileIngestRequest) -> IngestReport:
     try:
         rt = _build_runtime(index_path=req.index_path)
         try:
-            source_content = load_file_source(
+            from .adapters.document import load_document_file_source
+            from .domain.models import Source
+
+            src = Source(
                 user_id=req.user_id,
                 platform=req.platform,
                 external_id=req.external_id,
                 title=req.title,
-                path=Path(req.path),
                 source_url=req.source_url,
                 author=req.author,
                 published_at=req.published_at,
             )
+            source_content = await load_document_file_source(source=src, path=Path(req.path))
             report = await ingest_sources(
                 sources=[source_content],
                 index=rt.index,

@@ -27,6 +27,13 @@ dev = [
 ingest = [
   "youtube-transcript-api>=0.6.2",
 ]
+web = [
+  "feedparser>=6.0.11",
+  "trafilatura>=1.9.0",
+]
+docs = [
+  "markitdown",
+]
 
 [tool.setuptools]
 packages = [
