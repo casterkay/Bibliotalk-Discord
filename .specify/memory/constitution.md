@@ -28,7 +28,7 @@ Follow-up TODOs: None
 ==================
 -->
 
-# Bibliotalk Constitution
+# Bibliotalk Constitution (Successor Scope)
 
 ## Core Principles
 
@@ -43,14 +43,12 @@ implementation code is written.
   defined in design artifacts — not discovered during implementation.
 - Architectural decisions MUST be documented with rationale and
   trade-offs considered. Undocumented decisions are technical debt.
-- Cross-service interactions (agents_service, voice_call_service,
-  ingestion_service, Synapse) MUST have explicit contract definitions
-  before integration work begins.
+- Cross-service interactions (collector, Discord bots, EverMemOS)
+  MUST have explicit contract definitions before integration work begins.
 
-**Rationale**: Bibliotalk is a multi-service, multi-agent system
-with complex integrations (Matrix, EverMemOS, ADK, A2A). Investing
-in upfront design prevents costly rework and ensures coherent
-system behavior.
+**Rationale**: The successor system integrates YouTube discovery,
+EverMemOS memory, and Discord delivery. Upfront design prevents
+idempotency failures, citation errors, and operational fragility.
 
 ### II. Test-Driven Quality
 
@@ -60,9 +58,9 @@ implementation. Quality gates are non-negotiable.
 - Unit tests MUST accompany all business logic (agent behavior,
   ingestion transforms, citation validation, EMOS client ops).
 - Contract tests MUST exist for every cross-service boundary
-  (appservice endpoints, EMOS API calls, Podwise/Gutenberg clients).
+  (EMOS API calls, YouTube discovery adapters, Discord posting).
 - Integration tests MUST cover critical user journeys (private chat
-  with Ghost, multi-agent discussion, voice call lifecycle).
+  with a figure bot, feed posting for a newly ingested video).
 - Tests MUST be deterministic, independently runnable, and fast.
   Flaky tests MUST be fixed or removed — never ignored.
 - Code coverage is a guide, not a goal. Focus coverage on
@@ -80,18 +78,14 @@ that both producer and consumer validate against.
 
 - Every HTTP endpoint (FastAPI appservice routes, EMOS REST calls)
   MUST have a Pydantic schema or equivalent typed contract.
-- Matrix event schemas MUST be defined as typed models — not
-  ad-hoc dict manipulation.
-- A2A message formats for multi-agent discussions MUST conform to
-  the A2A protocol specification with project-specific extensions
-  documented.
+- Discord inbound/outbound message shapes (DM chat, thread posting)
+  MUST be represented by typed models at the bot boundary.
 - Breaking contract changes MUST follow semantic versioning and
   require migration documentation.
 
-**Rationale**: Bibliotalk integrates multiple external systems
-(Matrix/Synapse, EverMemOS, Podwise, Bedrock, Gemini). Explicit
-contracts make integration failures visible at build time rather
-than runtime.
+**Rationale**: The successor integrates EverMemOS, YouTube adapters,
+and Discord APIs. Explicit contracts make failures visible early and
+prevent silent grounding/citation regressions.
 
 ### IV. Incremental Delivery
 
@@ -100,29 +94,28 @@ increments aligned with user story priorities.
 
 - Each user story MUST be implementable, testable, and deployable
   without depending on incomplete peer stories.
-- MVP functionality (private text chat with a single Ghost) MUST
-  work end-to-end before adding advanced features (multi-agent
-  discussions, voice calls).
+- MVP functionality MUST work end-to-end before expansion:
+  - continuous YouTube transcript ingest into EverMemOS
+  - Discord feed posting (one thread per video)
+  - grounded DM chat with citations
 - Every increment MUST leave the system in a working state.
   Partial features behind incomplete code paths are prohibited —
   use feature flags if staged rollout is needed.
 - Implementation phases from the project blueprint MUST be
   respected as dependency boundaries.
 
-**Rationale**: A 14-phase implementation roadmap with deep
-dependencies requires disciplined incremental delivery. Shipping
-working slices early validates assumptions and reduces integration
-risk.
+**Rationale**: Continuous ingestion + idempotent posting + grounded
+DM chat is the value core. Shipping these first validates the system.
 
 ### V. Observable Systems
 
 Production and development environments MUST provide sufficient
 observability to diagnose issues without ad-hoc debugging.
 
-- All service entry points (appservice endpoints, agent invocations,
-  ingestion jobs) MUST emit structured logs with correlation IDs.
-- External API calls (EMOS, Podwise, Bedrock, Synapse) MUST log
-  request/response metadata (status, latency, error codes) without
+- All service entry points (poll loops, ingest runs, Discord handlers)
+  MUST emit structured logs with correlation IDs.
+- External API calls (EverMemOS, YouTube via adapters, Discord) MUST
+  log request/response metadata (status, latency, error codes) without
   leaking sensitive content.
 - Agent decision traces (ADK tool calls, memory retrievals, citation
   selections) MUST be capturable for debugging and quality review.
@@ -143,8 +136,7 @@ requirements is the correct one.
 - Abstractions MUST earn their existence by serving at least two
   concrete use cases. Single-use abstractions are premature.
 - Prefer standard library and framework primitives over custom
-  implementations (e.g., use ADK's built-in tool dispatch rather
-  than rolling a custom orchestrator).
+  implementations.
 - Every deviation from the simplest approach MUST be documented in
   a Complexity Tracking table with the rejected simpler alternative
   and reason for rejection.
@@ -156,9 +148,8 @@ high.
 
 ## Engineering Standards
 
-- **Language**: Python 3.11+ for all backend services; Node.js for
-  the voice sidecar audio bridge. No additional runtime languages
-  without constitution amendment.
+- **Language**: Python 3.11+ for all services. No additional runtime
+  languages without constitution amendment.
 - **Type Safety**: All Python code MUST use type annotations.
   Pydantic models MUST be used for data validation at service
   boundaries. `Any` types are prohibited in public interfaces.
@@ -167,8 +158,8 @@ high.
   warnings. Linter rules are not suggestions.
 - **Security**: Credentials, tokens, and secrets MUST never appear
   in source code or logs. Environment-based configuration MUST be
-  used for all sensitive values. Matrix access tokens and API keys
-  MUST be loaded from environment variables or a secrets manager.
+  used for all sensitive values. EverMemOS API keys and Discord bot
+  tokens MUST be loaded from environment variables or a secrets manager.
 - **Error Handling**: Use typed exceptions for recoverable errors.
   Bare `except:` and `except Exception:` without re-raise or
   specific handling are prohibited. External API failures MUST have

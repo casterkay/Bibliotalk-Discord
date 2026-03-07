@@ -14,39 +14,17 @@
 
 ## Active Technologies
 
-- Python 3.11+ + `evermemos` (EverMemOS SDK), `httpx`, `pydantic`, `typer`, `rich`, `tenacity` (002-evermemos-content-ingest)
-- Python 3.11+ + `litestar`, `sqlalchemy` (async), `aiosqlite` (local dev), `alembic` (migrations), `sqladmin` (admin UI) (001-agent-service)
-
-## Project Structure
-
-```text
-services/
-  agents_service/        # Python — appservice + agent runtime
-    src/
-      agent/             # agent factory, orchestration, tools, providers
-      matrix/            # Matrix appservice handling + response formatting
-      models/            # citation + segment domain models
-      database/          # SQLAlchemy ORM + Store adapters (SQLite local / Postgres prod)
-      voice/             # voice session + backend adapters
-  ingestion_service/     # Python — content ingestion pipelines + CLI
-    src/
-      adapters/          # source adapters (gutenberg, youtube, local_text)
-      domain/            # errors, ids, data models
-      pipeline/          # chunking, manifest, ingest, index
-      runtime/           # config + reporting
-  voice_call_service/    # Node.js — MatrixRTC/WebRTC sidecar
-packages/
-  bt_common/             # Python — shared infra library (EMOS client, config, logging, exceptions)
-specs/
-docs/
-```
+- Python 3.11+
+- EverMemOS: `evermemos` SDK + `httpx` + `tenacity`
+- Ingestion: `youtube-transcript-api`, `yt-dlp`, `typer`, `rich`, SQLite
+- Discord: `discord.py` (text-only bot + thread posting)
+- Data/modeling: `pydantic`
 
 ## Commands
 
 - Sync deps (workspace):
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests (run from each package directory to avoid pytest root collisions):
-  - `uv --directory services/agents_service run --package agents_service -m pytest`
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Run ingestion CLI:
@@ -58,8 +36,7 @@ Python 3.11+: Follow standard conventions
 
 ## Recent Changes
 
-- 002-evermemos-content-ingest: Added Python 3.11+ + `evermemos` (EverMemOS SDK), `httpx`, `pydantic`, `typer`, `rich`, `tenacity`
-- 001-agent-service: Switched local canonical store to SQLite via SQLAlchemy; switched appservice server to Litestar
+- This repository is being repurposed toward a YouTube → EverMemOS → Discord figure-bot pipeline.
 
 <!-- MANUAL ADDITIONS START -->
 ## Manual Notes
@@ -67,29 +44,21 @@ Python 3.11+: Follow standard conventions
 ### Architecture Boundaries
 
 - Treat current repository file layout as the source of truth for imports and ownership.
-- The single `format_ghost_response` implementation is in `services/agents_service/src/matrix/appservice.py`.
-- Citation and segment domain models live in `services/agents_service/src/models/`.
-- `bt_common` is infra-only (`evermemos_client`, `config`, `logging`, `exceptions`) and should not own agent-domain models.
+- `bt_common` is infra-only (`evermemos_client`, `config`, `logging`, `exceptions`). Do not put agent-domain models here.
+- The ingestion pipeline (YouTube transcript fetch + chunking + dedup + memorize) lives in `services/ingestion_service/`.
 
 ### ingestion_service
 
 - Standalone EverMemOS ingestion library + CLI (see `specs/002-evermemos-content-ingest/`).
 - Local artifacts (gitignored): `.ingestion_service/` (SQLite index + JSON reports).
 
-### agents_service (local dev)
-
-- Local artifacts (gitignored): `.agents_service/` (SQLite DB + reports/caches as needed).
-
 ### Common Commands
 
 - Sync deps (workspace; installs all Python members):
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests:
-  - `uv --directory services/agents_service run --package agents_service -m pytest`
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Ingestion CLI help:
   - `uv run --package ingestion_service -m ingestion_service --help`
-- (Optional) Apply DB migrations (from `services/agents_service/`):
-  - `DATABASE_URL=sqlite+aiosqlite:///./.agents_service/bibliotalk.sqlite alembic upgrade head`
 <!-- MANUAL ADDITIONS END -->
