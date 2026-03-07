@@ -13,7 +13,6 @@ from bt_common.evermemos_client import EverMemOSClient
 from ..domain.errors import IngestError
 from ..domain.models import (
     IngestReport,
-    PlainTextContent,
     ReportError,
     ReportSummary,
     SegmentResult,
@@ -21,7 +20,7 @@ from ..domain.models import (
     SourceResult,
 )
 from ..runtime.reporting import redact_text
-from .chunking import ChunkingConfig, chunk_plain_text, chunk_transcript, normalize_text
+from .chunking import ChunkingConfig, chunk_transcript, normalize_text
 from .index import IngestionIndex
 
 logger = logging.getLogger("ingestion_service")
@@ -49,10 +48,7 @@ def _append_segment_cache_record(
 
 
 def _source_fingerprint(source_content: SourceContent) -> str:
-    if isinstance(source_content.content, PlainTextContent):
-        normalized = normalize_text(source_content.content.text)
-    else:
-        normalized = "\n".join(normalize_text(line.text) for line in source_content.content.lines)
+    normalized = "\n".join(normalize_text(line.text) for line in source_content.content.lines)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
@@ -68,7 +64,7 @@ def _failed_source_result(
         platform=source.platform,
         external_id=source.external_id,
         title=source.title,
-        source_url=getattr(source, "source_url", None),
+        source_url=getattr(source, "source_url", ""),
         group_id=source.group_id or "",
         status="failed",
         meta_saved=False,
@@ -95,20 +91,17 @@ async def ingest_source(
     redact_secrets = redact_secrets or []
     source = source_content.source
     default_group_id = source.group_id or ""
-    default_group_name = source.group_name or source.title
+    default_group_name = source.title
     cache_dir = segment_cache_dir or _default_segment_cache_dir()
 
-    if isinstance(source_content.content, PlainTextContent):
-        segments = chunk_plain_text(source, source_content.content.text, cfg=chunking_cfg)
-    else:
-        segments = chunk_transcript(source, source_content.content.lines, cfg=chunking_cfg)
+    segments = chunk_transcript(source, source_content.content.lines, cfg=chunking_cfg)
 
     # Ensure conversation metadata is saved for every conversation group used
     # by segments (for chapterized books this can be >1 group per source).
     group_meta: dict[str, str] = {}
     for seg in segments:
         gid = seg.group_id or default_group_id
-        gname = seg.group_name or default_group_name
+        gname = default_group_name
         group_meta[gid] = gname
     if not group_meta:
         group_meta[default_group_id] = default_group_name
@@ -124,7 +117,7 @@ async def ingest_source(
                 "title": source.title,
                 "group_name": gname,
                 "source_url": source.source_url,
-                "author": source.author,
+                "channel_name": source.channel_name,
                 "published_at": (source.published_at.isoformat() if source.published_at else None),
                 "raw_meta": source.raw_meta,
             }
@@ -167,7 +160,7 @@ async def ingest_source(
 
     for seg in segments:
         seg_group_id = seg.group_id or default_group_id
-        seg_group_name = seg.group_name or default_group_name
+        seg_group_name = default_group_name
         existing = await index.get_segment(user_id=source.user_id, message_id=seg.message_id)
         if (
             existing
@@ -192,10 +185,8 @@ async def ingest_source(
                         status="skipped_unchanged",
                         start_ms=seg.start_ms,
                         end_ms=seg.end_ms,
-                        virtual_start_at=seg.virtual_start_at,
-                        virtual_end_at=seg.virtual_end_at,
+                        create_time=seg.create_time,
                         group_id=seg_group_id,
-                        group_name=seg_group_name,
                     )
                 )
             continue
@@ -226,10 +217,8 @@ async def ingest_source(
                 payload["start_ms"] = seg.start_ms
             if seg.end_ms is not None:
                 payload["end_ms"] = seg.end_ms
-            if seg.virtual_start_at:
-                payload["virtual_start_at"] = seg.virtual_start_at
-            if seg.virtual_end_at:
-                payload["virtual_end_at"] = seg.virtual_end_at
+            if seg.create_time is not None:
+                payload["create_time"] = seg.create_time.isoformat()
             if seg.speaker:
                 payload["speaker"] = seg.speaker
 
@@ -252,10 +241,8 @@ async def ingest_source(
                         status="ingested",
                         start_ms=seg.start_ms,
                         end_ms=seg.end_ms,
-                        virtual_start_at=seg.virtual_start_at,
-                        virtual_end_at=seg.virtual_end_at,
+                        create_time=seg.create_time,
                         group_id=seg_group_id,
-                        group_name=seg_group_name,
                     )
                 )
             try:
@@ -292,10 +279,8 @@ async def ingest_source(
                         status="failed",
                         start_ms=seg.start_ms,
                         end_ms=seg.end_ms,
-                        virtual_start_at=seg.virtual_start_at,
-                        virtual_end_at=seg.virtual_end_at,
+                        create_time=seg.create_time,
                         group_id=seg_group_id,
-                        group_name=seg_group_name,
                         error=ReportError(
                             code=err.code,
                             message=redact_text(str(err), secrets=redact_secrets),

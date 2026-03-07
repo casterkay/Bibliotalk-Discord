@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from bt_common.evidence_store.engine import get_session_factory, init_database
 from bt_common.evidence_store.models import Figure
 from bt_common.evidence_store.models import Source as StoredSource
-from ingestion_service.domain.models import PlainTextContent, Source, SourceContent
+from ingestion_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
 from ingestion_service.pipeline.index import IngestionIndex
 from ingestion_service.pipeline.ingest import ingest_sources
 
@@ -45,16 +46,31 @@ async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
             StoredSource(
                 figure_id=figure.figure_id,
                 external_id="e1",
-                group_id="u1:local:e1",
-                platform="local",
+                group_id="u1:youtube:e1",
+                platform="youtube",
                 title="T",
-                source_url="https://example.com/e1",
+                source_url="https://www.youtube.com/watch?v=e1",
             )
         )
         await session.commit()
 
-    src = Source(user_id="u1", platform="local", external_id="e1", title="T")
-    sc = SourceContent(source=src, content=PlainTextContent(text="One.\n\nTwo.\n\nThree."))
+    src = Source(
+        user_id="u1",
+        external_id="e1",
+        title="T",
+        source_url="https://www.youtube.com/watch?v=e1",
+        published_at=datetime(2024, 1, 1, tzinfo=UTC),
+    )
+    sc = SourceContent(
+        source=src,
+        content=TranscriptContent(
+            lines=[
+                TranscriptLine(text="One.", start_ms=0, end_ms=500),
+                TranscriptLine(text="Two.", start_ms=700, end_ms=1200),
+                TranscriptLine(text="Three.", start_ms=1400, end_ms=1900),
+            ]
+        ),
+    )
 
     r1 = await ingest_sources(sources=[sc], index=idx, client=client, segment_cache_dir=cache_dir)
     assert r1.status == "done"

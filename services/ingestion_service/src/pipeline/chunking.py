@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from ..domain.models import Segment, Source, TranscriptLine, build_segment
 
@@ -168,7 +168,7 @@ def _merge_transcript_messages(
     return messages
 
 
-def _resolve_virtual_anchor(source: Source) -> datetime | None:
+def _resolve_published_at(source: Source) -> datetime | None:
     raw_meta = source.raw_meta or {}
     ts = raw_meta.get("timestamp")
     if isinstance(ts, (int, float)):
@@ -197,13 +197,6 @@ def _resolve_virtual_anchor(source: Source) -> datetime | None:
     return None
 
 
-def _virtual_time(anchor: datetime | None, offset_ms: int | None) -> str | None:
-    if anchor is None or offset_ms is None:
-        return None
-    value = anchor + timedelta(milliseconds=max(0, offset_ms))
-    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
 def chunk_transcript(
     source: Source, lines: list[TranscriptLine], *, cfg: ChunkingConfig | None = None
 ) -> list[Segment]:
@@ -223,7 +216,9 @@ def chunk_transcript(
         )
 
     messages = _merge_transcript_messages(normalized_lines, cfg)
-    anchor = _resolve_virtual_anchor(source)
+    published_at = _resolve_published_at(source)
+    if source.published_at is None:
+        source.published_at = published_at
     segments: list[Segment] = []
     for message in messages:
         rendered = f"{message.speaker}: {message.text}" if message.speaker else message.text
@@ -240,8 +235,6 @@ def chunk_transcript(
                     start_ms=message.start_ms,
                     end_ms=message.end_ms,
                     speaker=message.speaker,
-                    virtual_start_at=_virtual_time(anchor, message.start_ms),
-                    virtual_end_at=_virtual_time(anchor, message.end_ms),
                 )
             )
     return segments

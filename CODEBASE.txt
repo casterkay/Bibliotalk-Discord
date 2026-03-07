@@ -61,6 +61,7 @@
 │   │       │   └── models.py
 │   │       ├── pipeline
 │   │       │   ├── chunking.py
+│   │       │   ├── discovery.py
 │   │       │   ├── index.py
 │   │       │   └── ingest.py
 │   │       └── runtime
@@ -102,5 +103,5 @@
 │       └── tasks.md
 └── uv.lock
 
-36 directories, 67 files
+36 directories, 68 files
 

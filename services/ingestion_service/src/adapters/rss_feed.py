@@ -58,10 +58,27 @@ def canonicalize_http_url(url: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class FeedEntry:
+    video_id: str | None
     url: str
     title: str | None
     published_at: datetime | None
     raw_meta: dict[str, Any]
+
+
+def extract_youtube_video_id(url: str) -> str | None:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    if hostname in {"youtu.be", "www.youtu.be"}:
+        candidate = parsed.path.strip("/")
+        return candidate or None
+    if hostname.endswith("youtube.com"):
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        if query.get("v"):
+            return query["v"]
+        parts = [part for part in parsed.path.split("/") if part]
+        if len(parts) >= 2 and parts[0] in {"shorts", "live", "embed"}:
+            return parts[1]
+    return None
 
 
 def _require_feedparser() -> Any:
@@ -132,6 +149,7 @@ def _parse_sync(feed_url: str) -> list[FeedEntry]:
         published = _to_datetime(entry)
         entries.append(
             FeedEntry(
+                video_id=extract_youtube_video_id(canon),
                 url=canon,
                 title=str(title).strip() if title else None,
                 published_at=published,

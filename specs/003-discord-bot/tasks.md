@@ -38,7 +38,7 @@
 - [X] T016 [P] Create Discord runtime configuration models in `services/discord_service/src/config.py`
 - [X] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/ingestion_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
 - [X] T018 Refactor `services/ingestion_service/src/pipeline/index.py` to use `AsyncSession` from `packages/bt_common/src/evidence_store/engine.py`
-- [ ] T019 Refactor `services/ingestion_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/ingestion_service/src/domain/models.py`
+- [X] T019 Refactor `services/ingestion_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/ingestion_service/src/domain/models.py`
 - [X] T020 Refactor `services/agents_service/src/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
 - [X] T021 Create the standalone collector process bootstrap in `services/ingestion_service/src/__main__.py` and `services/ingestion_service/src/runtime/poller.py`
 - [X] T022 Create the Discord bot process bootstrap in `services/discord_service/src/runtime.py` and `services/discord_service/src/__main__.py`
@@ -56,17 +56,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T024 [P] [US1] Add unit tests for YouTube discovery delta logic in `services/ingestion_service/tests/unit/test_discovery.py`
-- [ ] T025 [P] [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in `services/ingestion_service/tests/unit/test_index.py`
+- [X] T024 [P] [US1] Add unit tests for YouTube discovery delta logic in `services/ingestion_service/tests/unit/test_discovery.py`
+- [X] T025 [P] [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in `services/ingestion_service/tests/unit/test_index.py`
 - [ ] T026 [P] [US1] Add unit tests for per-source concurrency gates keyed by `subscription_id` in `services/ingestion_service/tests/unit/test_poller_concurrency.py`
 - [ ] T027 [P] [US1] Add integration tests for ingest, transcript-batch derivation, dedup, and manual re-ingest in `services/ingestion_service/tests/integration/test_ingest_pipeline.py`
 - [ ] T028 [P] [US1] Add contract tests for EverMemOS memorize, conversation-meta, and delete-by-group-id calls in `packages/bt_common/tests/test_evermemos_client_contract.py`
 
 ### Implementation for User Story 1
 
-- [ ] T029 [P] [US1] Implement yt-dlp flat extraction and RSS fallback discovery in `services/ingestion_service/src/pipeline/discovery.py`
-- [ ] T030 [P] [US1] Adapt transcript and metadata loading for the trimmed MVP in `services/ingestion_service/src/adapters/youtube_transcript.py` and `services/ingestion_service/src/adapters/rss_feed.py`
-- [ ] T031 [P] [US1] Preserve stable YouTube identifier builders in `services/ingestion_service/src/domain/ids.py`
+- [X] T029 [P] [US1] Implement yt-dlp flat extraction and RSS fallback discovery in `services/ingestion_service/src/pipeline/discovery.py`
+- [X] T030 [P] [US1] Adapt transcript and metadata loading for the trimmed MVP in `services/ingestion_service/src/adapters/youtube_transcript.py` and `services/ingestion_service/src/adapters/rss_feed.py`
+- [X] T031 [P] [US1] Preserve stable YouTube identifier builders in `services/ingestion_service/src/domain/ids.py`
 - [ ] T032 [US1] Refactor the ingest pipeline to persist `Source`, `Segment`, and `TranscriptBatch` rows through SQLAlchemy in `services/ingestion_service/src/pipeline/ingest.py`
 - [ ] T033 [US1] Implement standalone collector orchestration for subscription polling, queueing, backoff, and per-source concurrency controls in `services/ingestion_service/src/runtime/poller.py`
 - [ ] T034 [US1] Implement end-to-end collector workflow and manual re-ingest handling in `services/ingestion_service/src/pipeline/ingest.py` and `services/ingestion_service/src/runtime/poller.py`

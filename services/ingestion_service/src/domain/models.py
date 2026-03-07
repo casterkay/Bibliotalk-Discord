@@ -1,36 +1,29 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
-from .ids import build_group_id, build_message_id
+from .ids import build_youtube_group_id, build_youtube_message_id
 
 
 class Source(BaseModel):
     user_id: str
-    platform: str
+    platform: Literal["youtube"] = "youtube"
     external_id: str
     title: str
-    source_url: str | None = None
-    author: str | None = None
+    source_url: str
+    channel_name: str | None = None
     published_at: datetime | None = None
     raw_meta: dict[str, Any] | None = None
 
     group_id: str | None = None
-    group_name: str | None = None
 
     @model_validator(mode="after")
-    def _derive_ids(self) -> "Source":
+    def _derive_ids(self) -> Source:
         if not self.group_id:
-            self.group_id = build_group_id(
-                user_id=self.user_id,
-                platform=self.platform,
-                external_id=self.external_id,
-            )
-        if not self.group_name:
-            self.group_name = self.title
+            self.group_id = build_youtube_group_id(user_id=self.user_id, video_id=self.external_id)
         return self
 
 
@@ -49,15 +42,8 @@ class Segment(BaseModel):
     speaker: str | None = None
     start_ms: int | None = None
     end_ms: int | None = None
-    virtual_start_at: str | None = None
-    virtual_end_at: str | None = None
+    create_time: datetime | None = None
     group_id: str | None = None
-    group_name: str | None = None
-
-
-class PlainTextContent(BaseModel):
-    kind: Literal["text"] = "text"
-    text: str
 
 
 class TranscriptContent(BaseModel):
@@ -65,12 +51,9 @@ class TranscriptContent(BaseModel):
     lines: list[TranscriptLine]
 
 
-Content = PlainTextContent | TranscriptContent
-
-
 class SourceContent(BaseModel):
     source: Source
-    content: Content
+    content: TranscriptContent
 
 
 class ReportError(BaseModel):
@@ -85,19 +68,17 @@ class SegmentResult(BaseModel):
     status: Literal["ingested", "skipped_unchanged", "failed"]
     start_ms: int | None = None
     end_ms: int | None = None
-    virtual_start_at: str | None = None
-    virtual_end_at: str | None = None
+    create_time: datetime | None = None
     group_id: str | None = None
-    group_name: str | None = None
     error: ReportError | None = None
 
 
 class SourceResult(BaseModel):
     user_id: str
-    platform: str
+    platform: Literal["youtube"] = "youtube"
     external_id: str
     title: str
-    source_url: str | None = None
+    source_url: str
     group_id: str
     status: Literal["done", "failed"]
     meta_saved: bool
@@ -137,26 +118,27 @@ def build_segment(
     start_ms: int | None,
     end_ms: int | None,
     speaker: str | None,
-    virtual_start_at: str | None = None,
-    virtual_end_at: str | None = None,
     group_id: str | None = None,
-    group_name: str | None = None,
 ) -> Segment:
+    create_time = None
+    if source.published_at is not None and start_ms is not None:
+        published_at = source.published_at
+        if published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=UTC)
+        else:
+            published_at = published_at.astimezone(UTC)
+        create_time = published_at + timedelta(milliseconds=max(0, start_ms))
+
     return Segment(
         seq=seq,
         text=text,
         sha256=sha256,
-        message_id=build_message_id(
-            user_id=source.user_id,
-            platform=source.platform,
-            external_id=source.external_id,
-            seq=seq,
+        message_id=build_youtube_message_id(
+            user_id=source.user_id, video_id=source.external_id, seq=seq
         ),
         start_ms=start_ms,
         end_ms=end_ms,
         speaker=speaker,
-        virtual_start_at=virtual_start_at,
-        virtual_end_at=virtual_end_at,
+        create_time=create_time,
         group_id=group_id,
-        group_name=group_name,
     )

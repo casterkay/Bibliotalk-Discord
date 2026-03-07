@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 
 from ingestion_service.domain.models import Source, TranscriptLine
 from ingestion_service.pipeline.chunking import chunk_plain_text, chunk_transcript
 
 
 def test_chunk_plain_text_is_deterministic() -> None:
-    src = Source(user_id="u1", platform="local", external_id="e1", title="T")
+    src = Source(
+        user_id="u1",
+        external_id="e1",
+        title="T",
+        source_url="https://www.youtube.com/watch?v=e1",
+        published_at=datetime(2024, 1, 1, tzinfo=UTC),
+    )
     text = "Para 1 line.\n\nPara 2 line.\n\nPara 3 line."
 
     a = chunk_plain_text(src, text)
@@ -21,9 +28,9 @@ def test_chunk_plain_text_is_deterministic() -> None:
 def test_chunk_transcript_merges_sentence_fragments_without_timestamp_prefix() -> None:
     src = Source(
         user_id="u1",
-        platform="youtube",
         external_id="vid1",
         title="Talk",
+        source_url="https://www.youtube.com/watch?v=vid1",
         raw_meta={"timestamp": 1700000000},
     )
     lines = [
@@ -39,16 +46,15 @@ def test_chunk_transcript_merges_sentence_fragments_without_timestamp_prefix() -
         "And another one ends here!",
     ]
     assert all(not s.text.startswith("[") for s in segments)
-    assert segments[0].virtual_start_at == "2023-11-14T22:13:20Z"
-    assert segments[0].virtual_end_at == "2023-11-14T22:13:21Z"
+    assert segments[0].create_time == datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
 
 
 def test_chunk_transcript_does_not_split_on_internal_punctuation() -> None:
     src = Source(
         user_id="u1",
-        platform="youtube",
         external_id="vid1",
         title="Talk",
+        source_url="https://www.youtube.com/watch?v=vid1",
     )
     lines = [
         TranscriptLine(
