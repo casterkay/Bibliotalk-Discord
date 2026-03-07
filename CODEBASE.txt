@@ -123,14 +123,29 @@
 │   │   ├── research.md
 │   │   ├── spec.md
 │   │   └── tasks.md
-│   └── 002-evermemos-content-ingest
+│   ├── 002-evermemos-content-ingest
+│   │   ├── checklists
+│   │   │   └── requirements.md
+│   │   ├── contracts
+│   │   │   ├── cli.md
+│   │   │   ├── evermemos-api.md
+│   │   │   ├── ingest-manifest.md
+│   │   │   └── report-format.md
+│   │   ├── data-model.md
+│   │   ├── plan.md
+│   │   ├── quickstart.md
+│   │   ├── research.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   └── 003-discord-bot
 │       ├── checklists
 │       │   └── requirements.md
 │       ├── contracts
-│       │   ├── cli.md
+│       │   ├── collector-cli.md
+│       │   ├── discord-messages.md
 │       │   ├── evermemos-api.md
-│       │   ├── ingest-manifest.md
-│       │   └── report-format.md
+│       │   ├── evidence.md
+│       │   └── memory-pages.md
 │       ├── data-model.md
 │       ├── plan.md
 │       ├── quickstart.md
@@ -139,5 +154,5 @@
 │       └── tasks.md
 └── uv.lock
 
-42 directories, 98 files
+45 directories, 110 files
 

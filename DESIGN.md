@@ -459,7 +459,7 @@ Short per-user DM context may be kept in memory or SQLite, but it must not repla
 
 - Per-figure polling interval override
 - Global ingest concurrency
-- Per-figure ingest concurrency
+- Per-source ingest concurrency, where each source is a single channel or playlist subscription
 - Discord posting rate controls
 - Retry and backoff policy
 - SQLite database path
