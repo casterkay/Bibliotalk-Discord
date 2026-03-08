@@ -45,8 +45,10 @@
 │   │   ├── alembic
 │   │   │   ├── env.py
 │   │   │   └── versions
-│   │   │       └── 0001_initial_schema.py
+│   │   │       ├── 0001_initial_schema.py
+│   │   │       └── 0002_add_source_meta_synced_at.py
 │   │   ├── alembic.ini
+│   │   ├── bibliotalk.db
 │   │   ├── pyproject.toml
 │   │   ├── README.md
 │   │   ├── scripts
@@ -103,5 +105,5 @@
 │       └── tasks.md
 └── uv.lock
 
-36 directories, 68 files
+36 directories, 70 files
 

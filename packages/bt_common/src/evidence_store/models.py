@@ -65,6 +65,7 @@ class Source(Base):
     channel_name: Mapped[str | None] = mapped_column(String(300))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     raw_meta_json: Mapped[str | None] = mapped_column(Text)
+    source_meta_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     transcript_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     manual_ingestion_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

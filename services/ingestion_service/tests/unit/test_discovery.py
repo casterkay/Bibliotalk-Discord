@@ -45,6 +45,39 @@ def test_compute_discovery_delta_uses_last_seen_video_id() -> None:
     assert [item.video_id for item in delta] == ["vid-b", "vid-c"]
 
 
+def test_compute_discovery_delta_stops_at_last_seen_video_id() -> None:
+    entries = [
+        DiscoveredVideo(
+            "vid-c",
+            "C",
+            "https://www.youtube.com/watch?v=vid-c",
+            datetime(2024, 1, 3, tzinfo=UTC),
+            None,
+            {},
+        ),
+        DiscoveredVideo(
+            "vid-b",
+            "B",
+            "https://www.youtube.com/watch?v=vid-b",
+            datetime(2024, 1, 2, tzinfo=UTC),
+            None,
+            {},
+        ),
+        DiscoveredVideo(
+            "vid-a",
+            "A",
+            "https://www.youtube.com/watch?v=vid-a",
+            datetime(2024, 1, 1, tzinfo=UTC),
+            None,
+            {},
+        ),
+    ]
+
+    delta = compute_discovery_delta(entries, last_seen_video_id="vid-b", last_published_at=None)
+
+    assert [item.video_id for item in delta] == ["vid-c"]
+
+
 def test_compute_discovery_delta_falls_back_to_published_at() -> None:
     entries = [
         DiscoveredVideo(
@@ -82,6 +115,35 @@ def test_compute_discovery_delta_falls_back_to_published_at() -> None:
     assert [item.video_id for item in delta] == ["vid-b", "vid-c"]
 
 
+def test_compute_discovery_delta_handles_unsorted_input() -> None:
+    entries = [
+        DiscoveredVideo(
+            "vid-a",
+            "A",
+            "https://www.youtube.com/watch?v=vid-a",
+            datetime(2024, 1, 1, tzinfo=UTC),
+            None,
+            {},
+        ),
+        DiscoveredVideo(
+            "vid-b",
+            "B",
+            "https://www.youtube.com/watch?v=vid-b",
+            datetime(2024, 1, 2, tzinfo=UTC),
+            None,
+            {},
+        ),
+    ]
+
+    delta = compute_discovery_delta(
+        entries,
+        last_seen_video_id=None,
+        last_published_at=datetime(2024, 1, 1, tzinfo=UTC),
+    )
+
+    assert [item.video_id for item in delta] == ["vid-b"]
+
+
 @pytest.mark.anyio
 async def test_discover_subscription_falls_back_to_rss() -> None:
     async def failing_yt_dlp(_: str):
@@ -106,3 +168,55 @@ async def test_discover_subscription_falls_back_to_rss() -> None:
 
     assert len(delta) == 1
     assert delta[0].video_id == "vid-a"
+
+
+@pytest.mark.anyio
+async def test_discover_subscription_bootstraps_feed_url_with_yt_dlp() -> None:
+    seen: list[str] = []
+
+    async def fake_yt_dlp(url: str):
+        seen.append(url)
+        return {
+            "entries": [
+                {"id": "vid-b", "title": "B", "timestamp": 1704153600},
+                {"id": "vid-a", "title": "A", "timestamp": 1704067200},
+            ]
+        }
+
+    async def fake_rss(_: str):
+        raise AssertionError("rss should not be used during bootstrap when yt-dlp succeeds")
+
+    delta = await discover_subscription(
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
+        bootstrap=True,
+        yt_dlp_loader=fake_yt_dlp,
+        rss_loader=fake_rss,
+    )
+
+    assert seen == ["https://www.youtube.com/channel/UC123"]
+    assert [item.video_id for item in delta] == ["vid-a", "vid-b"]
+
+
+@pytest.mark.anyio
+async def test_discover_subscription_handles_missing_yt_dlp_binary() -> None:
+    async def missing_yt_dlp(_: str):
+        raise FileNotFoundError("yt-dlp")
+
+    async def fake_rss(_: str):
+        return [
+            FeedEntry(
+                video_id="vid-a",
+                url="https://www.youtube.com/watch?v=vid-a",
+                title="Video A",
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
+                raw_meta={"feed_url": "https://example.com/feed"},
+            )
+        ]
+
+    delta = await discover_subscription(
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
+        yt_dlp_loader=missing_yt_dlp,
+        rss_loader=fake_rss,
+    )
+
+    assert [item.video_id for item in delta] == ["vid-a"]

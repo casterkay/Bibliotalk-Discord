@@ -41,3 +41,4 @@ async def test_collector_runtime_startup(tmp_path) -> None:
 
     assert snapshot.figure_slug == "alan-watts"
     assert snapshot.active_subscriptions == 1
+    assert snapshot.failed_subscriptions == 0

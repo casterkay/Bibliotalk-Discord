@@ -142,6 +142,11 @@ class EverMemOSClient:
             )
         )
 
+    async def delete_by_group_id(
+        self, group_id: str, *, user_id: str | None = None
+    ) -> dict[str, Any]:
+        return await self.delete_memories(group_id=group_id, user_id=user_id)
+
     async def get_conversation_meta(self, group_id: str) -> dict[str, Any]:
         return await self._run_with_retry(
             lambda: self.client.v0.memories.conversation_meta.get(

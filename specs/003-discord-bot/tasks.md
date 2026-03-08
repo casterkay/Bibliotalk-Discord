@@ -58,20 +58,20 @@
 
 - [X] T024 [P] [US1] Add unit tests for YouTube discovery delta logic in `services/ingestion_service/tests/unit/test_discovery.py`
 - [X] T025 [P] [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in `services/ingestion_service/tests/unit/test_index.py`
-- [ ] T026 [P] [US1] Add unit tests for per-source concurrency gates keyed by `subscription_id` in `services/ingestion_service/tests/unit/test_poller_concurrency.py`
-- [ ] T027 [P] [US1] Add integration tests for ingest, transcript-batch derivation, dedup, and manual re-ingest in `services/ingestion_service/tests/integration/test_ingest_pipeline.py`
-- [ ] T028 [P] [US1] Add contract tests for EverMemOS memorize, conversation-meta, and delete-by-group-id calls in `packages/bt_common/tests/test_evermemos_client_contract.py`
+- [X] T026 [P] [US1] Add unit tests for per-source concurrency gates keyed by `subscription_id` in `services/ingestion_service/tests/unit/test_poller_concurrency.py`
+- [X] T027 [P] [US1] Add integration tests for ingest, transcript-batch derivation, dedup, and manual re-ingest in `services/ingestion_service/tests/integration/test_ingest_pipeline.py`
+- [X] T028 [P] [US1] Add contract tests for EverMemOS memorize, conversation-meta, and delete-by-group-id calls in `packages/bt_common/tests/test_evermemos_client_contract.py`
 
 ### Implementation for User Story 1
 
 - [X] T029 [P] [US1] Implement yt-dlp flat extraction and RSS fallback discovery in `services/ingestion_service/src/pipeline/discovery.py`
 - [X] T030 [P] [US1] Adapt transcript and metadata loading for the trimmed MVP in `services/ingestion_service/src/adapters/youtube_transcript.py` and `services/ingestion_service/src/adapters/rss_feed.py`
 - [X] T031 [P] [US1] Preserve stable YouTube identifier builders in `services/ingestion_service/src/domain/ids.py`
-- [ ] T032 [US1] Refactor the ingest pipeline to persist `Source`, `Segment`, and `TranscriptBatch` rows through SQLAlchemy in `services/ingestion_service/src/pipeline/ingest.py`
-- [ ] T033 [US1] Implement standalone collector orchestration for subscription polling, queueing, backoff, and per-source concurrency controls in `services/ingestion_service/src/runtime/poller.py`
-- [ ] T034 [US1] Implement end-to-end collector workflow and manual re-ingest handling in `services/ingestion_service/src/pipeline/ingest.py` and `services/ingestion_service/src/runtime/poller.py`
-- [ ] T035 [US1] Wire the collector into the standalone ingestion process in `services/ingestion_service/src/__main__.py`
-- [ ] T036 [US1] Add ingest-specific structured logs and failure state updates in `services/ingestion_service/src/runtime/poller.py` and `services/ingestion_service/src/pipeline/ingest.py`
+- [X] T032 [US1] Refactor the ingest pipeline to persist `Source`, `Segment`, and `TranscriptBatch` rows through SQLAlchemy in `services/ingestion_service/src/pipeline/ingest.py`
+- [X] T033 [US1] Implement standalone collector orchestration for subscription polling, queueing, backoff, and per-source concurrency controls in `services/ingestion_service/src/runtime/poller.py`
+- [X] T034 [US1] Implement end-to-end collector workflow and manual re-ingest handling in `services/ingestion_service/src/pipeline/ingest.py` and `services/ingestion_service/src/runtime/poller.py`
+- [X] T035 [US1] Wire the collector into the standalone ingestion process in `services/ingestion_service/src/__main__.py`
+- [X] T036 [US1] Add ingest-specific structured logs and failure state updates in `services/ingestion_service/src/runtime/poller.py` and `services/ingestion_service/src/pipeline/ingest.py`
 
 **Checkpoint**: User Story 1 is functional when a single figure can discover, ingest, derive transcript batches, deduplicate, enforce per-source concurrency, and manually re-ingest YouTube videos without any Discord feed or DM chat features enabled.
 

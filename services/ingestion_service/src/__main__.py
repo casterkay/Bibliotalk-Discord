@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
+from bt_common.evermemos_client import EverMemOSClient
 from bt_common.evidence_store.engine import get_session_factory, init_database
 
 from .runtime.config import load_runtime_config
@@ -26,16 +27,26 @@ async def _main_async() -> int:
     )
     logger = configure_logging(level=config.log_level)
     await init_database(config.db_path)
+    client = EverMemOSClient(
+        config.emos_base_url,
+        api_key=config.emos_api_key,
+        timeout=config.emos_timeout_s,
+        retries=config.emos_retries,
+    )
     poller = CollectorPoller(
         config=config,
         session_factory=get_session_factory(config.db_path),
         logger=logger,
+        client=client,
     )
-    if args.once:
-        await poller.run_once()
+    try:
+        if args.once:
+            await poller.run_once()
+            return 0
+        await poller.run_forever()
         return 0
-    await poller.run_forever()
-    return 0
+    finally:
+        await client.aclose()
 
 
 def main() -> int:

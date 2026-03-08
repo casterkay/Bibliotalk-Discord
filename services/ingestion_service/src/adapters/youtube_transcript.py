@@ -36,7 +36,10 @@ def _fetch_video_metadata(video_id: str) -> dict[str, Any]:
         "--no-warnings",
         url,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return {"metadata_fetch_error": "yt-dlp is not installed or not on PATH"}
     if proc.returncode != 0:
         return {"metadata_fetch_error": (proc.stderr.strip() or "yt-dlp failed")}
 

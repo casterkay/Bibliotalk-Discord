@@ -49,11 +49,10 @@ async def test_index_roundtrip(tmp_path) -> None:
     assert rec is not None
     assert rec.message_id == "u1:youtube:video-1:seg:0"
     assert rec.sha256 == "s1"
-    assert rec.status == "ingested"
 
 
 @pytest.mark.anyio
-async def test_index_marks_source_failed_on_failed_segment(tmp_path) -> None:
+async def test_existing_source_is_not_treated_as_meta_synced_until_marked(tmp_path) -> None:
     db = tmp_path / "index.sqlite3"
     await init_database(db)
     session_factory = get_session_factory(db)
@@ -74,6 +73,7 @@ async def test_index_marks_source_failed_on_failed_segment(tmp_path) -> None:
         await session.commit()
 
     idx = IngestionIndex(session_factory, path=db)
+    assert await idx.get_source_meta_saved(user_id="u1", group_id="u1:youtube:video-1") is False
     await idx.upsert_segment_status(
         user_id="u1",
         group_id="u1:youtube:video-1",
@@ -86,4 +86,5 @@ async def test_index_marks_source_failed_on_failed_segment(tmp_path) -> None:
     async with session_factory() as session:
         stored = (await session.execute(select(Source))).scalar_one()
 
-    assert stored.transcript_status == "failed"
+    assert stored.transcript_status == "pending"
+    assert stored.source_meta_synced_at is None

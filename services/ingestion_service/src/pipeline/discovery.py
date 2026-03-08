@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import parse_qsl, urlparse
 
 from ..adapters.rss_feed import FeedEntry, parse_feed
 from ..domain.errors import AdapterError
@@ -59,7 +60,35 @@ def _parse_yt_dlp_entries(payload: dict[str, Any]) -> list[DiscoveredVideo]:
                 raw_meta=item,
             )
         )
-    return videos
+    return _sort_discovered_videos(videos)
+
+
+def _sort_key(item: DiscoveredVideo) -> tuple[float, str]:
+    published = item.published_at.timestamp() if item.published_at is not None else 0.0
+    return (published, item.video_id or item.source_url)
+
+
+def _sort_discovered_videos(entries: list[DiscoveredVideo]) -> list[DiscoveredVideo]:
+    return sorted(entries, key=_sort_key, reverse=True)
+
+
+def is_youtube_feed_url(url: str) -> bool:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    return hostname.endswith("youtube.com") and parsed.path == "/feeds/videos.xml"
+
+
+def _bootstrap_target_url(subscription_url: str) -> str:
+    if not is_youtube_feed_url(subscription_url):
+        return subscription_url
+    query = dict(parse_qsl(urlparse(subscription_url).query, keep_blank_values=True))
+    if query.get("channel_id"):
+        return f"https://www.youtube.com/channel/{query['channel_id']}"
+    if query.get("playlist_id"):
+        return f"https://www.youtube.com/playlist?list={query['playlist_id']}"
+    if query.get("user"):
+        return f"https://www.youtube.com/user/{query['user']}"
+    return subscription_url
 
 
 def compute_discovery_delta(
@@ -68,8 +97,9 @@ def compute_discovery_delta(
     last_seen_video_id: str | None,
     last_published_at: datetime | None,
 ) -> list[DiscoveredVideo]:
+    ordered = _sort_discovered_videos(entries)
     pending: list[DiscoveredVideo] = []
-    for entry in entries:
+    for entry in ordered:
         if last_seen_video_id and entry.video_id == last_seen_video_id:
             break
         if (
@@ -79,8 +109,7 @@ def compute_discovery_delta(
         ):
             break
         pending.append(entry)
-    pending.reverse()
-    return pending
+    return sorted(pending, key=_sort_key)
 
 
 async def _run_yt_dlp(subscription_url: str) -> dict[str, Any]:
@@ -93,7 +122,10 @@ async def _run_yt_dlp(subscription_url: str) -> dict[str, Any]:
     ]
 
     def _invoke() -> dict[str, Any]:
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        except FileNotFoundError as exc:
+            raise AdapterError("yt-dlp is not installed or not on PATH") from exc
         if proc.returncode != 0:
             raise AdapterError(proc.stderr.strip() or "yt-dlp discovery failed")
         try:
@@ -119,7 +151,7 @@ def _from_feed_entries(entries: list[FeedEntry]) -> list[DiscoveredVideo]:
                 raw_meta=entry.raw_meta,
             )
         )
-    return videos
+    return _sort_discovered_videos(videos)
 
 
 async def discover_subscription(
@@ -127,6 +159,7 @@ async def discover_subscription(
     *,
     last_seen_video_id: str | None = None,
     last_published_at: datetime | None = None,
+    bootstrap: bool = False,
     yt_dlp_loader: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
     rss_loader: Callable[[str], Awaitable[list[FeedEntry]]] | None = None,
 ) -> list[DiscoveredVideo]:
@@ -134,9 +167,15 @@ async def discover_subscription(
     rss_loader = rss_loader or parse_feed
 
     try:
-        payload = await yt_dlp_loader(subscription_url)
-        entries = _parse_yt_dlp_entries(payload)
-    except AdapterError:
+        if bootstrap:
+            payload = await yt_dlp_loader(_bootstrap_target_url(subscription_url))
+            entries = _parse_yt_dlp_entries(payload)
+        elif is_youtube_feed_url(subscription_url):
+            entries = _from_feed_entries(await rss_loader(subscription_url))
+        else:
+            payload = await yt_dlp_loader(subscription_url)
+            entries = _parse_yt_dlp_entries(payload)
+    except (AdapterError, FileNotFoundError):
         entries = _from_feed_entries(await rss_loader(subscription_url))
 
     return compute_discovery_delta(
