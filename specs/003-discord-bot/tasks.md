@@ -137,11 +137,11 @@
 
 **Purpose**: Finalize operational readiness, documentation, and full-system validation.
 
-- [ ] T061 [P] Update deployment and local runtime docs in `README.md`, `DESIGN.md`, and `deploy/local/docker-compose.yml`
-- [ ] T062 [P] Add developer seed and manual-ingest helper scripts in `services/discord_service/scripts/seed_figure.py` and `services/ingestion_service/scripts/trigger_ingest.py`
-- [ ] T063 Add end-to-end quickstart validation coverage in `services/discord_service/tests/integration/test_quickstart_flow.py` and `services/memory_page_service/tests/integration/test_quickstart_memory_pages.py`
-- [ ] T064 Run and fix the documented quickstart workflow in `specs/003-discord-bot/quickstart.md`
-- [ ] T065 Remove stale references to Matrix, voice, and non-YouTube ingestion from `AGENTS.md`, `README.md`, and `.github/agents/copilot-instructions.md`
+- [X] T061 [P] Update deployment and local runtime docs in `README.md`, `DESIGN.md`, and `deploy/local/docker-compose.yml`
+- [X] T062 [P] Add developer seed and manual-ingest helper scripts in `services/discord_service/scripts/seed_figure.py` and `services/ingestion_service/scripts/trigger_ingest.py`
+- [X] T063 Add end-to-end quickstart validation coverage in `services/discord_service/tests/integration/test_quickstart_flow.py` and `services/memory_page_service/tests/integration/test_quickstart_memory_pages.py`
+- [X] T064 Run and fix the documented quickstart workflow in `specs/003-discord-bot/quickstart.md`
+- [X] T065 Remove stale references to Matrix, voice, and non-YouTube ingestion from `AGENTS.md`, `README.md`, and `.github/agents/copilot-instructions.md`
 
 ---
 

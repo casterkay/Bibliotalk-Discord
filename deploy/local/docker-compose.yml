@@ -1,0 +1,66 @@
+services:
+  ingestion:
+    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    working_dir: /workspace
+    env_file:
+      - .env
+    volumes:
+      - ../..:/workspace
+      - bibliotalk_data:/data
+    command:
+      - uv
+      - run
+      - --package
+      - ingestion_service
+      - python
+      - -m
+      - ingestion_service
+      - --figure
+      - ${BIBLIOTALK_FIGURE}
+
+  discord:
+    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    working_dir: /workspace
+    env_file:
+      - .env
+    volumes:
+      - ../..:/workspace
+      - bibliotalk_data:/data
+    command:
+      - uv
+      - run
+      - --package
+      - discord_service
+      - python
+      - -m
+      - discord_service
+      - --figure
+      - ${BIBLIOTALK_FIGURE}
+    depends_on:
+      - ingestion
+
+  memory-pages:
+    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    working_dir: /workspace
+    env_file:
+      - .env
+    volumes:
+      - ../..:/workspace
+      - bibliotalk_data:/data
+    ports:
+      - "${MEMORY_PAGE_PORT:-8080}:${MEMORY_PAGE_PORT:-8080}"
+    command:
+      - uv
+      - run
+      - --package
+      - memory_page_service
+      - python
+      - -m
+      - memory_page_service
+      - --host
+      - ${MEMORY_PAGE_HOST:-0.0.0.0}
+      - --port
+      - ${MEMORY_PAGE_PORT:-8080}
+
+volumes:
+  bibliotalk_data:

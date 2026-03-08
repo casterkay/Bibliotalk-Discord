@@ -9,7 +9,7 @@ What remains in scope:
 - `services/agents_service/`: retained Gemini-grounded agent library, evidence models, and citation tooling.
 - `specs/002-evermemos-content-ingest/` and `specs/003-discord-bot/`: active design artifacts.
 
-Out-of-scope legacy surfaces such as Matrix transport, voice runtimes, SQLAdmin, Synapse deploy assets, and unrelated research docs have been removed.
+Out-of-scope legacy surfaces from prior experiments have been removed.
 
 ## Development
 
@@ -17,6 +17,25 @@ Out-of-scope legacy surfaces such as Matrix transport, voice runtimes, SQLAdmin,
 - Run agent tests: `uv --directory services/agents_service run --package agents_service -m pytest`
 - Run ingestion tests: `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
 - Run shared package tests: `uv --directory packages/bt_common run --package bt_common -m pytest`
+
+## Local Runtime Quickstart
+
+- Full quickstart guide: `specs/003-discord-bot/quickstart.md`
+- Seed one figure mapping:
+	- `uv run python services/discord_service/scripts/seed_figure.py --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
+- Trigger one manual ingest:
+	- `uv run python services/ingestion_service/scripts/trigger_ingest.py --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
+- Run services locally:
+	- `uv run --package ingestion_service python -m ingestion_service --figure alan-watts --once`
+	- `uv run --package discord_service python -m discord_service --figure alan-watts`
+	- `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
+
+## Docker Compose
+
+- `cp deploy/local/.env.example deploy/local/.env`
+- Fill values in `deploy/local/.env`
+- Start stack:
+	- `docker compose -f deploy/local/docker-compose.yml up`
 
 ## Notes
 

@@ -2,7 +2,24 @@
 
 This document defines the target design for a Discord-only figure bot system. Each figure is represented by a dedicated Discord bot backed by EverMemOS and a local verbatim evidence cache. The system continuously discovers new YouTube videos for each figure, ingests transcript segments into EverMemOS, preserves the same segments locally for retrieval and quote validation, publishes a batched ingest feed into Discord, and supports grounded DM chat with inline memory links.
 
-The design intentionally reuses the strongest parts of this repository: YouTube transcript ingestion and chunking, local SQLite indexing patterns, the EverMemOS client wrapper, and evidence retrieval and grounding-validation logic. Matrix-specific runtime concerns are out of scope and should not shape the new system.
+The design intentionally reuses the strongest parts of this repository: YouTube transcript ingestion and chunking, local SQLite indexing patterns, the EverMemOS client wrapper, and evidence retrieval and grounding-validation logic.
+
+## Local Runbook
+
+For daily development, use this sequence:
+
+1. Sync dependencies:
+  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+2. Seed one figure:
+  - `uv run python services/discord_service/scripts/seed_figure.py --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
+3. Trigger a manual one-shot ingest when needed:
+  - `uv run python services/ingestion_service/scripts/trigger_ingest.py --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
+4. Run runtimes:
+  - `uv run --package ingestion_service python -m ingestion_service --figure alan-watts`
+  - `uv run --package discord_service python -m discord_service --figure alan-watts`
+  - `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
+5. Optional multi-service boot via Docker Compose:
+  - `docker compose -f deploy/local/docker-compose.yml up`
 
 ## Vision
 
@@ -29,8 +46,6 @@ Every non-trivial factual claim must be grounded in verbatim evidence that can b
 
 ### Non-goals
 
-- Voice chat.
-- Matrix integration.
 - Multi-agent group conversation.
 - Multi-human room semantics.
 - Non-YouTube sources in MVP.

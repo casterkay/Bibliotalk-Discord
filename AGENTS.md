@@ -25,10 +25,16 @@
 - Sync deps (workspace):
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests (run from each package directory to avoid pytest root collisions):
+  - `uv --directory services/discord_service run --package discord_service -m pytest`
+  - `uv --directory services/memory_page_service run --package memory_page_service -m pytest`
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Run ingestion CLI:
   - `uv run --package ingestion_service -m ingestion_service --help`
+- Seed figure/local mapping:
+  - `uv run python services/discord_service/scripts/seed_figure.py --help`
+- Trigger manual one-shot ingest:
+  - `uv run python services/ingestion_service/scripts/trigger_ingest.py --help`
 
 ## Code Style
 

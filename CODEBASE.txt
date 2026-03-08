@@ -4,6 +4,7 @@
 ├── CODEBASE.txt
 ├── deploy
 │   └── local
+│       ├── docker-compose.yml
 │       └── ghosts.yaml
 ├── DESIGN.md
 ├── packages
@@ -38,6 +39,8 @@
 │   │       └── store.py
 │   ├── discord_service
 │   │   ├── pyproject.toml
+│   │   ├── scripts
+│   │   │   └── seed_figure.py
 │   │   └── src
 │   │       ├── bot
 │   │       │   ├── client.py
@@ -60,6 +63,7 @@
 │   │   ├── pyproject.toml
 │   │   ├── README.md
 │   │   ├── scripts
+│   │   │   └── trigger_ingest.py
 │   │   └── src
 │   │       ├── adapters
 │   │       │   ├── base.py
@@ -116,5 +120,5 @@
 │       └── tasks.md
 └── uv.lock
 
-38 directories, 79 files
+39 directories, 82 files
 

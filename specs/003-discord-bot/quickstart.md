@@ -60,49 +60,16 @@ DISCORD_TOKEN_ALAN_WATTS=your-discord-token-for-alan-watts
 
 ## 4. Seed a test figure
 
-Insert a figure row directly into SQLite for local testing:
-
-```python
-# scripts/seed_figure.py
-import asyncio, uuid
-from bt_common.evidence_store.engine import get_session
-from bt_common.evidence_store.models import Figure, Subscription, DiscordMap
-
-async def seed():
-    async with get_session() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
-            persona_summary="Philosopher and interpreter of Eastern philosophy.",
-            status="active",
-        )
-        session.add(figure)
-        await session.flush()
-
-        subscription = Subscription(
-            figure_id=figure.figure_id,
-            platform="youtube",
-            subscription_type="channel",
-            subscription_url="https://www.youtube.com/@AlanWattsOrg",
-            poll_interval_minutes=60,
-            is_active=True,
-        )
-        session.add(subscription)
-
-        discord_map = DiscordMap(
-            figure_id=figure.figure_id,
-            guild_id="YOUR_TEST_GUILD_ID",
-            channel_id="YOUR_TEST_FEED_CHANNEL_ID",
-        )
-        session.add(discord_map)
-        await session.commit()
-
-asyncio.run(seed())
-```
+Use the helper script:
 
 ```bash
-uv run python scripts/seed_figure.py
+uv run python services/discord_service/scripts/seed_figure.py \
+  --figure alan-watts \
+  --display-name "Alan Watts" \
+  --persona-summary "Philosopher and interpreter of Eastern philosophy." \
+  --subscription-url https://www.youtube.com/@AlanWattsOrg \
+  --guild-id YOUR_TEST_GUILD_ID \
+  --channel-id YOUR_TEST_FEED_CHANNEL_ID
 ```
 
 ---
@@ -129,38 +96,18 @@ INFO  [ingestion_service] Collector polling loop started (interval: 60 min)
 
 ## 6. Validate ingest (manual one-shot)
 
-To test ingest without waiting for the polling interval, trigger a manual re-ingest by setting `manual_ingestion_requested_at` on a known video:
+To test ingest without waiting for the polling interval, use the manual helper:
 
-```python
-# scripts/trigger_ingest.py
-import asyncio
-from datetime import datetime, timezone
-from bt_common.evidence_store.engine import get_session
-from bt_common.evidence_store.models import Source
+```bash
+uv run python services/ingestion_service/scripts/trigger_ingest.py \
+  --figure alan-watts \
+  --video-id KNOWN_YOUTUBE_VIDEO_ID
+```
 
-VIDEO_ID = "KNOWN_YOUTUBE_VIDEO_ID"  # replace with a real video ID
-FIGURE_ID = "YOUR_FIGURE_UUID"
+Then process the manual request immediately:
 
-async def trigger():
-    async with get_session() as session:
-        source = await session.get(Source, ...)  # find by external_id
-        if source:
-            source.manual_ingestion_requested_at = datetime.now(timezone.utc)
-        else:
-            # Insert a stub source row; the collector will fill the rest
-            session.add(Source(
-                figure_id=FIGURE_ID,
-                platform="youtube",
-                external_id=VIDEO_ID,
-                group_id=f"alan-watts:youtube:{VIDEO_ID}",
-                title="(pending)",
-                source_url=f"https://www.youtube.com/watch?v={VIDEO_ID}",
-                transcript_status="pending",
-                manual_ingestion_requested_at=datetime.now(timezone.utc),
-            ))
-        await session.commit()
-
-asyncio.run(trigger())
+```bash
+uv run --package ingestion_service python -m ingestion_service --figure alan-watts --once
 ```
 
 ---
