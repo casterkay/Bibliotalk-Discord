@@ -34,8 +34,6 @@ services:
       - python
       - -m
       - discord_service
-      - --figure
-      - ${BIBLIOTALK_FIGURE}
     depends_on:
       - ingestion
 

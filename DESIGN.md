@@ -1,6 +1,6 @@
 # Blueprint: YouTube -> EverMemOS -> Discord Figure Bots
 
-This document defines the target design for a Discord-only figure bot system. Each figure is represented by a dedicated Discord bot backed by EverMemOS and a local verbatim evidence cache. The system continuously discovers new YouTube videos for each figure, ingests transcript segments into EverMemOS, preserves the same segments locally for retrieval and quote validation, publishes a batched ingest feed into Discord, and supports grounded DM chat with inline memory links.
+This document defines the target design for a Discord-only figure bot system. A single Discord bot can role-play as multiple "figures" (digital characters), each backed by EverMemOS and a local verbatim evidence cache. The system continuously discovers new YouTube videos for each figure, ingests transcript segments into EverMemOS, preserves the same segments locally for retrieval and quote validation, publishes a batched ingest feed into Discord, and supports grounded private conversations in per-user talk threads with inline memory links.
 
 The design intentionally reuses the strongest parts of this repository: YouTube transcript ingestion and chunking, local SQLite indexing patterns, the EverMemOS client wrapper, and evidence retrieval and grounding-validation logic.
 
@@ -16,7 +16,7 @@ For daily development, use this sequence:
   - `uv run python services/ingestion_service/scripts/trigger_ingest.py --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
 4. Run runtimes:
   - `uv run --package ingestion_service python -m ingestion_service --figure alan-watts`
-  - `uv run --package discord_service python -m discord_service --figure alan-watts`
+  - `uv run --package discord_service python -m discord_service`
   - `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
 5. Optional multi-service boot via Docker Compose:
   - `docker compose -f deploy/local/docker-compose.yml up`
@@ -25,7 +25,7 @@ For daily development, use this sequence:
 
 Continuously collect YouTube transcripts for specific individuals, build figure-specific memory in EverMemOS, and expose each figure through Discord as:
 
-- A dedicated bot for private DM conversation.
+- Private talk threads created on-demand from a DM to the bot.
 - A dedicated feed channel that shows ingested videos.
 - A per-video thread containing batched original transcript excerpts.
 
@@ -37,11 +37,12 @@ Every non-trivial factual claim must be grounded in verbatim evidence that can b
 
 ### MVP goals
 
-- One Discord bot per figure.
+- One Discord bot that can play multiple figures.
+- Users DM the bot to create private talk threads in `#bibliotalk`.
 - One Discord text channel per figure for ingest feed posting.
 - One thread per ingested YouTube video.
 - Feed posts batched into Discord messages using local transcript grouping rules rather than raw chunk.
-- Grounded DM chat with inline memory links.
+- Grounded talk-thread chat with inline memory links.
 - Idempotent ingest and Discord posting.
 
 ### Non-goals
@@ -59,6 +60,17 @@ Every non-trivial factual claim must be grounded in verbatim evidence that can b
 5. Ingest and feed posting must be idempotent.
 6. Discord output must respect rate limits and avoid duplicate threads or messages.
 7. DM responses must link directly to memory pages instead of using bracketed citation indices or a trailing sources block.
+
+## Talk Threads (Private Conversations)
+
+The "private conversation" surface is a **private thread** created under a dedicated Talk Hub channel named `#bibliotalk` in a guild.
+
+Users initiate a conversation by DMing the bot and invoking `/talk Character A, Character B, ...`. The bot:
+
+1. Selects a guild (using a per-user default when available, otherwise a DM picker).
+2. Finds the Talk Hub channel `#bibliotalk` in that guild.
+3. Creates a private thread, invites the user, and posts a pinned roster/instructions message.
+4. Routes each user message to one or more character responders via an AI facilitator router (with `@name` override).
 
 ## High-Level Architecture
 
@@ -93,10 +105,9 @@ Evidence Cache (SQLite)
   - discord_posts
   v
 Discord Runtime
-  - one bot per figure
   - feed channel posting
   - thread creation per video
-  - DM chat grounded on evidence
+  - private talk threads grounded on evidence
 ```
 
 ## Package Boundaries
@@ -129,8 +140,9 @@ Responsible for:
 
 Responsible for:
 
-- Running one bot per figure.
-- Routing DM messages to the correct figure runtime.
+- Running one Discord bot that can play multiple figures.
+- Handling DM slash commands (`/talk`, `/talks`) and creating private talk threads under `#bibliotalk`.
+- Routing talk-thread messages to the correct figure runtime.
 - Posting new ingest feed entries.
 - Creating and populating per-video threads.
 - Tracking Discord-side idempotency and retry state.
@@ -545,19 +557,20 @@ When extracting logic into the new runtime, copy and simplify aggressively inste
 3. Confirm each posted Discord message maps to one unique local transcript batch.
 4. Re-run the publish path and confirm no duplicate thread, parent message, or transcript-batch post is created.
 
-### DM chat validation
+### Talk thread validation
 
-1. DM a figure bot with a question that should match a known transcript chunk.
-2. Confirm the response uses inline markdown links in the form `[text](memory_url)`.
-3. Confirm the linked page shows exactly one EMOS memory item and the original video link with the reconstructed timepoint.
-4. Confirm the `memory_url` id is derived from the EMOS `user_id` and `timestamp` fields returned by retrieval.
-5. Intentionally corrupt a cached quote or memory link and confirm validation strips the bad link before sending.
-6. Ask a question with no supporting evidence and confirm the bot explicitly says that it lacks relevant evidence.
+1. DM the bot and start a talk via `/talk Alan Watts` (or another seeded figure).
+2. Confirm a private thread is created under `#bibliotalk` and the user is invited.
+3. Send a question that should match a known transcript chunk.
+4. Confirm the response uses inline markdown links in the form `[text](memory_url)`.
+5. Confirm the linked page shows exactly one EMOS memory item and the original video link with the reconstructed timepoint.
+6. Intentionally corrupt a cached quote or memory link and confirm validation strips the bad link before sending.
+7. Ask a question with no supporting evidence and confirm the bot explicitly says that it lacks relevant evidence.
 
 ## Decisions
 
 - Discord is the only UI surface in MVP.
-- There is one bot per figure.
+- There is one Discord bot that can play multiple figures.
 - YouTube discovery uses `yt-dlp` first and can optionally fall back to RSS.
 - Gemini via ADK is the LLM runtime.
 - `figure_id` is a UUID.
@@ -567,7 +580,8 @@ When extracting logic into the new runtime, copy and simplify aggressively inste
 - Manual single-video ingestion deletes existing EverMemOS data for the video's `group_id` before re-ingesting.
 - Chunk `create_time` is computed as `video_published_at + transcript_chunk_start_offset` so EMOS retrieval timestamps can be mapped back to video timepoints.
 - Feed UX is one parent post per video plus one thread containing locally batched original transcript messages.
+- Talk UX is private threads under `#bibliotalk` created from DM `/talk`.
 - SQLite is the local evidence cache and ingest-state store.
 - EverMemOS MemCells are internal and are not part of the feed UX.
-- DM grounded references are inline markdown links to `www.bibliotalk.space/memory/{id}` pages, where `{id}` is derived from EMOS `user_id` and `timestamp`.
-- Runtime model is process-per-bot.
+- Grounded references are inline markdown links to `www.bibliotalk.space/memory/{id}` pages, where `{id}` is derived from EMOS `user_id` and `timestamp`.
+- Runtime model is single-process (one bot) for MVP.

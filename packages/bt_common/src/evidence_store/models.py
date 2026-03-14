@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
@@ -180,4 +189,79 @@ class DiscordPost(Base):
         UniqueConstraint("source_id", "batch_id", name="uq_discord_post_dedup"),
         Index("ix_discord_posts_source_id", "source_id"),
         Index("ix_discord_posts_pending", "figure_id", "post_status"),
+    )
+
+
+class DiscordUserSettings(Base):
+    __tablename__ = "discord_user_settings"
+
+    discord_user_id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    default_guild_id: Mapped[str | None] = mapped_column(String(30))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(tz=UTC),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(tz=UTC),
+        onupdate=lambda: datetime.now(tz=UTC),
+    )
+
+
+class TalkThread(Base):
+    __tablename__ = "talk_threads"
+
+    talk_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_discord_user_id: Mapped[str] = mapped_column(String(30), nullable=False)
+    guild_id: Mapped[str] = mapped_column(String(30), nullable=False)
+    hub_channel_id: Mapped[str] = mapped_column(String(30), nullable=False)
+    thread_id: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(tz=UTC),
+    )
+    last_activity_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(tz=UTC),
+    )
+
+    last_routed_figure_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("figures.figure_id", ondelete="SET NULL")
+    )
+
+    participants: Mapped[list[TalkParticipant]] = relationship(
+        back_populates="talk", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("ix_talk_threads_owner_status", "owner_discord_user_id", "status"),
+        Index("ix_talk_threads_owner_activity", "owner_discord_user_id", "last_activity_at"),
+        Index("ix_talk_threads_thread_id", "thread_id"),
+    )
+
+
+class TalkParticipant(Base):
+    __tablename__ = "talk_participants"
+
+    talk_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("talk_threads.talk_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    figure_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("figures.figure_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    talk: Mapped[TalkThread] = relationship(back_populates="participants")
+    figure: Mapped[Figure] = relationship()
+
+    __table_args__ = (
+        Index("ix_talk_participants_talk_id", "talk_id"),
+        Index("ix_talk_participants_figure_id", "figure_id"),
     )

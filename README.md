@@ -25,10 +25,10 @@ Out-of-scope legacy surfaces from prior experiments have been removed.
 	- `uv run python services/discord_service/scripts/seed_figure.py --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
 - Trigger one manual ingest:
 	- `uv run python services/ingestion_service/scripts/trigger_ingest.py --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
-- Run services locally:
-	- `uv run --package ingestion_service python -m ingestion_service --figure alan-watts --once`
-	- `uv run --package discord_service python -m discord_service --figure alan-watts`
-	- `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
+	- Run services locally:
+		- `uv run --package ingestion_service python -m ingestion_service --figure alan-watts --once`
+		- `uv run --package discord_service python -m discord_service`
+		- `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
 
 ## Docker Compose
 

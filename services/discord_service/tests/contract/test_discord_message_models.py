@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
 from discord_service.bot.message_models import (
     FeedBatchMessage,
     FeedParentMessage,
-    InboundDM,
-    OutboundDMResponse,
 )
 from pydantic import ValidationError
 
@@ -50,23 +47,21 @@ def test_feed_batch_message_rejects_rendered_content_above_discord_limit() -> No
         )
 
 
-def test_inbound_dm_and_outbound_response_match_contract_shapes() -> None:
-    inbound = InboundDM(
-        discord_message_id="msg-1",
-        discord_user_id="user-1",
-        discord_channel_id="chan-1",
+def test_feed_message_models_are_stable_contracts() -> None:
+    parent = FeedParentMessage(
         figure_id=uuid.uuid4(),
-        content="What did he say about learning?",
-        received_at=datetime.now(tz=UTC),
+        source_id=uuid.uuid4(),
+        channel_id="1234567890",
+        text="Alan Watts Lecture\nhttps://www.youtube.com/watch?v=abc123",
     )
-    outbound = OutboundDMResponse(
-        discord_channel_id="chan-1",
-        response_text="Answer [Learning without thought is labor lost.](https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z)",
-        evidence_used=[
-            "https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z"
-        ],
-        no_evidence=False,
+    batch = FeedBatchMessage(
+        figure_id=uuid.uuid4(),
+        source_id=uuid.uuid4(),
+        batch_id=uuid.uuid4(),
+        thread_id="thread-1",
+        text="Verbatim transcript text.",
+        seq_label="[00:01:23]",
     )
 
-    assert inbound.discord_user_id == "user-1"
-    assert outbound.no_evidence is False
+    assert parent.channel_id == "1234567890"
+    assert batch.thread_id == "thread-1"

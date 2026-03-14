@@ -15,7 +15,7 @@ from bt_common.evidence_store.models import (
 )
 from discord_service.config import load_runtime_config
 from discord_service.feed.publisher import DiscordPermissionError
-from discord_service.runtime import publish_pending_feed
+from discord_service.runtime import publish_pending_feeds
 from sqlalchemy import select
 
 
@@ -113,19 +113,20 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
         )
         await session.commit()
 
-    config = load_runtime_config(db_path=str(db), figure_slug="alan-watts")
+    config = load_runtime_config(db_path=str(db))
     first_transport = FakeTransport()
     first_transport.fail_on_batch_call = 2
 
-    first = await publish_pending_feed(
+    first = await publish_pending_feeds(
         config,
         transport=first_transport,
         session_factory=session_factory,
     )
 
-    assert first.publication.attempted_sources == 1
-    assert first.publication.published_sources == 0
-    assert first.publication.failed_sources == 1
+    assert first.attempted_figures == 1
+    assert first.attempted_sources == 1
+    assert first.published_sources == 0
+    assert first.failed_sources == 1
     assert len(first_transport.parent_posts) == 1
     assert len(first_transport.threads) == 1
     assert len(first_transport.thread_messages) == 1
@@ -154,29 +155,31 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
     )
 
     second_transport = FakeTransport()
-    second = await publish_pending_feed(
+    second = await publish_pending_feeds(
         config,
         transport=second_transport,
         session_factory=session_factory,
     )
 
-    assert second.publication.attempted_sources == 1
-    assert second.publication.published_sources == 1
-    assert second.publication.failed_sources == 0
+    assert second.attempted_figures == 1
+    assert second.attempted_sources == 1
+    assert second.published_sources == 1
+    assert second.failed_sources == 0
     assert len(second_transport.parent_posts) == 0
     assert len(second_transport.threads) == 0
     assert len(second_transport.thread_messages) == 1
 
     third_transport = FakeTransport()
-    third = await publish_pending_feed(
+    third = await publish_pending_feeds(
         config,
         transport=third_transport,
         session_factory=session_factory,
     )
 
-    assert third.publication.attempted_sources == 0
-    assert third.publication.published_sources == 0
-    assert third.publication.failed_sources == 0
+    assert third.attempted_figures == 1
+    assert third.attempted_sources == 0
+    assert third.published_sources == 0
+    assert third.failed_sources == 0
     assert len(third_transport.parent_posts) == 0
     assert len(third_transport.threads) == 0
     assert len(third_transport.thread_messages) == 0

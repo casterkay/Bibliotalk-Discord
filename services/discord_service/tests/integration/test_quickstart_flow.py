@@ -7,7 +7,7 @@ import pytest
 from bt_common.evidence_store.engine import get_session_factory, init_database
 from bt_common.evidence_store.models import DiscordMap, Figure, Subscription
 from discord_service.config import load_runtime_config
-from discord_service.runtime import build_runtime_context
+from discord_service.talks.directory import FigureDirectory
 from sqlalchemy import select
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -64,9 +64,12 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
     assert subscriptions[0].poll_interval_minutes == 60
     assert discord_maps[0].channel_id == "channel-2"
 
-    config = load_runtime_config(db_path=str(db), figure_slug="alan-watts")
-    context = await build_runtime_context(config, session_factory=session_factory)
+    config = load_runtime_config(db_path=str(db))
+    assert config.discord_token is None
+    assert str(config.db_path) == str(db)
 
-    assert context.figure_found is True
-    assert context.figure_slug == "alan-watts"
-    assert context.channel_id == "channel-2"
+    directory = FigureDirectory(session_factory=session_factory)
+    await directory.refresh()
+    resolved = directory.resolve_token("alan-watts")
+    assert resolved is not None
+    assert resolved.display_name == "Alan Watts"

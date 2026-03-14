@@ -44,14 +44,19 @@
 │   │   └── src
 │   │       ├── bot
 │   │       │   ├── client.py
-│   │       │   ├── dm_handler.py
+│   │       │   ├── concierge.py
 │   │       │   └── message_models.py
 │   │       ├── config.py
 │   │       ├── feed
 │   │       │   ├── batcher.py
 │   │       │   ├── discord_transport.py
 │   │       │   └── publisher.py
-│   │       └── runtime.py
+│   │       ├── runtime.py
+│   │       └── talks
+│   │           ├── directory.py
+│   │           ├── router.py
+│   │           ├── service.py
+│   │           └── transport.py
 │   ├── ingestion_service
 │   │   ├── alembic
 │   │   │   ├── env.py
@@ -120,5 +125,5 @@
 │       └── tasks.md
 └── uv.lock
 
-39 directories, 82 files
+40 directories, 86 files
 

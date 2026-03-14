@@ -23,3 +23,11 @@ class CitationValidationError(Exception):
 
 class AgentNotFoundError(Exception):
     """Raised when a requested agent does not exist."""
+
+
+class VoiceSessionError(Exception):
+    """Raised when a voice-session operation is invalid.
+
+    Note: Voice is out of scope for the current MVP, but this exception is kept
+    for backwards compatibility with older test suites.
+    """

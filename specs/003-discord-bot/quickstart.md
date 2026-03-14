@@ -10,7 +10,7 @@
 - Python 3.11+
 - `uv` (workspace package manager)
 - `yt-dlp` installed and on `$PATH`
-- A Discord bot application and token (one per figure) — create at https://discord.com/developers/applications
+- A Discord bot application and token (single bot) — create at https://discord.com/developers/applications
 - An EverMemOS instance with API key
 - A Google API key with Gemini access
 
@@ -52,8 +52,15 @@ GOOGLE_API_KEY=your-google-api-key
 # SQLite database path (optional — defaults to ~/.bibliotalk/bibliotalk.db)
 BIBLIOTALK_DB_PATH=/path/to/bibliotalk.db
 
-# Discord token — one per figure slug (uppercased, hyphens → underscores)
-DISCORD_TOKEN_ALAN_WATTS=your-discord-token-for-alan-watts
+# Discord bot token (single-bot runtime)
+DISCORD_TOKEN=your-discord-bot-token
+
+# Optional: speed up slash-command iteration by syncing to one guild
+DISCORD_COMMAND_GUILD_ID=
+
+# Optional: enable AI facilitator/concierge (defaults to deterministic fallback)
+BIBLIOTALK_ENABLE_AI_ROUTER=
+BIBLIOTALK_ENABLE_AI_CONCIERGE=
 ```
 
 ---
@@ -78,7 +85,7 @@ uv run python services/discord_service/scripts/seed_figure.py \
 
 ```bash
 uv run --package ingestion_service python -m ingestion_service --figure alan-watts
-uv run --package discord_service python -m discord_service --figure alan-watts
+uv run --package discord_service python -m discord_service
 uv run --package memory_page_service python -m memory_page_service
 ```
 
@@ -86,9 +93,9 @@ Expected output:
 
 ```
 INFO  [ingestion_service] Starting collector for figure: alan-watts (Alan Watts)
-INFO  [discord_service] Starting figure bot: alan-watts (Alan Watts)
+INFO  [discord_service] Starting discord runtime db_path=... command_guild_id=...
 INFO  [discord_service] Connected to Discord as AlanWattsBot#1234
-INFO  [discord_service] Feed channel: #alan-watts-feed (guild: My Test Guild)
+INFO  [discord_service] Feed publication complete figure_slug=alan-watts attempted=... published=... failed=...
 INFO  [ingestion_service] Collector polling loop started (interval: 60 min)
 ```
 
@@ -121,13 +128,14 @@ uv run --package ingestion_service python -m ingestion_service --figure alan-wat
 
 ---
 
-## 8. Validate DM chat
+## 8. Validate talks (DM → private thread)
 
-1. DM the bot account on your test guild.
-2. Ask a question related to a successfully ingested video.
-3. Confirm the response contains an inline link in the form `[text](https://www.bibliotalk.space/memory/alan-watts_20260101T120000Z)`.
-4. Ask a question with no supporting evidence.
-5. Confirm the bot responds: *"I couldn't find relevant supporting evidence for that question."*
+1. In your test guild, create a Talk Hub channel named `#bibliotalk` and grant the bot permission to create private threads.
+2. DM the bot and run `/talk Alan Watts`.
+3. Open the created private thread and ask a question related to a successfully ingested video.
+4. Confirm the response contains an inline link in the form `[text](https://www.bibliotalk.space/memory/alan-watts_20260101T120000Z)`.
+5. Ask a question with no supporting evidence.
+6. Confirm the character responds: *"I couldn't find relevant supporting evidence for that question."*
 
 ---
 

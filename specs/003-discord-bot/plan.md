@@ -9,7 +9,7 @@ Build the complete YouTube → EverMemOS → Discord figure-bot pipeline from th
 
 1. **Collector** (`ingestion_service`, trimmed but standalone): asyncio polling loop per subscription source, yt-dlp discovery, transcript fetch, chunking, SQLAlchemy-persisted evidence, and EverMemOS memorization.
 2. **Agent runtime** (`agents_service`, trimmed): Gemini/ADK `LlmAgent` per figure, EverMemOS search, BM25 rerank, inline `memory_url` citation, and grounding validation.
-3. **Discord runtime** (`discord_service`, new): one `discord.py` `Client` per OS process, feed channel + thread posting, DM routing to agent, and idempotent post tracking.
+3. **Discord runtime** (`discord_service`, new): one `discord.py` `Client` per deployment, feed channel + thread posting, DM slash commands (`/talk`, `/talks`), private talk-thread creation under `#bibliotalk`, and thread-message routing to character agents.
 4. **Memory page service** (`memory_page_service`, new): lightweight HTTP/serverless handler that resolves one `{user_id}_{timestamp}` page into one public memory view plus a timestamped source-video link.
 
 Code deletion is a hard prerequisite before any new code is written.
@@ -19,11 +19,11 @@ Code deletion is a hard prerequisite before any new code is written.
 **Language/Version**: Python 3.11+
 **Primary Dependencies**: `discord.py>=2.4`, `google-adk>=1.25`, `google-genai>=1.0`, `youtube-transcript-api>=0.6`, `yt-dlp`, `SQLAlchemy>=2.0`, `aiosqlite>=0.20`, `alembic`, `bt_common` (EverMemOS client + shared evidence-store infra), `pydantic>=2.8`, `tenacity`
 **Storage**: SQLite via SQLAlchemy 2.x async ORM (`aiosqlite` driver) + Alembic migrations; single database shared across all runtime packages through `bt_common` infra modules
-**Testing**: `pytest`, `pytest-asyncio`; unit tests for chunking/ID stability/dedup/citation validation; contract tests for EverMemOS calls and page resolution; integration tests for ingest + feed publish + DM response journeys
+**Testing**: `pytest`, `pytest-asyncio`; unit tests for chunking/ID stability/dedup/citation validation; contract tests for EverMemOS calls and page resolution; integration tests for ingest + feed publish + talk-thread response journeys
 **Target Platform**: macOS/Linux single host (Docker Compose or systemd), with memory pages deployable as a separate worker/runtime
 **Project Type**: Four Python service packages + one shared library (`bt_common`)
 **Performance Goals**: Poll cycle completes within the configured interval (15–60 min); per-video ingest < 30 s for a typical transcript; Discord feed posting is sequential and rate-limit-safe
-**Constraints**: Process-per-bot isolation; no Matrix; no voice; no non-YouTube sources; secrets in env only; dedup by `video_id`; idempotent feed posting; bounded per-source ingest concurrency
+**Constraints**: Single-bot runtime; no Matrix; no voice; no non-YouTube sources; secrets in env only; dedup by `video_id`; idempotent feed posting; bounded per-source ingest concurrency
 **Scale/Scope**: 2–10 figures, each with 1–5 subscription sources; single-host MVP
 
 ## Constitution Check
@@ -35,7 +35,7 @@ Code deletion is a hard prerequisite before any new code is written.
 | I. Design-First Architecture     | Spec + plan exist before coding; data models and contracts defined as Phase 1 artifacts                                                                                                                               | PASS   |
 | II. Test-Driven Quality          | Unit tests for chunking, ID stability, dedup, BM25, citation validation, per-source concurrency; contract tests for EverMemOS, Discord message shapes, and memory pages; integration tests for all three user stories | PASS   |
 | III. Contract-Driven Integration | Evidence/citation contract, Discord message shapes, EverMemOS API usage, and memory-page request/response shapes explicitly defined in `contracts/` before integration work begins                                    | PASS   |
-| IV. Incremental Delivery         | Phase A (deletion) → Phase B (P1 ingest) → Phase C (P2 feed) → Phase D (P3 DM chat + pages); each phase independently deployable and testable                                                                         | PASS   |
+| IV. Incremental Delivery         | Phase A (deletion) → Phase B (P1 ingest) → Phase C (P2 feed) → Phase D (P3 talk threads + pages); each phase independently deployable and testable                                                                   | PASS   |
 | V. Observable Systems            | Structured logs with correlation IDs at all entry points (poll loop, ingest run, Discord handler, page handler); EMOS + yt-dlp call latency logged; citation validation decisions logged                              | PASS   |
 | VI. Principled Simplicity        | SQLAlchemy justified by operator directive + migration tooling requirement; four packages justified by distinct runtimes and deployment boundaries; shared DB infra isolated in `bt_common`                           | PASS   |
 
@@ -163,15 +163,15 @@ services/discord_service/
 ├── pyproject.toml
 ├── src/
 │   ├── __init__.py
-│   ├── __main__.py               # entry: python -m discord_service --figure <slug>
-│   ├── config.py                 # FigureConfig + DiscordConfig (pydantic-settings)
-│   ├── runtime.py                # startup: load figure → start bot
+│   ├── __main__.py               # entry: python -m discord_service
+│   ├── config.py                 # Discord runtime config (db path, token, command guild)
+│   ├── runtime.py                # startup: load directory → start bot → publish feeds
 │   ├── feed/
 │   │   ├── batcher.py            # transcript_batch grouping rules
 │   │   └── publisher.py          # Discord feed channel + thread posting
 │   └── bot/
 │       ├── client.py             # discord.Client subclass
-│       └── dm_handler.py         # DM routing → agent orchestrator
+│       └── concierge.py          # DM concierge for non-command messages
 └── tests/
     ├── unit/
     └── integration/
@@ -188,7 +188,7 @@ services/memory_page_service/
     └── integration/
 ```
 
-**Structure Decision**: `ingestion_service` owns the standalone collector runtime and write-path into the shared evidence store. `discord_service` owns only the Discord bot runtime, feed publication, and DM routing. `memory_page_service` owns public memory page resolution. Shared SQLAlchemy engine/models live in `bt_common/evidence_store` so no service imports another service's runtime internals.
+**Structure Decision**: `ingestion_service` owns the standalone collector runtime and write-path into the shared evidence store. `discord_service` owns only the Discord bot runtime, feed publication, DM slash commands (`/talk`, `/talks`), and private talk-thread routing. `memory_page_service` owns public memory page resolution. Shared SQLAlchemy engine/models live in `bt_common/evidence_store` so no service imports another service's runtime internals.
 
 ## Phased Delivery
 
@@ -197,7 +197,7 @@ services/memory_page_service/
 | A — Deletion   | Remove all out-of-scope code; existing tests still pass on retained modules                                                                                                            | Prerequisite |
 | B — P1 Ingest  | standalone `ingestion_service`; shared ORM schema + Alembic in `bt_common`; yt-dlp discovery; transcript ingest pipeline; EverMemOS memorization; dedup; per-source concurrency limits | US-1         |
 | C — P2 Feed    | Transcript batch grouping; Discord feed publisher; idempotent thread posting; `discord_posts` tracking                                                                                 | US-2         |
-| D — P3 DM Chat | Gemini/ADK figure agent; EverMemOS search; BM25 rerank; inline `memory_url` citations; citation validation; Discord DM handler; memory-page service                                    | US-3         |
+| D — P3 Talks   | Gemini/ADK figure agent; EverMemOS search; BM25 rerank; inline `memory_url` citations; citation validation; DM `/talk` + private threads; memory-page service                     | US-3         |
 | E — Operations | Env-based config; structured logging; retry/backoff; Docker Compose deployment                                                                                                         | All          |
 
 ## Complexity Tracking
