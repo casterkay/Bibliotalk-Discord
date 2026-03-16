@@ -1,0 +1,100 @@
+name: Deploy (Cloud Run) - Memory Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy-cloud-run-memory-pages.yml"
+      - "deploy/gcp/**"
+      - "packages/bt_common/**"
+      - "packages/bt_store/**"
+      - "services/memory_page_service/**"
+      - "uv.lock"
+      - "pyproject.toml"
+
+concurrency:
+  group: deploy-cloud-run-memory-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_ARTIFACT_REPO: ${{ vars.GCP_ARTIFACT_REPO }}
+      CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      CLOUD_RUN_ENV_VARS: ${{ vars.CLOUD_RUN_ENV_VARS }}
+      CLOUD_RUN_SECRETS: ${{ vars.CLOUD_RUN_SECRETS }}
+    steps:
+      - name: Validate required variables
+        run: |
+          set -euo pipefail
+          : "${GCP_PROJECT_ID:?Missing vars.GCP_PROJECT_ID}"
+          : "${GCP_REGION:?Missing vars.GCP_REGION}"
+          : "${GCP_ARTIFACT_REPO:?Missing vars.GCP_ARTIFACT_REPO}"
+          : "${CLOUD_RUN_SERVICE:?Missing vars.CLOUD_RUN_SERVICE}"
+          : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?Missing vars.GCP_WORKLOAD_IDENTITY_PROVIDER}"
+          : "${GCP_SERVICE_ACCOUNT:?Missing vars.GCP_SERVICE_ACCOUNT}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Auth to GCP (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        id: image
+        run: |
+          set -euo pipefail
+          IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REPO}/${CLOUD_RUN_SERVICE}:${GITHUB_SHA}"
+          docker build \
+            --file deploy/gcp/cloudrun/memory-pages/Dockerfile \
+            --tag "${IMAGE}" \
+            .
+          docker push "${IMAGE}"
+          echo "image=${IMAGE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Deploy to Cloud Run
+        run: |
+          set -euo pipefail
+
+          extra_env_args=()
+          if [[ -n "${CLOUD_RUN_ENV_VARS:-}" ]]; then
+            extra_env_args+=(--set-env-vars "${CLOUD_RUN_ENV_VARS}")
+          fi
+
+          secret_args=()
+          if [[ -n "${CLOUD_RUN_SECRETS:-}" ]]; then
+            secret_args+=(--update-secrets "${CLOUD_RUN_SECRETS}")
+          fi
+
+          gcloud run deploy "${CLOUD_RUN_SERVICE}" \
+            --project "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --platform managed \
+            --image "${{ steps.image.outputs.image }}" \
+            --allow-unauthenticated \
+            --port 8080 \
+            --set-env-vars "MEMORY_PAGE_HOST=0.0.0.0,MEMORY_PAGE_PORT=8080" \
+            "${extra_env_args[@]}" \
+            "${secret_args[@]}"

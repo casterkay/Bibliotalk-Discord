@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync workspace deps
+        run: UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras
+
+      - name: bt_common tests
+        run: uv --directory packages/bt_common run --package bt_common -m pytest
+
+      - name: agents_service tests
+        run: uv --directory services/agents_service run --package agents_service -m pytest
+
+      - name: ingestion_service tests
+        run: uv --directory services/ingestion_service run --package ingestion_service -m pytest
+
+      - name: discord_service tests
+        run: uv --directory services/discord_service run --package discord_service -m pytest
+
+      - name: memory_page_service tests
+        run: uv --directory services/memory_page_service run --package memory_page_service -m pytest

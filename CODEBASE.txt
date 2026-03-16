@@ -3,6 +3,11 @@
 ├── CLAUDE.md -> AGENTS.md
 ├── CODEBASE.txt
 ├── deploy
+│   ├── gcp
+│   │   ├── cloudrun
+│   │   │   └── memory-pages
+│   │   │       └── Dockerfile
+│   │   └── README.md
 │   └── local
 │       ├── docker-compose.yml
 │       ├── matrix
@@ -149,6 +154,7 @@
 │   │   ├── pyproject.toml
 │   │   └── src
 │   │       ├── app.py
+│   │       ├── asgi.py
 │   │       ├── config.py
 │   │       ├── entrypoint.py
 │   │       └── resolver.py
@@ -209,5 +215,5 @@
 │       └── tasks.md
 └── uv.lock
 
-65 directories, 145 files
+68 directories, 148 files
 
