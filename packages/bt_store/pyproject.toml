@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bt_store"
+version = "0.1.0"
+description = "Bibliotalk shared relational schema + migrations"
+requires-python = ">=3.11"
+dependencies = [
+  "aiosqlite>=0.20.0",
+  "alembic>=1.14.0",
+  "bt_common>=0.1.0",
+  "SQLAlchemy>=2.0.36",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.23.8",
+  "ruff>=0.6.9",
+]
+
+[tool.setuptools]
+packages = ["bt_store"]
+
+[tool.setuptools.package-dir]
+"bt_store" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
+
+[tool.uv.sources]
+bt-common = { workspace = true }

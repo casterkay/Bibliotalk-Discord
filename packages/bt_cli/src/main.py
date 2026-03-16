@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import subprocess
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -274,6 +277,33 @@ def feed_publish(
         str(summary.failed_sources),
     )
     console.print(table)
+
+
+matrix_app = typer.Typer(no_args_is_help=True, help="Matrix adapter runtime (matrix_service).")
+app.add_typer(matrix_app, name="matrix")
+
+
+@matrix_app.command("run")
+def matrix_run(
+    port: int = typer.Option(9009, "--port", help="matrix_service bind port."),
+    host: str = typer.Option("0.0.0.0", "--host", help="matrix_service bind host."),
+    install: bool = typer.Option(False, "--install", help="Run `npm install` before starting."),
+) -> None:
+    """Run the Matrix adapter (Node/TS appservice)."""
+    repo_root = Path(__file__).resolve().parents[3]
+    service_dir = repo_root / "services" / "matrix_service"
+    if not service_dir.is_dir():
+        raise typer.Exit(code=2)
+
+    env = os.environ.copy()
+    env.setdefault("MATRIX_SERVICE_HOST", host)
+    env.setdefault("MATRIX_SERVICE_PORT", str(port))
+
+    if install:
+        subprocess.run(["npm", "install"], cwd=service_dir, env=env, check=True)
+
+    result = subprocess.run(["npm", "run", "dev"], cwd=service_dir, env=env)
+    raise typer.Exit(code=int(result.returncode))
 
 
 @feed_app.command("status")

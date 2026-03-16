@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voip_service"
+version = "0.1.0"
+description = "Bibliotalk voice sidecar service (Node runtime; metadata-only Python package)"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools]
+packages = []
