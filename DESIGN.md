@@ -26,8 +26,7 @@ For daily development, use this sequence:
 Continuously collect YouTube transcripts for specific individuals, build figure-specific memory in EverMemOS, and expose each figure through Discord as:
 
 - Private talk threads created on-demand from a DM to the bot.
-- A dedicated feed channel that shows ingested videos.
-- A per-video thread containing batched original transcript excerpts.
+- A dedicated feed channel that shows ingested transcript threads, containing batched excerpts.
 
 Core principle: 言必有據.
 
@@ -40,7 +39,7 @@ Every non-trivial factual claim must be grounded in verbatim evidence that can b
 - One Discord bot that can play multiple figures.
 - Users DM the bot to create private talk threads in `#bibliotalk`.
 - One Discord text channel per figure for ingest feed posting.
-- One thread per ingested YouTube video.
+- One thread per ingested transcript.
 - Feed posts batched into Discord messages using local transcript grouping rules rather than raw chunk.
 - Grounded talk-thread chat with inline memory links.
 - Idempotent ingest and Discord posting.

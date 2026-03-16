@@ -2,7 +2,9 @@
 
 This package now keeps only the ingestion primitives that still matter to the Discord MVP:
 
-- YouTube transcript loading via `youtube-transcript-api`
+- YouTube transcript loading via a swappable provider service:
+  - `yt-dlp` captions (subtitles + auto-captions when available)
+  - `youtube-transcript-api` (optional extra; fallback)
 - YouTube metadata discovery via `yt-dlp`
 - RSS feed parsing via `feedparser`
 - deterministic chunking
@@ -28,4 +30,9 @@ Removed from this package:
 ## Notes
 
 - `yt-dlp` must be available on `PATH` for YouTube metadata and playlist discovery.
+- Runtime config (env vars):
+  - `BIBLIOTALK_YOUTUBE_TRANSCRIPT_PROVIDERS` (default: `yt_dlp,youtube_transcript_api`)
+  - `BIBLIOTALK_YOUTUBE_TRANSCRIPT_LANGS` (comma-separated, optional; ex: `en,en-US`)
+  - `BIBLIOTALK_YOUTUBE_ALLOW_AUTO_CAPTIONS` (default: `true`)
+  - `BIBLIOTALK_YT_DLP_COOKIEFILE` (optional; improves access on restricted videos)
 - The target replacement runtime is documented in `specs/003-discord-bot/plan.md`.

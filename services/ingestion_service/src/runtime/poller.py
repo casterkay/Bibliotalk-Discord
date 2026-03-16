@@ -11,12 +11,20 @@ from bt_common.evidence_store.models import Figure, IngestState, Source, Subscri
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from ..adapters.youtube_transcript import load_youtube_transcript_source
+from ..adapters.youtube_transcript import YouTubeTranscriptService, load_youtube_transcript_source
 from ..domain.errors import IngestError
 from ..pipeline.discovery import DiscoveredVideo, discover_subscription
 from ..pipeline.index import IngestionIndex
 from ..pipeline.ingest import ingest_source, manual_reingest_source
 from .config import RuntimeConfig
+
+
+def _ensure_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
 
 
 class SubscriptionConcurrencyGate:
@@ -65,7 +73,19 @@ class CollectorPoller:
         self.logger = logger
         self.client = client
         self.discovery_fn = discovery_fn or discover_subscription
-        self.transcript_loader = transcript_loader or load_youtube_transcript_source
+        if transcript_loader is not None:
+            self._transcript_service = None
+            self.transcript_loader = transcript_loader
+        else:
+            self._transcript_service = YouTubeTranscriptService.build_default(
+                provider_order=self.config.youtube_transcript_providers,
+                preferred_languages=self.config.youtube_transcript_langs,
+                allow_auto_captions=self.config.youtube_allow_auto_captions,
+                yt_dlp_cookiefile=self.config.yt_dlp_cookiefile,
+            )
+            self.transcript_loader = lambda **kwargs: load_youtube_transcript_source(
+                **kwargs, transcript_service=self._transcript_service
+            )
         self._stopped = asyncio.Event()
         self._subscription_gate = SubscriptionConcurrencyGate(
             global_limit=self.config.global_concurrency
@@ -103,7 +123,11 @@ class CollectorPoller:
         for result in results:
             if isinstance(result, Exception):
                 failed_subscriptions += 1
-                self.logger.exception("collector subscription task failed: %s", result)
+                self.logger.error(
+                    "collector subscription task failed: %s",
+                    result,
+                    exc_info=(type(result), result, result.__traceback__),
+                )
                 continue
             discovered_videos += result[0]
             ingested_videos += result[1]
@@ -139,6 +163,8 @@ class CollectorPoller:
         ingested_count = 0
 
         try:
+            manual_sources = await self._load_manual_reingest_sources(figure.figure_id)
+
             async with self.session_factory() as session:
                 ingest_state = await session.get(IngestState, subscription.subscription_id)
                 if ingest_state is None:
@@ -147,22 +173,11 @@ class CollectorPoller:
                     await session.commit()
                     await session.refresh(ingest_state)
 
-                if ingest_state.next_retry_at and ingest_state.next_retry_at > now:
-                    return (0, 0, 0)
+                next_retry_at = _ensure_utc(ingest_state.next_retry_at)
+                last_published_at = _ensure_utc(ingest_state.last_published_at)
 
-                discovered = await self.discovery_fn(
-                    subscription.subscription_url,
-                    last_seen_video_id=ingest_state.last_seen_video_id,
-                    last_published_at=ingest_state.last_published_at,
-                    bootstrap=(
-                        ingest_state.last_polled_at is None
-                        and ingest_state.last_seen_video_id is None
-                        and ingest_state.last_published_at is None
-                    ),
-                )
-                discovered_count = len(discovered)
-
-                for source_row in await self._load_manual_reingest_sources(figure.figure_id):
+                # Manual re-ingests are operator-driven and should not be blocked by discovery backoff.
+                for source_row in manual_sources:
                     source_content = await self.transcript_loader(
                         user_id=figure.emos_user_id,
                         external_id=source_row.external_id,
@@ -181,6 +196,23 @@ class CollectorPoller:
                             code="INGEST_FAILED",
                         )
                     ingested_count += 1
+
+                if next_retry_at and next_retry_at > now:
+                    ingest_state.last_polled_at = now
+                    await session.commit()
+                    return (0, ingested_count, 0)
+
+                discovered = await self.discovery_fn(
+                    subscription.subscription_url,
+                    last_seen_video_id=ingest_state.last_seen_video_id,
+                    last_published_at=last_published_at,
+                    bootstrap=(
+                        ingest_state.last_polled_at is None
+                        and ingest_state.last_seen_video_id is None
+                        and ingest_state.last_published_at is None
+                    ),
+                )
+                discovered_count = len(discovered)
 
                 for item in discovered:
                     source_content = await self.transcript_loader(
@@ -206,7 +238,7 @@ class CollectorPoller:
                 ingest_state.last_polled_at = now
                 if latest is not None:
                     ingest_state.last_seen_video_id = latest.video_id
-                    ingest_state.last_published_at = latest.published_at
+                    ingest_state.last_published_at = _ensure_utc(latest.published_at)
                 ingest_state.failure_count = 0
                 ingest_state.next_retry_at = None
                 await session.commit()

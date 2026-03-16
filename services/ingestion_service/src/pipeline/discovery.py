@@ -23,6 +23,14 @@ class DiscoveredVideo:
     raw_meta: dict[str, Any]
 
 
+def _ensure_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 def _parse_published_at(value: Any) -> datetime | None:
     if isinstance(value, (int, float)):
         try:
@@ -42,6 +50,10 @@ def _parse_yt_dlp_entries(payload: dict[str, Any]) -> list[DiscoveredVideo]:
     videos: list[DiscoveredVideo] = []
     for item in entries:
         if not isinstance(item, dict):
+            continue
+        # yt-dlp sometimes returns nested "playlist" entries (e.g. channel handle -> /videos + /shorts tabs).
+        # Those are not ingestible videos; treat them as expansion candidates instead.
+        if str(item.get("_type") or "").lower() == "playlist":
             continue
         video_id = item.get("id")
         if not isinstance(video_id, str) or not video_id:
@@ -97,6 +109,7 @@ def compute_discovery_delta(
     last_seen_video_id: str | None,
     last_published_at: datetime | None,
 ) -> list[DiscoveredVideo]:
+    last_published_at = _ensure_utc(last_published_at)
     ordered = _sort_discovered_videos(entries)
     pending: list[DiscoveredVideo] = []
     for entry in ordered:
@@ -105,7 +118,7 @@ def compute_discovery_delta(
         if (
             last_published_at
             and entry.published_at is not None
-            and entry.published_at <= last_published_at
+            and _ensure_utc(entry.published_at) <= last_published_at
         ):
             break
         pending.append(entry)
@@ -177,6 +190,38 @@ async def discover_subscription(
             entries = _parse_yt_dlp_entries(payload)
     except (AdapterError, FileNotFoundError):
         entries = _from_feed_entries(await rss_loader(subscription_url))
+
+    # yt-dlp can return channel "tabs" (videos/shorts) as playlist entries when invoked on
+    # a channel handle root. If that happens, expand those tabs into actual video entries.
+    if not entries and isinstance(locals().get("payload"), dict):
+        payload_dict: dict[str, Any] = locals()["payload"]
+        tab_urls: list[str] = []
+        for item in payload_dict.get("entries") or []:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("_type") or "").lower() != "playlist":
+                continue
+            tab_url = item.get("webpage_url") or item.get("url")
+            if isinstance(tab_url, str) and tab_url.startswith("http"):
+                tab_urls.append(tab_url)
+        tab_urls = list(dict.fromkeys(tab_urls))
+        if tab_urls:
+            expanded: list[DiscoveredVideo] = []
+            for tab_url in tab_urls:
+                try:
+                    tab_payload = await yt_dlp_loader(tab_url)
+                except (AdapterError, FileNotFoundError):
+                    continue
+                expanded.extend(_parse_yt_dlp_entries(tab_payload))
+            # Deduplicate by video_id while preserving ordering.
+            seen: set[str] = set()
+            deduped: list[DiscoveredVideo] = []
+            for item in _sort_discovered_videos(expanded):
+                if item.video_id in seen:
+                    continue
+                seen.add(item.video_id)
+                deduped.append(item)
+            entries = deduped
 
     return compute_discovery_delta(
         entries,

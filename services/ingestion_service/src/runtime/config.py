@@ -11,7 +11,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from ..domain.errors import ConfigError
 
 # Ensure the shared repo-root `.env` is loaded for ingestion_service.
-load_repo_dotenv()
+# Use `override=True` so local runs are deterministic even if the parent shell
+# already has stale env vars exported.
+load_repo_dotenv(override=True)
 
 
 class IngestSettings(BaseSettings):
@@ -28,6 +30,19 @@ class IngestSettings(BaseSettings):
     emos_timeout_s: float = Field(default=15.0, validation_alias="EMOS_TIMEOUT_S")
     emos_retries: int = Field(default=3, validation_alias="EMOS_RETRIES")
     ingest_index_path: str | None = Field(default=None, validation_alias="INGEST_INDEX_PATH")
+    youtube_transcript_providers: str = Field(
+        default="yt_dlp,youtube_transcript_api",
+        validation_alias="BIBLIOTALK_YOUTUBE_TRANSCRIPT_PROVIDERS",
+    )
+    youtube_transcript_langs: str | None = Field(
+        default=None, validation_alias="BIBLIOTALK_YOUTUBE_TRANSCRIPT_LANGS"
+    )
+    youtube_allow_auto_captions: bool = Field(
+        default=True, validation_alias="BIBLIOTALK_YOUTUBE_ALLOW_AUTO_CAPTIONS"
+    )
+    yt_dlp_cookiefile: str | None = Field(
+        default=None, validation_alias="BIBLIOTALK_YT_DLP_COOKIEFILE"
+    )
 
     model_config = SettingsConfigDict(extra="ignore")
 
@@ -45,6 +60,10 @@ class RuntimeConfig:
     emos_timeout_s: float
     emos_retries: int
     index_path: Path
+    youtube_transcript_providers: tuple[str, ...]
+    youtube_transcript_langs: tuple[str, ...] | None
+    youtube_allow_auto_captions: bool
+    yt_dlp_cookiefile: str | None
 
 
 def default_index_path() -> Path:
@@ -90,4 +109,22 @@ def load_runtime_config(
         emos_timeout_s=float(settings.emos_timeout_s),
         emos_retries=int(settings.emos_retries),
         index_path=resolved_index,
+        youtube_transcript_providers=tuple(
+            [
+                item.strip()
+                for item in (settings.youtube_transcript_providers or "").split(",")
+                if item.strip()
+            ]
+        )
+        or ("yt_dlp", "youtube_transcript_api"),
+        youtube_transcript_langs=tuple(
+            [
+                item.strip()
+                for item in (settings.youtube_transcript_langs or "").split(",")
+                if item.strip()
+            ]
+        )
+        or None,
+        youtube_allow_auto_captions=bool(settings.youtube_allow_auto_captions),
+        yt_dlp_cookiefile=(settings.yt_dlp_cookiefile or "").strip() or None,
     )

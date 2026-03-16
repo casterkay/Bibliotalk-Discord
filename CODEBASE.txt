@@ -7,7 +7,12 @@
 │       ├── docker-compose.yml
 │       └── ghosts.yaml
 ├── DESIGN.md
+├── OPERATIONS.md
 ├── packages
+│   ├── bt_cli
+│   │   ├── pyproject.toml
+│   │   └── src
+│   │       └── main.py
 │   └── bt_common
 │       ├── pyproject.toml
 │       └── src
@@ -32,7 +37,6 @@
 │   │       │   ├── orchestrator.py
 │   │       │   ├── providers
 │   │       │   └── tools
-│   │       ├── database
 │   │       ├── models
 │   │       │   ├── citation.py
 │   │       │   └── segment.py
@@ -47,10 +51,15 @@
 │   │       │   ├── concierge.py
 │   │       │   └── message_models.py
 │   │       ├── config.py
+│   │       ├── entrypoint.py
 │   │       ├── feed
 │   │       │   ├── batcher.py
 │   │       │   ├── discord_transport.py
 │   │       │   └── publisher.py
+│   │       ├── ops
+│   │       │   ├── feed.py
+│   │       │   ├── figure.py
+│   │       │   └── talks.py
 │   │       ├── runtime.py
 │   │       └── talks
 │   │           ├── directory.py
@@ -78,6 +87,8 @@
 │   │       │   ├── errors.py
 │   │       │   ├── ids.py
 │   │       │   └── models.py
+│   │       ├── entrypoint.py
+│   │       ├── ops.py
 │   │       ├── pipeline
 │   │       │   ├── chunking.py
 │   │       │   ├── discovery.py
@@ -92,6 +103,7 @@
 │       └── src
 │           ├── app.py
 │           ├── config.py
+│           ├── entrypoint.py
 │           └── resolver.py
 ├── specs
 │   ├── 002-evermemos-content-ingest
@@ -125,5 +137,5 @@
 │       └── tasks.md
 └── uv.lock
 
-40 directories, 86 files
+42 directories, 96 files
 

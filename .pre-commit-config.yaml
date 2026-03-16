@@ -23,7 +23,7 @@ repos:
         args: [
           --fix,
           --exit-non-zero-on-fix,
-          '--extend-ignore=RUF012,B008,B007,UP038,RUF001',
+          '--extend-ignore=RUF012,B008,B007,UP038,RUF001,E741',
         ]
       - id: ruff-format
 

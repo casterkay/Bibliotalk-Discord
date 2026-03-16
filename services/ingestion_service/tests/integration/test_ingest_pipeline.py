@@ -406,3 +406,112 @@ async def test_collector_does_not_advance_cursor_when_ingest_fails(tmp_path) -> 
     assert ingest_state.last_seen_video_id is None
     assert ingest_state.failure_count == 1
     assert ingest_state.next_retry_at is not None
+
+
+@pytest.mark.anyio
+async def test_collector_continues_processing_manual_sources_when_one_fails(tmp_path) -> None:
+    db = tmp_path / "bibliotalk.db"
+    await init_database(db)
+    session_factory = get_session_factory(db)
+    client = StubEverMemOS()
+
+    async with session_factory() as session:
+        figure = Figure(
+            figure_id=uuid.uuid4(),
+            display_name="Alan Watts",
+            emos_user_id="alan-watts",
+        )
+        session.add(figure)
+        await session.flush()
+        session.add(
+            Subscription(
+                figure_id=figure.figure_id,
+                subscription_type="channel",
+                subscription_url="https://www.youtube.com/@AlanWattsOrg",
+            )
+        )
+        now = datetime.now(tz=UTC)
+        session.add(
+            StoredSource(
+                figure_id=figure.figure_id,
+                platform="youtube",
+                external_id="bad",
+                group_id="alan-watts:youtube:bad",
+                title="Bad video",
+                source_url="https://www.youtube.com/watch?v=bad",
+                transcript_status="pending",
+                manual_ingestion_requested_at=now,
+            )
+        )
+        session.add(
+            StoredSource(
+                figure_id=figure.figure_id,
+                platform="youtube",
+                external_id="good",
+                group_id="alan-watts:youtube:good",
+                title="Good video",
+                source_url="https://www.youtube.com/watch?v=good",
+                transcript_status="pending",
+                manual_ingestion_requested_at=now,
+            )
+        )
+        await session.commit()
+
+    async def fake_discovery(*args, **kwargs) -> list[DiscoveredVideo]:
+        del args, kwargs
+        return []
+
+    async def fake_loader(**kwargs) -> SourceContent:
+        video_id = str(kwargs["video_id"])
+        if video_id == "bad":
+            return SourceContent(
+                source=Source(
+                    user_id="alan-watts",
+                    external_id="bad",
+                    title="Bad video",
+                    source_url="https://www.youtube.com/watch?v=bad",
+                ),
+                content=TranscriptContent(lines=[]),
+            )
+        return SourceContent(
+            source=Source(
+                user_id="alan-watts",
+                external_id="good",
+                title="Good video",
+                source_url="https://www.youtube.com/watch?v=good",
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
+            ),
+            content=TranscriptContent(lines=[TranscriptLine(text="One.", start_ms=0, end_ms=900)]),
+        )
+
+    config = load_runtime_config(
+        db_path=str(db),
+        figure_slug="alan-watts",
+        emos_base_url="https://emos.local",
+        index_path=str(tmp_path / "index.sqlite3"),
+    )
+    poller = CollectorPoller(
+        config=config,
+        session_factory=session_factory,
+        logger=configure_logging(),
+        client=client,
+        discovery_fn=fake_discovery,
+        transcript_loader=fake_loader,
+    )
+
+    snapshot = await poller.run_once()
+
+    assert snapshot.failed_subscriptions == 0
+    assert snapshot.ingested_videos == 1
+    assert len(client.memorize_calls) == 1
+    assert len(client.meta_calls) == 1
+
+    async with session_factory() as session:
+        sources = (
+            (await session.execute(select(StoredSource).order_by(StoredSource.external_id)))
+            .scalars()
+            .all()
+        )
+    assert [s.external_id for s in sources] == ["bad", "good"]
+    assert all(s.manual_ingestion_requested_at is None for s in sources)
+    assert [s.transcript_status for s in sources] == ["no_transcript", "ingested"]
