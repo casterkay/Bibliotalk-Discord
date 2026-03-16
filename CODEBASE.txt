@@ -29,9 +29,6 @@
 │   │   └── src
 │   │       ├── config.py
 │   │       ├── evermemos_client.py
-│   │       ├── evidence_store
-│   │       │   ├── engine.py
-│   │       │   └── models.py
 │   │       ├── exceptions.py
 │   │       └── logging.py
 │   └── bt_store
@@ -54,6 +51,7 @@
 ├── README.md
 ├── ROSTER.md
 ├── scripts
+│   ├── backfill_bt_store_v2.py
 │   ├── matrix-dev.sh
 │   ├── outline-codebase.sh
 │   └── replace-terms.py
@@ -208,5 +206,5 @@
 │       └── tasks.md
 └── uv.lock
 
-63 directories, 146 files
+62 directories, 145 files
 

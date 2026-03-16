@@ -6,8 +6,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, Segment, Source
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Segment, Source
+from bt_store.models_ingestion import SourceIngestionState
 from fastapi.testclient import TestClient
 from memory_page_service.app import create_app
 from memory_page_service.config import load_runtime_config
@@ -54,20 +56,18 @@ async def test_quickstart_memory_page_and_manual_trigger(tmp_path) -> None:
     timestamp = datetime(2026, 3, 8, 12, 0, 0, tzinfo=UTC)
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent = Agent(
+            agent_id=uuid.uuid4(), display_name="Alan Watts", slug="alan-watts"
         )
-        session.add(figure)
+        session.add(agent)
         await session.flush()
         source = Source(
-            figure_id=figure.figure_id,
+            agent_id=agent.agent_id,
+            content_platform="youtube",
             external_id="abc123",
-            group_id="alan-watts:youtube:abc123",
+            emos_group_id="alan-watts:youtube:abc123",
             title="Alan Watts Lecture",
-            source_url="https://www.youtube.com/watch?v=abc123",
-            transcript_status="ingested",
+            external_url="https://www.youtube.com/watch?v=abc123",
             published_at=datetime(2026, 3, 8, 11, 59, 0, tzinfo=UTC),
         )
         session.add(source)
@@ -75,12 +75,14 @@ async def test_quickstart_memory_page_and_manual_trigger(tmp_path) -> None:
         session.add(
             Segment(
                 source_id=source.source_id,
+                agent_id=agent.agent_id,
                 seq=0,
                 text="Learning without thought is labor lost.",
                 sha256="a" * 64,
                 start_ms=60_000,
                 end_ms=62_000,
                 create_time=timestamp,
+                emos_message_id="alan-watts:youtube:abc123:seg:0",
             )
         )
         await session.commit()
@@ -100,7 +102,7 @@ async def test_quickstart_memory_page_and_manual_trigger(tmp_path) -> None:
                 await session.execute(
                     select(Source).where(
                         Source.external_id == "abc123",
-                        Source.platform == "youtube",
+                        Source.content_platform == "youtube",
                     )
                 )
             )
@@ -109,7 +111,10 @@ async def test_quickstart_memory_page_and_manual_trigger(tmp_path) -> None:
         )
 
     assert source is not None
-    assert source.manual_ingestion_requested_at is not None
+    async with session_factory() as session:
+        state = await session.get(SourceIngestionState, source.source_id)
+    assert state is not None
+    assert state.manual_requested_at is not None
 
     config = load_runtime_config(db_path=str(db))
     client = TestClient(create_app(config, evermemos_client=FakeEverMemOS()))

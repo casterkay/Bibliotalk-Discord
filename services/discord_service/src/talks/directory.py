@@ -4,7 +4,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 
-from bt_common.evidence_store.models import Figure
+from bt_store.models_core import Agent
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -37,9 +37,9 @@ class FigureDirectory:
             figures = (
                 (
                     await session.execute(
-                        select(Figure)
-                        .where(Figure.status == "active")
-                        .order_by(Figure.emos_user_id)
+                        select(Agent)
+                        .where(Agent.is_active.is_(True))
+                        .order_by(Agent.slug)
                     )
                 )
                 .scalars()
@@ -51,8 +51,8 @@ class FigureDirectory:
         by_display_lower: dict[str, list[FigureInfo]] = {}
         for figure in figures:
             info = FigureInfo(
-                figure_id=figure.figure_id,
-                figure_slug=figure.emos_user_id,
+                figure_id=figure.agent_id,
+                figure_slug=figure.slug,
                 display_name=figure.display_name,
                 persona_summary=figure.persona_summary,
             )

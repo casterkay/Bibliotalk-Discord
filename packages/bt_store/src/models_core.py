@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .models_base import Base
@@ -48,6 +48,11 @@ class Room(Base):
     platform: Mapped[str] = mapped_column(String(32), index=True)
     room_id: Mapped[str] = mapped_column(String(255))
     kind: Mapped[str] = mapped_column(String(16), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)
+    last_activity_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, index=True
+    )
+    meta_json: Mapped[dict | None] = mapped_column(JSON, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 
@@ -62,4 +67,5 @@ class RoomMember(Base):
     agent_id: Mapped[UUID | None] = mapped_column(ForeignKey("agents.agent_id"), index=True)
     member_kind: Mapped[str] = mapped_column(String(16), default="human", index=True)
     role: Mapped[str | None] = mapped_column(String(32), default=None)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

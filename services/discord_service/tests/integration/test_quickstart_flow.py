@@ -4,8 +4,10 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import DiscordMap, Figure, Subscription
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_ingestion import Subscription
+from bt_store.models_runtime import PlatformRoute
 from discord_service.config import load_runtime_config
 from discord_service.talks.directory import FigureDirectory
 from sqlalchemy import select
@@ -54,15 +56,26 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
 
     session_factory = get_session_factory(db)
     async with session_factory() as session:
-        figures = (await session.execute(select(Figure))).scalars().all()
+        figures = (await session.execute(select(Agent))).scalars().all()
         subscriptions = (await session.execute(select(Subscription))).scalars().all()
-        discord_maps = (await session.execute(select(DiscordMap))).scalars().all()
+        routes = (
+            (
+                await session.execute(
+                    select(PlatformRoute).where(
+                        PlatformRoute.platform == "discord",
+                        PlatformRoute.purpose == "feed",
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     assert len(figures) == 1
     assert len(subscriptions) == 1
-    assert len(discord_maps) == 1
+    assert len(routes) == 1
     assert subscriptions[0].poll_interval_minutes == 60
-    assert discord_maps[0].channel_id == "channel-2"
+    assert routes[0].container_id == "channel-2"
 
     config = load_runtime_config(db_path=str(db))
     assert str(config.db_path) == str(db)

@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from importlib import import_module
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, TalkParticipant, TalkThread
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent, Room, RoomMember
 
 
 class FakeAgent:
@@ -101,28 +101,51 @@ async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
 
     async with session_factory() as session:
         session.add(
-            Figure(
-                figure_id=figure_id,
+            Agent(
+                agent_id=figure_id,
+                kind="figure",
+                slug="alan-watts",
                 display_name="Alan Watts",
-                emos_user_id="alan-watts",
-                status="active",
+                persona_summary=None,
+                is_active=True,
             )
         )
         talk_id = uuid.uuid4()
         session.add(
-            TalkThread(
-                talk_id=talk_id,
-                owner_discord_user_id="user-1",
-                guild_id="guild-1",
-                hub_channel_id="hub-1",
-                thread_id="thread-1",
+            Room(
+                room_pk=talk_id,
+                platform="discord",
+                room_id="thread-1",
+                kind="dialogue",
                 status="open",
-                created_at=datetime.now(tz=UTC),
+                meta_json={"guild_id": "guild-1", "hub_channel_id": "hub-1"},
                 last_activity_at=datetime.now(tz=UTC),
+                created_at=datetime.now(tz=UTC),
             )
         )
         session.add(
-            TalkParticipant(talk_id=talk_id, figure_id=figure_id, display_order=0)
+            RoomMember(
+                room_pk=talk_id,
+                platform="discord",
+                platform_user_id="user-1",
+                agent_id=None,
+                member_kind="human",
+                role="owner",
+                display_order=0,
+                created_at=datetime.now(tz=UTC),
+            )
+        )
+        session.add(
+            RoomMember(
+                room_pk=talk_id,
+                platform="discord",
+                platform_user_id="agent:alan-watts",
+                agent_id=figure_id,
+                member_kind="agent",
+                role="participant",
+                display_order=0,
+                created_at=datetime.now(tz=UTC),
+            )
         )
         await session.commit()
 
@@ -189,28 +212,51 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
 
     async with session_factory() as session:
         session.add(
-            Figure(
-                figure_id=figure_id,
+            Agent(
+                agent_id=figure_id,
+                kind="figure",
+                slug="alan-watts",
                 display_name="Alan Watts",
-                emos_user_id="alan-watts",
-                status="active",
+                persona_summary=None,
+                is_active=True,
             )
         )
         talk_id = uuid.uuid4()
         session.add(
-            TalkThread(
-                talk_id=talk_id,
-                owner_discord_user_id="user-1",
-                guild_id="guild-1",
-                hub_channel_id="hub-1",
-                thread_id="thread-1",
+            Room(
+                room_pk=talk_id,
+                platform="discord",
+                room_id="thread-1",
+                kind="dialogue",
                 status="open",
-                created_at=datetime.now(tz=UTC),
+                meta_json={"guild_id": "guild-1", "hub_channel_id": "hub-1"},
                 last_activity_at=datetime.now(tz=UTC),
+                created_at=datetime.now(tz=UTC),
             )
         )
         session.add(
-            TalkParticipant(talk_id=talk_id, figure_id=figure_id, display_order=0)
+            RoomMember(
+                room_pk=talk_id,
+                platform="discord",
+                platform_user_id="user-1",
+                agent_id=None,
+                member_kind="human",
+                role="owner",
+                display_order=0,
+                created_at=datetime.now(tz=UTC),
+            )
+        )
+        session.add(
+            RoomMember(
+                room_pk=talk_id,
+                platform="discord",
+                platform_user_id="agent:alan-watts",
+                agent_id=figure_id,
+                member_kind="agent",
+                role="participant",
+                display_order=0,
+                created_at=datetime.now(tz=UTC),
+            )
         )
         await session.commit()
 

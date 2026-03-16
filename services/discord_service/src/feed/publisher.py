@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Awaitable, Callable, Protocol
 
-from bt_common.evidence_store.models import DiscordPost, Source, TranscriptBatch
+from bt_store.models_evidence import Source
+from bt_store.models_ingestion import SourceIngestionState, SourceTextBatch
+from bt_store.models_runtime import PlatformPost
 from discord_service.bot.message_models import FeedBatchMessage, FeedParentMessage
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -69,7 +72,7 @@ def _utc_now() -> datetime:
 
 def _build_parent_text(source: Source) -> str:
     title = source.title.strip()
-    url = source.source_url.strip()
+    url = (source.external_url or "").strip()
     content = f"{title}\n{url}"
     if len(content) <= 2000:
         return content
@@ -94,12 +97,14 @@ def _format_seq_label(start_ms: int | None) -> str:
 
 async def _get_parent_post(
     session: AsyncSession, *, source_id: uuid.UUID
-) -> DiscordPost | None:
+) -> PlatformPost | None:
     return (
         await session.execute(
-            select(DiscordPost).where(
-                DiscordPost.source_id == source_id,
-                DiscordPost.batch_id.is_(None),
+            select(PlatformPost).where(
+                PlatformPost.platform == "discord",
+                PlatformPost.kind == "feed.parent",
+                PlatformPost.source_id == source_id,
+                PlatformPost.batch_id.is_(None),
             )
         )
     ).scalar_one_or_none()
@@ -108,18 +113,28 @@ async def _get_parent_post(
 async def _get_or_create_parent_post(
     session: AsyncSession,
     *,
-    figure_id: uuid.UUID,
+    agent_id: uuid.UUID,
     source_id: uuid.UUID,
-) -> DiscordPost:
+    channel_id: str,
+) -> PlatformPost:
     parent_post = await _get_parent_post(session, source_id=source_id)
     if parent_post is not None:
         return parent_post
 
-    parent_post = DiscordPost(
-        figure_id=figure_id,
+    parent_post = PlatformPost(
+        platform="discord",
+        kind="feed.parent",
+        agent_id=agent_id,
+        container_id=channel_id,
         source_id=source_id,
         batch_id=None,
-        post_status="pending",
+        segment_id=None,
+        idempotency_key=f"discord:feed:source:{source_id}:parent",
+        status="pending",
+        error=None,
+        meta_json=None,
+        created_at=_utc_now(),
+        updated_at=_utc_now(),
     )
     session.add(parent_post)
     await session.flush()
@@ -129,26 +144,41 @@ async def _get_or_create_parent_post(
 async def _get_or_create_batch_post(
     session: AsyncSession,
     *,
-    figure_id: uuid.UUID,
+    agent_id: uuid.UUID,
     source_id: uuid.UUID,
-    batch_id: uuid.UUID,
-) -> DiscordPost:
+    batch: SourceTextBatch,
+    channel_id: str,
+) -> PlatformPost:
+    text_fingerprint = hashlib.sha256((batch.text or "").encode("utf-8")).hexdigest()[
+        :16
+    ]
+    idempotency_key = f"discord:feed:source:{source_id}:batch:{batch.start_seq}:{batch.end_seq}:{text_fingerprint}"
     post = (
         await session.execute(
-            select(DiscordPost).where(
-                DiscordPost.source_id == source_id,
-                DiscordPost.batch_id == batch_id,
+            select(PlatformPost).where(
+                PlatformPost.platform == "discord",
+                PlatformPost.kind == "feed.batch",
+                PlatformPost.idempotency_key == idempotency_key,
             )
         )
     ).scalar_one_or_none()
     if post is not None:
         return post
 
-    post = DiscordPost(
-        figure_id=figure_id,
+    post = PlatformPost(
+        platform="discord",
+        kind="feed.batch",
+        agent_id=agent_id,
+        container_id=channel_id,
         source_id=source_id,
-        batch_id=batch_id,
-        post_status="pending",
+        batch_id=batch.batch_id,
+        segment_id=None,
+        idempotency_key=idempotency_key,
+        status="pending",
+        error=None,
+        meta_json=None,
+        created_at=_utc_now(),
+        updated_at=_utc_now(),
     )
     session.add(post)
     await session.flush()
@@ -205,15 +235,19 @@ class FeedPublisher:
         self._sleep = sleep
         self._logger = logger_ or logger
 
-    async def list_pending_source_ids(self, *, figure_id: uuid.UUID) -> list[uuid.UUID]:
+    async def list_pending_source_ids(self, *, agent_id: uuid.UUID) -> list[uuid.UUID]:
         async with self._session_factory() as session:
             sources = (
                 (
                     await session.execute(
                         select(Source)
+                        .join(
+                            SourceIngestionState,
+                            SourceIngestionState.source_id == Source.source_id,
+                        )
                         .where(
-                            Source.figure_id == figure_id,
-                            Source.transcript_status == "ingested",
+                            Source.agent_id == agent_id,
+                            SourceIngestionState.ingest_status == "ingested",
                         )
                         .order_by(Source.published_at, Source.source_id)
                     )
@@ -233,10 +267,10 @@ class FeedPublisher:
     async def publish_pending_sources(
         self,
         *,
-        figure_id: uuid.UUID,
+        agent_id: uuid.UUID,
         channel_id: str,
     ) -> PublishSummary:
-        source_ids = await self.list_pending_source_ids(figure_id=figure_id)
+        source_ids = await self.list_pending_source_ids(agent_id=agent_id)
         published = 0
         failed = 0
         for source_id in source_ids:
@@ -267,9 +301,9 @@ class FeedPublisher:
             ordered_batches = (
                 (
                     await session.execute(
-                        select(TranscriptBatch)
-                        .where(TranscriptBatch.source_id == source.source_id)
-                        .order_by(TranscriptBatch.start_seq, TranscriptBatch.batch_id)
+                        select(SourceTextBatch)
+                        .where(SourceTextBatch.source_id == source.source_id)
+                        .order_by(SourceTextBatch.start_seq, SourceTextBatch.batch_id)
                     )
                 )
                 .scalars()
@@ -280,49 +314,51 @@ class FeedPublisher:
 
             parent_post = await _get_or_create_parent_post(
                 session,
-                figure_id=source.figure_id,
+                agent_id=source.agent_id,
                 source_id=source.source_id,
+                channel_id=channel_id,
             )
             await session.commit()
 
             parent_posted = False
             thread_created = False
 
-            if not parent_post.parent_message_id:
+            if not parent_post.platform_event_id:
                 message = FeedParentMessage(
-                    figure_id=source.figure_id,
+                    figure_id=source.agent_id,
                     source_id=source.source_id,
                     channel_id=channel_id,
                     text=_build_parent_text(source),
                 )
                 try:
-                    parent_post.parent_message_id = (
+                    parent_post.platform_event_id = (
                         await self._transport.post_parent_message(
                             channel_id=message.channel_id,
                             text=message.text,
                         )
                     )
-                    parent_post.post_status = "posted"
-                    parent_post.posted_at = _utc_now()
+                    parent_post.status = "posted"
+                    parent_post.updated_at = _utc_now()
                     parent_posted = True
                     await session.commit()
                 except DiscordPublicationError:
-                    parent_post.post_status = "failed"
+                    parent_post.status = "failed"
                     await session.commit()
                     return PublishResult(source_id=source_id, status="failed")
 
-            if not parent_post.thread_id and parent_post.parent_message_id:
+            if not parent_post.thread_id and parent_post.platform_event_id:
                 try:
                     parent_post.thread_id = await self._transport.create_thread(
                         channel_id=channel_id,
-                        parent_message_id=parent_post.parent_message_id,
+                        parent_message_id=parent_post.platform_event_id,
                         name=_build_thread_name(source),
                     )
-                    parent_post.post_status = "posted"
+                    parent_post.status = "posted"
+                    parent_post.updated_at = _utc_now()
                     thread_created = True
                     await session.commit()
                 except DiscordPublicationError:
-                    parent_post.post_status = "failed"
+                    parent_post.status = "failed"
                     await session.commit()
                     return PublishResult(
                         source_id=source_id,
@@ -334,17 +370,22 @@ class FeedPublisher:
             for index, batch in enumerate(ordered_batches):
                 batch_post = await _get_or_create_batch_post(
                     session,
-                    figure_id=source.figure_id,
+                    agent_id=source.agent_id,
                     source_id=source.source_id,
-                    batch_id=batch.batch_id,
+                    batch=batch,
+                    channel_id=channel_id,
                 )
-                batch_post.parent_message_id = parent_post.parent_message_id
+                batch_post.batch_id = batch.batch_id
                 batch_post.thread_id = parent_post.thread_id
-                if batch_post.post_status == "posted":
+                batch_post.meta_json = {
+                    "parent_message_id": parent_post.platform_event_id
+                }
+                batch_post.updated_at = _utc_now()
+                if batch_post.status == "posted" and batch_post.platform_event_id:
                     continue
 
                 message = FeedBatchMessage(
-                    figure_id=source.figure_id,
+                    figure_id=source.agent_id,
                     source_id=source.source_id,
                     batch_id=batch.batch_id,
                     thread_id=parent_post.thread_id or "",
@@ -352,7 +393,7 @@ class FeedPublisher:
                     seq_label=_format_seq_label(batch.start_ms),
                 )
                 try:
-                    await _publish_with_retry(
+                    posted_message_id = await _publish_with_retry(
                         lambda message=message: self._transport.post_thread_message(
                             thread_id=message.thread_id,
                             text=message.render_text(),
@@ -363,8 +404,9 @@ class FeedPublisher:
                         batch_id=batch.batch_id,
                     )
                 except DiscordPermissionError:
-                    batch_post.post_status = "failed"
-                    batch_post.posted_at = None
+                    batch_post.status = "failed"
+                    batch_post.error = "permission_error"
+                    batch_post.updated_at = _utc_now()
                     await session.commit()
                     return PublishResult(
                         source_id=source_id,
@@ -374,8 +416,9 @@ class FeedPublisher:
                         batches_posted=posted_count,
                     )
                 except DiscordPublicationError:
-                    batch_post.post_status = "failed"
-                    batch_post.posted_at = None
+                    batch_post.status = "failed"
+                    batch_post.error = "publication_error"
+                    batch_post.updated_at = _utc_now()
                     await session.commit()
                     return PublishResult(
                         source_id=source_id,
@@ -385,9 +428,10 @@ class FeedPublisher:
                         batches_posted=posted_count,
                     )
 
-                batch_post.post_status = "posted"
-                batch_post.posted_at = _utc_now()
-                batch.posted_to_discord = True
+                batch_post.platform_event_id = posted_message_id
+                batch_post.status = "posted"
+                batch_post.error = None
+                batch_post.updated_at = _utc_now()
                 posted_count += 1
                 await session.commit()
                 if index < len(ordered_batches) - 1:
@@ -410,7 +454,7 @@ class FeedPublisher:
         parent_post = await _get_parent_post(session, source_id=source_id)
         if (
             parent_post is None
-            or not parent_post.parent_message_id
+            or not parent_post.platform_event_id
             or not parent_post.thread_id
         ):
             return True
@@ -419,8 +463,8 @@ class FeedPublisher:
             (
                 await session.execute(
                     select(func.count())
-                    .select_from(TranscriptBatch)
-                    .where(TranscriptBatch.source_id == source_id)
+                    .select_from(SourceTextBatch)
+                    .where(SourceTextBatch.source_id == source_id)
                 )
             ).scalar_one()
             or 0
@@ -431,48 +475,35 @@ class FeedPublisher:
         batches = (
             (
                 await session.execute(
-                    select(TranscriptBatch).where(
-                        TranscriptBatch.source_id == source_id
+                    select(SourceTextBatch).where(
+                        SourceTextBatch.source_id == source_id
                     )
                 )
             )
             .scalars()
             .all()
         )
+        expected_keys: set[str] = set()
+        for batch in batches:
+            text_fingerprint = hashlib.sha256(
+                (batch.text or "").encode("utf-8")
+            ).hexdigest()[:16]
+            expected_keys.add(
+                f"discord:feed:source:{source_id}:batch:{batch.start_seq}:{batch.end_seq}:{text_fingerprint}"
+            )
 
-        pending_rows = (
+        posted_keys = set(
             (
                 await session.execute(
-                    select(DiscordPost).where(
-                        DiscordPost.source_id == source_id,
-                        DiscordPost.batch_id.is_not(None),
-                        DiscordPost.post_status != "posted",
+                    select(PlatformPost.idempotency_key).where(
+                        PlatformPost.platform == "discord",
+                        PlatformPost.kind == "feed.batch",
+                        PlatformPost.source_id == source_id,
+                        PlatformPost.status == "posted",
                     )
                 )
             )
             .scalars()
             .all()
         )
-        if pending_rows:
-            return True
-
-        posted_batch_ids = {
-            row.batch_id
-            for row in (
-                (
-                    await session.execute(
-                        select(DiscordPost).where(
-                            DiscordPost.source_id == source_id,
-                            DiscordPost.batch_id.is_not(None),
-                            DiscordPost.post_status == "posted",
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-        }
-        return any(
-            (not batch.posted_to_discord) or (batch.batch_id not in posted_batch_ids)
-            for batch in batches
-        )
+        return not expected_keys.issubset(posted_keys)

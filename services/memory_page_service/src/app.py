@@ -4,7 +4,7 @@ from html import escape
 
 from bt_common.config import get_emos_fallback_settings
 from bt_common.evermemos_client import EverMemOSClient
-from bt_common.evidence_store.engine import get_session_factory
+from bt_store.engine import get_session_factory
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 

@@ -9,6 +9,7 @@ description = "Bibliotalk public memory page resolver"
 requires-python = ">=3.11"
 dependencies = [
   "bt_common>=0.1.0",
+  "bt_store>=0.1.0",
   "fastapi>=0.115.0",
   "pydantic>=2.8.0",
   "pydantic-settings>=2.4.0",
@@ -33,3 +34,4 @@ testpaths = ["tests"]
 
 [tool.uv.sources]
 bt-common = { workspace = true }
+bt-store = { workspace = true }

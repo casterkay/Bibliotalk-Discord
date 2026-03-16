@@ -9,7 +9,7 @@ from .models_ingestion import (
     Subscription,
     SubscriptionState,
 )
-from .models_runtime import PlatformPost, PlatformRoute, TalkThread
+from .models_runtime import PlatformPost, PlatformRoute, PlatformUserSettings, TalkThread
 
 __all__ = [
     "Agent",
@@ -17,6 +17,7 @@ __all__ = [
     "Base",
     "PlatformPost",
     "PlatformRoute",
+    "PlatformUserSettings",
     "Room",
     "RoomMember",
     "Segment",

@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
-from bt_common.evidence_store.engine import get_session_factory as get_legacy_session_factory
 from bt_common.exceptions import AgentNotFoundError
+from bt_store.engine import get_session_factory
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -52,7 +52,7 @@ def _now_utc() -> datetime:
 
 @router.post("/agents/{agent_id}/turn", response_model=TurnResponse)
 async def create_turn(agent_id: UUID, request: TurnRequest) -> TurnResponse:
-    session_factory = get_legacy_session_factory()
+    session_factory = get_session_factory()
     store = SQLiteFigureStore(session_factory)
 
     try:

@@ -6,7 +6,8 @@ from typing import Protocol, TypedDict
 from uuid import UUID
 
 from bt_common.config import get_emos_fallback_settings
-from bt_common.evidence_store.models import Figure, Segment, Source
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Segment, Source
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -79,21 +80,21 @@ class SQLiteFigureStore:
 
     async def get_agent(self, agent_id: UUID) -> AgentRow | None:
         async with self._session_factory() as session:
-            figure = await session.get(Figure, agent_id)
-        if figure is None:
+            agent = await session.get(Agent, agent_id)
+        if agent is None:
             return None
-        persona_summary = (figure.persona_summary or "").strip()
-        persona_prompt = f"You are {figure.display_name}."
+        persona_summary = (agent.persona_summary or "").strip()
+        persona_prompt = f"You are {agent.display_name}."
         if persona_summary:
             persona_prompt = f"{persona_prompt} {persona_summary}"
         return {
-            "id": str(figure.figure_id),
+            "id": str(agent.agent_id),
             "kind": "figure",
-            "display_name": figure.display_name,
+            "display_name": agent.display_name,
             "persona_prompt": persona_prompt,
-            "emos_user_id": figure.emos_user_id,
+            "emos_user_id": agent.slug,
             "llm_model": "gemini-2.5-flash",
-            "is_active": figure.status == "active",
+            "is_active": bool(agent.is_active),
         }
 
     async def get_agent_emos_config(self, agent_id: UUID) -> AgentEmosConfigRow | None:
@@ -113,22 +114,26 @@ class SQLiteFigureStore:
             return []
         async with self._session_factory() as session:
             rows = (
-                (await session.execute(select(Source).where(Source.group_id.in_(emos_group_ids))))
+                (
+                    await session.execute(
+                        select(Source).where(Source.emos_group_id.in_(emos_group_ids))
+                    )
+                )
                 .scalars()
                 .all()
             )
         return [
             {
                 "id": str(row.source_id),
-                "agent_id": str(row.figure_id),
-                "platform": row.platform,
+                "agent_id": str(row.agent_id),
+                "platform": row.content_platform,
                 "external_id": row.external_id,
-                "external_url": row.source_url,
+                "external_url": row.external_url,
                 "title": row.title,
-                "author": row.channel_name,
+                "author": row.author or row.channel_name,
                 "published_at": row.published_at.isoformat() if row.published_at else None,
-                "emos_group_id": row.group_id,
-                "memory_user_id": self._extract_memory_user_id(row.group_id),
+                "emos_group_id": row.emos_group_id,
+                "memory_user_id": self._extract_memory_user_id(row.emos_group_id),
             }
             for row in rows
         ]
@@ -166,7 +171,7 @@ class SQLiteFigureStore:
                 await session.execute(
                     select(Segment, Source)
                     .join(Source, Source.source_id == Segment.source_id)
-                    .where(Source.figure_id == agent_id)
+                    .where(Source.agent_id == agent_id)
                     .order_by(Source.published_at, Segment.seq)
                 )
             ).all()
@@ -175,23 +180,23 @@ class SQLiteFigureStore:
     def _serialize_segment(self, segment: Segment, source: Source) -> SegmentRow:
         return {
             "id": str(segment.segment_id),
-            "agent_id": str(source.figure_id),
-            "figure_id": str(source.figure_id),
+            "agent_id": str(source.agent_id),
+            "figure_id": str(source.agent_id),
             "source_id": str(segment.source_id),
-            "platform": source.platform,
+            "platform": source.content_platform,
             "seq": segment.seq,
             "text": segment.text,
             "sha256": segment.sha256,
-            "emos_message_id": f"{self._extract_memory_user_id(source.group_id)}:youtube:{source.external_id}:seg:{segment.seq}",
+            "emos_message_id": segment.emos_message_id,
             "source_title": source.title,
-            "source_url": source.source_url,
-            "speaker": None,
+            "source_url": source.external_url,
+            "speaker": segment.speaker,
             "start_ms": segment.start_ms,
             "end_ms": segment.end_ms,
             "create_time": segment.create_time.isoformat() if segment.create_time else None,
-            "group_id": source.group_id,
+            "group_id": source.emos_group_id,
             "published_at": source.published_at.isoformat() if source.published_at else None,
-            "memory_user_id": self._extract_memory_user_id(source.group_id),
+            "memory_user_id": self._extract_memory_user_id(source.emos_group_id),
         }
 
     def _extract_memory_user_id(self, group_id: str) -> str:

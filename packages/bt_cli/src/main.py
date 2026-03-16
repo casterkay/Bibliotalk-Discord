@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
-from bt_common.evidence_store.engine import init_database, resolve_database_path
+from bt_store.engine import init_database, resolve_database_path
 from discord_service.config import load_runtime_config as load_discord_config
 from discord_service.ops import seed_figure
 from discord_service.ops.feed import (

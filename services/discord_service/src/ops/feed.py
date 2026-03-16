@@ -6,14 +6,11 @@ import uuid
 from dataclasses import dataclass
 
 import discord
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import (
-    DiscordMap,
-    DiscordPost,
-    Figure,
-    Source,
-    TranscriptBatch,
-)
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Source
+from bt_store.models_ingestion import SourceTextBatch
+from bt_store.models_runtime import PlatformPost, PlatformRoute
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -102,13 +99,9 @@ async def _lookup_source_by_video(
     *,
     figure_slug: str,
     video_id: str,
-) -> tuple[Figure, Source]:
+) -> tuple[Agent, Source]:
     figure = (
-        (
-            await session.execute(
-                select(Figure).where(Figure.emos_user_id == figure_slug)
-            )
-        )
+        (await session.execute(select(Agent).where(Agent.slug == figure_slug)))
         .scalars()
         .first()
     )
@@ -118,8 +111,8 @@ async def _lookup_source_by_video(
         (
             await session.execute(
                 select(Source).where(
-                    Source.figure_id == figure.figure_id,
-                    Source.platform == "youtube",
+                    Source.agent_id == figure.agent_id,
+                    Source.content_platform == "youtube",
                     Source.external_id == video_id,
                 )
             )
@@ -147,10 +140,11 @@ async def source_feed_status_by_video(
 
         parent_posted = (
             await session.execute(
-                select(DiscordPost.parent_message_id, DiscordPost.thread_id).where(
-                    DiscordPost.source_id == source.source_id,
-                    DiscordPost.batch_id.is_(None),
-                    DiscordPost.post_status == "posted",
+                select(PlatformPost.platform_event_id, PlatformPost.thread_id).where(
+                    PlatformPost.platform == "discord",
+                    PlatformPost.kind == "feed.parent",
+                    PlatformPost.source_id == source.source_id,
+                    PlatformPost.status == "posted",
                 )
             )
         ).first() is not None
@@ -158,8 +152,8 @@ async def source_feed_status_by_video(
             (
                 await session.execute(
                     select(func.count())
-                    .select_from(TranscriptBatch)
-                    .where(TranscriptBatch.source_id == source.source_id)
+                    .select_from(SourceTextBatch)
+                    .where(SourceTextBatch.source_id == source.source_id)
                 )
             ).scalar_one()
             or 0
@@ -168,10 +162,12 @@ async def source_feed_status_by_video(
             (
                 await session.execute(
                     select(func.count())
-                    .select_from(TranscriptBatch)
+                    .select_from(PlatformPost)
                     .where(
-                        TranscriptBatch.source_id == source.source_id,
-                        TranscriptBatch.posted_to_discord.is_(True),
+                        PlatformPost.platform == "discord",
+                        PlatformPost.kind == "feed.batch",
+                        PlatformPost.source_id == source.source_id,
+                        PlatformPost.status == "posted",
                     )
                 )
             ).scalar_one()
@@ -181,10 +177,12 @@ async def source_feed_status_by_video(
             (
                 await session.execute(
                     select(func.count())
-                    .select_from(DiscordPost)
+                    .select_from(PlatformPost)
                     .where(
-                        DiscordPost.source_id == source.source_id,
-                        DiscordPost.post_status == "failed",
+                        PlatformPost.platform == "discord",
+                        PlatformPost.source_id == source.source_id,
+                        PlatformPost.kind.in_(["feed.parent", "feed.batch"]),
+                        PlatformPost.status == "failed",
                     )
                 )
             ).scalar_one()
@@ -207,9 +205,11 @@ async def _reset_failed_posts_for_source(
     failed = (
         (
             await session.execute(
-                select(DiscordPost).where(
-                    DiscordPost.source_id == source_id,
-                    DiscordPost.post_status == "failed",
+                select(PlatformPost).where(
+                    PlatformPost.platform == "discord",
+                    PlatformPost.source_id == source_id,
+                    PlatformPost.kind.in_(["feed.parent", "feed.batch"]),
+                    PlatformPost.status == "failed",
                 )
             )
         )
@@ -219,18 +219,15 @@ async def _reset_failed_posts_for_source(
     if not failed:
         return 0
     await session.execute(
-        update(DiscordPost)
-        .where(DiscordPost.source_id == source_id, DiscordPost.post_status == "failed")
-        .values(post_status="pending", posted_at=None)
-    )
-    # Conservative: also flip batch flags back to false so the publisher rechecks them.
-    batch_ids = [row.batch_id for row in failed if row.batch_id is not None]
-    if batch_ids:
-        await session.execute(
-            update(TranscriptBatch)
-            .where(TranscriptBatch.batch_id.in_(batch_ids))
-            .values(posted_to_discord=False)
+        update(PlatformPost)
+        .where(
+            PlatformPost.platform == "discord",
+            PlatformPost.source_id == source_id,
+            PlatformPost.kind.in_(["feed.parent", "feed.batch"]),
+            PlatformPost.status == "failed",
         )
+        .values(status="pending", platform_event_id=None, error=None)
+    )
     await session.commit()
     return len(failed)
 
@@ -277,12 +274,24 @@ async def retry_failed_posts_by_video(
         figure, source = await _lookup_source_by_video(
             session, figure_slug=figure_slug, video_id=video_id
         )
-        discord_map = await session.get(DiscordMap, figure.figure_id)
-        if discord_map is None:
-            raise LookupError(f"Missing discord_map for figure: {figure_slug}")
+        route = (
+            (
+                await session.execute(
+                    select(PlatformRoute).where(
+                        PlatformRoute.platform == "discord",
+                        PlatformRoute.purpose == "feed",
+                        PlatformRoute.agent_id == figure.agent_id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if route is None:
+            raise LookupError(f"Missing discord feed route for figure: {figure_slug}")
         await _reset_failed_posts_for_source(session, source_id=source.source_id)
         source_id = source.source_id
-        channel_id = str(discord_map.channel_id)
+        channel_id = str(route.container_id)
 
     result = await _publish_source_once(
         discord_config=discord_config,
@@ -318,11 +327,23 @@ async def republish_source_by_video(
         figure, source = await _lookup_source_by_video(
             session, figure_slug=figure_slug, video_id=video_id
         )
-        discord_map = await session.get(DiscordMap, figure.figure_id)
-        if discord_map is None:
-            raise LookupError(f"Missing discord_map for figure: {figure_slug}")
+        route = (
+            (
+                await session.execute(
+                    select(PlatformRoute).where(
+                        PlatformRoute.platform == "discord",
+                        PlatformRoute.purpose == "feed",
+                        PlatformRoute.agent_id == figure.agent_id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if route is None:
+            raise LookupError(f"Missing discord feed route for figure: {figure_slug}")
         source_id = source.source_id
-        channel_id = str(discord_map.channel_id)
+        channel_id = str(route.container_id)
 
     return await _publish_source_once(
         discord_config=discord_config,

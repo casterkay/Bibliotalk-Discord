@@ -7,9 +7,10 @@ import discord
 from agents_service.agent.agent_factory import create_spirit_agent
 from agents_service.agent.orchestrator import DMOrchestrator
 from agents_service.store import SQLiteFigureStore
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import DiscordMap, Figure
 from bt_common.logging import JsonFormatter
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_runtime import PlatformRoute
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -62,26 +63,30 @@ async def publish_pending_feeds(
 
     async with session_factory() as session:
         query = (
-            select(Figure.figure_id, Figure.emos_user_id, DiscordMap.channel_id)
-            .join(DiscordMap, DiscordMap.figure_id == Figure.figure_id)
-            .where(Figure.status == "active")
+            select(Agent.agent_id, Agent.slug, PlatformRoute.container_id)
+            .join(PlatformRoute, PlatformRoute.agent_id == Agent.agent_id)
+            .where(
+                Agent.is_active.is_(True),
+                PlatformRoute.platform == "discord",
+                PlatformRoute.purpose == "feed",
+            )
         )
         if figure_slug:
-            query = query.where(Figure.emos_user_id == figure_slug)
-        rows = (await session.execute(query.order_by(Figure.emos_user_id))).all()
+            query = query.where(Agent.slug == figure_slug)
+        rows = (await session.execute(query.order_by(Agent.slug))).all()
 
     publisher = FeedPublisher(session_factory, transport=transport)
     attempted_sources = 0
     published_sources = 0
     failed_sources = 0
-    for figure_id, figure_slug, channel_id in rows:
+    for agent_id, agent_slug, channel_id in rows:
         publication = await publisher.publish_pending_sources(
-            figure_id=figure_id,
+            agent_id=agent_id,
             channel_id=str(channel_id),
         )
         logger_.info(
             "feed publication complete figure_slug=%s attempted=%s published=%s failed=%s",
-            figure_slug,
+            agent_slug,
             publication.attempted_sources,
             publication.published_sources,
             publication.failed_sources,

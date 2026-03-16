@@ -67,11 +67,16 @@ def upgrade() -> None:
         sa.Column("platform", sa.String(length=32), nullable=False),
         sa.Column("room_id", sa.String(length=255), nullable=False),
         sa.Column("kind", sa.String(length=16), nullable=False),
+        sa.Column("status", sa.String(length=20), nullable=False),
+        sa.Column("last_activity_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("meta_json", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint("platform", "room_id"),
     )
     op.create_index(op.f("ix_rooms_kind"), "rooms", ["kind"], unique=False)
     op.create_index(op.f("ix_rooms_platform"), "rooms", ["platform"], unique=False)
+    op.create_index(op.f("ix_rooms_last_activity_at"), "rooms", ["last_activity_at"], unique=False)
+    op.create_index(op.f("ix_rooms_status"), "rooms", ["status"], unique=False)
 
     op.create_table(
         "room_members",
@@ -82,6 +87,7 @@ def upgrade() -> None:
         sa.Column("agent_id", sa.Uuid(), nullable=True),
         sa.Column("member_kind", sa.String(length=16), nullable=False),
         sa.Column("role", sa.String(length=32), nullable=True),
+        sa.Column("display_order", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint("room_pk", "platform_user_id"),
         sa.ForeignKeyConstraint(
@@ -92,6 +98,9 @@ def upgrade() -> None:
         ),
     )
     op.create_index(op.f("ix_room_members_agent_id"), "room_members", ["agent_id"], unique=False)
+    op.create_index(
+        op.f("ix_room_members_display_order"), "room_members", ["display_order"], unique=False
+    )
     op.create_index(
         op.f("ix_room_members_member_kind"), "room_members", ["member_kind"], unique=False
     )
@@ -276,7 +285,7 @@ def upgrade() -> None:
 
     op.create_table(
         "talk_threads",
-        sa.Column("thread_id", sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column("chat_id", sa.Uuid(), primary_key=True, nullable=False),
         sa.Column("platform", sa.String(length=32), nullable=False),
         sa.Column("room_id", sa.String(length=255), nullable=False),
         sa.Column("sender_agent_id", sa.Uuid(), nullable=True),
@@ -296,6 +305,15 @@ def upgrade() -> None:
     op.create_index(op.f("ix_talk_threads_modality"), "talk_threads", ["modality"], unique=False)
     op.create_index(op.f("ix_talk_threads_platform"), "talk_threads", ["platform"], unique=False)
     op.create_index(op.f("ix_talk_threads_room_id"), "talk_threads", ["room_id"], unique=False)
+
+    op.create_table(
+        "platform_user_settings",
+        sa.Column("platform", sa.String(length=32), primary_key=True, nullable=False),
+        sa.Column("platform_user_id", sa.String(length=255), primary_key=True, nullable=False),
+        sa.Column("config_json", sa.JSON(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+    )
 
     op.create_table(
         "platform_routes",
@@ -349,11 +367,13 @@ def upgrade() -> None:
             ["segment_id"],
             ["segments.segment_id"],
             name=op.f("fk_platform_posts_segment_id_segments"),
+            ondelete="SET NULL",
         ),
         sa.ForeignKeyConstraint(
             ["batch_id"],
             ["source_text_batches.batch_id"],
             name=op.f("fk_platform_posts_batch_id_source_text_batches"),
+            ondelete="SET NULL",
         ),
         sa.UniqueConstraint("idempotency_key"),
     )
@@ -382,6 +402,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("platform_posts")
     op.drop_table("platform_routes")
+    op.drop_table("platform_user_settings")
     op.drop_table("talk_threads")
     op.drop_table("source_text_batches")
     op.drop_index("ix_segments_agent_source_seq", table_name="segments")

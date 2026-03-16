@@ -205,7 +205,8 @@ If we do nothing else for engineering polish, do this: judges can *feel* robustn
 
 ## Migration Plan (from legacy Discord-era schema)
 
-The repository currently contains a legacy schema under `bt_common.evidence_store` that is Discord-oriented.
+The repository previously shipped a Discord-oriented schema under `bt_common.evidence_store`. That module is now
+deprecated/quarantined in favor of a single shared schema owned by `packages/bt_store/`.
 
 Target state:
 - Move shared relational schema ownership to `bt_store`.

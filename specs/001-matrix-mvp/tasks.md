@@ -130,8 +130,8 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 - [ ] T058 Document Discord “may break” posture + migration plan in `/Users/tcai/Projects/Bibliotalk/README.md`
 - [ ] T059 Add structured logging + correlation IDs across Matrix transactions and agent turns in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/obs/logging.ts`
 - [ ] T060 Add secrets redaction for logs and persisted errors in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/logging.py`
-- [ ] T061 Add one-shot backfill script (legacy `bt_common.evidence_store` → `bt_store`) in `/Users/tcai/Projects/Bibliotalk/scripts/backfill_bt_store_v2.py`
-- [ ] T062 Remove or quarantine `bt_common.evidence_store` to keep `bt_common` infra-only in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/evidence_store/__init__.py`
+- [X] T061 Add one-shot backfill script (legacy `bt_common.evidence_store` → `bt_store`) in `/Users/tcai/Projects/Bibliotalk/scripts/backfill_bt_store_v2.py`
+- [X] T062 Remove or quarantine `bt_common.evidence_store` to keep `bt_common` infra-only in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/evidence_store/__init__.py`
 - [ ] T063 Final docs consistency pass (spec/plan/contracts/quickstart) in `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`
 
 ---

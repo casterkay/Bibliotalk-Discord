@@ -13,13 +13,9 @@ from agents_service.models.citation import (
     extract_memory_links,
     validate_evidence_links,
 )
-from bt_common.evidence_store.models import (
-    DiscordUserSettings,
-    Figure,
-    TalkParticipant,
-    TalkThread,
-)
-from sqlalchemy import select, update
+from bt_store.models_core import Agent, Room, RoomMember
+from bt_store.models_runtime import PlatformUserSettings
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .directory import FigureDirectory, FigureInfo
@@ -176,7 +172,7 @@ class TalkService:
                 participant_ids={p.figure_id for p in resolved},
             )
             if existing is not None:
-                if await self._transport.thread_exists(thread_id=existing.thread_id):
+                if await self._transport.thread_exists(thread_id=existing.room_id):
                     existing.last_activity_at = _utc_now()
                     await session.commit()
                     await self._upsert_user_default_guild(
@@ -187,7 +183,7 @@ class TalkService:
                     await session.commit()
                     try:
                         await self._transport.add_user_to_thread(
-                            thread_id=existing.thread_id,
+                            thread_id=existing.room_id,
                             discord_user_id=owner_discord_user_id,
                         )
                     except Exception:
@@ -195,9 +191,9 @@ class TalkService:
                     return TalkStartResult(
                         kind="resumed",
                         message="Resumed your existing talk.",
-                        talk_id=existing.talk_id,
-                        guild_id=existing.guild_id,
-                        thread_id=existing.thread_id,
+                        talk_id=existing.room_pk,
+                        guild_id=chosen_guild_id,
+                        thread_id=existing.room_id,
                         participant_slugs=[f.figure_slug for f in resolved],
                     )
 
@@ -229,24 +225,43 @@ class TalkService:
 
         talk_id = uuid.uuid4()
         async with self._session_factory() as session:
+            room = Room(
+                room_pk=talk_id,
+                platform="discord",
+                room_id=thread_id,
+                kind="dialogue",
+                status="open",
+                last_activity_at=_utc_now(),
+                meta_json={
+                    "guild_id": chosen_guild_id,
+                    "hub_channel_id": hub_channel_id,
+                },
+                created_at=_utc_now(),
+            )
+            session.add(room)
             session.add(
-                TalkThread(
-                    talk_id=talk_id,
-                    owner_discord_user_id=owner_discord_user_id,
-                    guild_id=chosen_guild_id,
-                    hub_channel_id=hub_channel_id,
-                    thread_id=thread_id,
-                    status="open",
+                RoomMember(
+                    room_pk=room.room_pk,
+                    platform="discord",
+                    platform_user_id=owner_discord_user_id,
+                    agent_id=None,
+                    member_kind="human",
+                    role="owner",
+                    display_order=0,
                     created_at=_utc_now(),
-                    last_activity_at=_utc_now(),
                 )
             )
             for idx, info in enumerate(resolved):
                 session.add(
-                    TalkParticipant(
-                        talk_id=talk_id,
-                        figure_id=info.figure_id,
+                    RoomMember(
+                        room_pk=room.room_pk,
+                        platform="discord",
+                        platform_user_id=f"agent:{info.figure_slug}",
+                        agent_id=info.figure_id,
+                        member_kind="agent",
+                        role="participant",
                         display_order=idx,
+                        created_at=_utc_now(),
                     )
                 )
             await self._upsert_user_default_guild(
@@ -270,59 +285,53 @@ class TalkService:
     ) -> list[TalkListEntry]:
         max_rows = max(1, limit)
         async with self._session_factory() as session:
-            talk_ids = (
+            rooms = (
                 (
                     await session.execute(
-                        select(TalkThread.talk_id)
+                        select(Room)
+                        .join(RoomMember, RoomMember.room_pk == Room.room_pk)
                         .where(
-                            TalkThread.owner_discord_user_id == owner_discord_user_id
+                            Room.platform == "discord",
+                            Room.kind == "dialogue",
+                            RoomMember.platform == "discord",
+                            RoomMember.platform_user_id == owner_discord_user_id,
+                            RoomMember.role == "owner",
                         )
-                        .order_by(TalkThread.last_activity_at.desc())
+                        .order_by(Room.last_activity_at.desc())
                         .limit(max_rows)
                     )
                 )
                 .scalars()
                 .all()
             )
-            if not talk_ids:
-                return []
 
-            rows = (
-                await session.execute(
-                    select(TalkThread, TalkParticipant, Figure)
-                    .join(
-                        TalkParticipant, TalkParticipant.talk_id == TalkThread.talk_id
+            entries: list[TalkListEntry] = []
+            for room in rooms:
+                meta = dict(room.meta_json or {})
+                guild = str(meta.get("guild_id") or "")
+                participants = (
+                    await session.execute(
+                        select(Agent, RoomMember)
+                        .join(RoomMember, RoomMember.agent_id == Agent.agent_id)
+                        .where(RoomMember.room_pk == room.room_pk)
+                        .order_by(RoomMember.display_order)
                     )
-                    .join(Figure, Figure.figure_id == TalkParticipant.figure_id)
-                    .where(TalkThread.talk_id.in_(talk_ids))
-                    .order_by(
-                        TalkThread.last_activity_at.desc(),
-                        TalkParticipant.display_order,
+                ).all()
+                entries.append(
+                    TalkListEntry(
+                        talk_id=room.room_pk,
+                        guild_id=guild,
+                        thread_id=room.room_id,
+                        status=room.status,
+                        participant_slugs=[agent.slug for agent, _ in participants],
+                        participant_names=[
+                            agent.display_name for agent, _ in participants
+                        ],
+                        last_activity_at=room.last_activity_at,
                     )
                 )
-            ).all()
 
-        grouped: dict[uuid.UUID, TalkListEntry] = {}
-        for talk, participant, figure in rows:
-            entry = grouped.get(talk.talk_id)
-            if entry is None:
-                grouped[talk.talk_id] = TalkListEntry(
-                    talk_id=talk.talk_id,
-                    guild_id=talk.guild_id,
-                    thread_id=talk.thread_id,
-                    status=talk.status,
-                    participant_slugs=[],
-                    participant_names=[],
-                    last_activity_at=talk.last_activity_at,
-                )
-                entry = grouped[talk.talk_id]
-            entry.participant_slugs.append(figure.emos_user_id)
-            entry.participant_names.append(figure.display_name)
-
-        ordered = sorted(
-            grouped.values(), key=lambda e: e.last_activity_at, reverse=True
-        )
-        return ordered[:max_rows]
+        return entries
 
     async def handle_thread_message(
         self,
@@ -332,17 +341,17 @@ class TalkService:
         author_discord_user_id: str,
         content: str,
     ) -> bool:
-        talk = await self._get_open_talk_by_thread_id(thread_id)
-        if talk is None:
+        room = await self._get_open_talk_by_thread_id(thread_id)
+        if room is None:
             return False
 
         lock = self._thread_locks.setdefault(thread_id, asyncio.Lock())
         async with lock:
-            talk = await self._get_open_talk_by_thread_id(thread_id)
-            if talk is None:
+            room = await self._get_open_talk_by_thread_id(thread_id)
+            if room is None:
                 return False
 
-            participants = await self._get_talk_participants(talk.talk_id)
+            participants = await self._get_talk_participants(room.room_pk)
             if not participants:
                 await self._transport.send_bot_message(
                     thread_id=thread_id,
@@ -366,8 +375,15 @@ class TalkService:
                         effective_content = content
 
             last_slug = None
-            if talk.last_routed_figure_id:
-                last_info = self._directory.get_by_id(talk.last_routed_figure_id)
+            last_routed_id = None
+            try:
+                raw = (room.meta_json or {}).get("last_routed_agent_id")
+                if isinstance(raw, str) and raw:
+                    last_routed_id = uuid.UUID(raw)
+            except Exception:
+                last_routed_id = None
+            if last_routed_id:
+                last_info = self._directory.get_by_id(last_routed_id)
                 last_slug = last_info.figure_slug if last_info else None
 
             if not speaker_infos:
@@ -393,7 +409,9 @@ class TalkService:
             for speaker in speaker_infos:
                 await self._respond_as_character(
                     guild_id=guild_id,
-                    hub_channel_id=talk.hub_channel_id,
+                    hub_channel_id=str(
+                        (room.meta_json or {}).get("hub_channel_id") or ""
+                    ),
                     thread_id=thread_id,
                     author_discord_user_id=author_discord_user_id,
                     speaker=speaker,
@@ -401,14 +419,12 @@ class TalkService:
                 )
 
             async with self._session_factory() as session:
-                await session.execute(
-                    update(TalkThread)
-                    .where(TalkThread.talk_id == talk.talk_id)
-                    .values(
-                        last_activity_at=_utc_now(),
-                        last_routed_figure_id=speaker_infos[-1].figure_id,
-                    )
-                )
+                refreshed = await session.get(Room, room.room_pk)
+                if refreshed is not None:
+                    refreshed.last_activity_at = _utc_now()
+                    meta = dict(refreshed.meta_json or {})
+                    meta["last_routed_agent_id"] = str(speaker_infos[-1].figure_id)
+                    refreshed.meta_json = meta
                 await session.commit()
 
         return True
@@ -426,8 +442,12 @@ class TalkService:
             return explicit_guild_id
 
         async with self._session_factory() as session:
-            settings = await session.get(DiscordUserSettings, owner_discord_user_id)
-            default_guild = (settings.default_guild_id if settings else None) or None
+            settings = await session.get(
+                PlatformUserSettings,
+                {"platform": "discord", "platform_user_id": owner_discord_user_id},
+            )
+            config = dict(settings.config_json or {}) if settings else {}
+            default_guild = (config.get("default_guild_id") if config else None) or None
 
         if default_guild:
             return default_guild
@@ -439,18 +459,24 @@ class TalkService:
     async def _upsert_user_default_guild(
         self, session: AsyncSession, *, owner_discord_user_id: str, guild_id: str
     ) -> None:
-        settings = await session.get(DiscordUserSettings, owner_discord_user_id)
+        settings = await session.get(
+            PlatformUserSettings,
+            {"platform": "discord", "platform_user_id": owner_discord_user_id},
+        )
         if settings is None:
             session.add(
-                DiscordUserSettings(
-                    discord_user_id=owner_discord_user_id,
-                    default_guild_id=guild_id,
+                PlatformUserSettings(
+                    platform="discord",
+                    platform_user_id=owner_discord_user_id,
+                    config_json={"default_guild_id": guild_id},
                     created_at=_utc_now(),
                     updated_at=_utc_now(),
                 )
             )
             return
-        settings.default_guild_id = guild_id
+        config = dict(settings.config_json or {})
+        config["default_guild_id"] = guild_id
+        settings.config_json = config
         settings.updated_at = _utc_now()
 
     async def _find_existing_open_talk(
@@ -460,47 +486,55 @@ class TalkService:
         owner_discord_user_id: str,
         guild_id: str,
         participant_ids: set[uuid.UUID],
-    ) -> TalkThread | None:
-        talks = (
+    ) -> Room | None:
+        rooms = (
             (
                 await session.execute(
-                    select(TalkThread)
+                    select(Room)
+                    .join(RoomMember, RoomMember.room_pk == Room.room_pk)
                     .where(
-                        TalkThread.owner_discord_user_id == owner_discord_user_id,
-                        TalkThread.guild_id == guild_id,
-                        TalkThread.status == "open",
+                        Room.platform == "discord",
+                        Room.kind == "dialogue",
+                        Room.status == "open",
+                        RoomMember.platform == "discord",
+                        RoomMember.platform_user_id == owner_discord_user_id,
+                        RoomMember.role == "owner",
                     )
-                    .order_by(TalkThread.last_activity_at.desc())
+                    .order_by(Room.last_activity_at.desc())
                 )
             )
             .scalars()
             .all()
         )
-        if not talks:
-            return None
-
-        for talk in talks:
+        for room in rooms:
+            meta = dict(room.meta_json or {})
+            if str(meta.get("guild_id") or "") != guild_id:
+                continue
             ids = (
                 (
                     await session.execute(
-                        select(TalkParticipant.figure_id).where(
-                            TalkParticipant.talk_id == talk.talk_id
+                        select(RoomMember.agent_id).where(
+                            RoomMember.room_pk == room.room_pk,
+                            RoomMember.agent_id.is_not(None),
                         )
                     )
                 )
                 .scalars()
                 .all()
             )
-            if set(ids) == participant_ids:
-                return talk
+            if set([i for i in ids if i is not None]) == participant_ids:
+                return room
         return None
 
-    async def _get_open_talk_by_thread_id(self, thread_id: str) -> TalkThread | None:
+    async def _get_open_talk_by_thread_id(self, thread_id: str) -> Room | None:
         async with self._session_factory() as session:
             return (
                 await session.execute(
-                    select(TalkThread).where(
-                        TalkThread.thread_id == thread_id, TalkThread.status == "open"
+                    select(Room).where(
+                        Room.platform == "discord",
+                        Room.room_id == thread_id,
+                        Room.kind == "dialogue",
+                        Room.status == "open",
                     )
                 )
             ).scalar_one_or_none()
@@ -509,21 +543,19 @@ class TalkService:
         async with self._session_factory() as session:
             rows = (
                 await session.execute(
-                    select(Figure, TalkParticipant)
-                    .join(
-                        TalkParticipant, TalkParticipant.figure_id == Figure.figure_id
-                    )
-                    .where(TalkParticipant.talk_id == talk_id)
-                    .order_by(TalkParticipant.display_order)
+                    select(Agent, RoomMember)
+                    .join(RoomMember, RoomMember.agent_id == Agent.agent_id)
+                    .where(RoomMember.room_pk == talk_id)
+                    .order_by(RoomMember.display_order)
                 )
             ).all()
         infos: list[FigureInfo] = []
         for figure, _participant in rows:
-            info = self._directory.get_by_id(figure.figure_id)
+            info = self._directory.get_by_id(figure.agent_id)
             if info is None:
                 info = FigureInfo(
-                    figure_id=figure.figure_id,
-                    figure_slug=figure.emos_user_id,
+                    figure_id=figure.agent_id,
+                    figure_slug=figure.slug,
                     display_name=figure.display_name,
                     persona_summary=figure.persona_summary,
                 )

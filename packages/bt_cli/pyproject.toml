@@ -9,6 +9,7 @@ description = "Bibliotalk unified operator CLI"
 requires-python = ">=3.11"
 dependencies = [
   "bt_common>=0.1.0",
+  "bt_store>=0.1.0",
   "discord_service>=0.1.0",
   "ingestion_service>=0.1.0",
   "memory_page_service>=0.1.0",
@@ -44,6 +45,7 @@ ignore = ["E501"]
 
 [tool.uv.sources]
 bt-common = { workspace = true }
+bt-store = { workspace = true }
 discord-service = { workspace = true }
 ingestion-service = { workspace = true }
 memory-page-service = { workspace = true }

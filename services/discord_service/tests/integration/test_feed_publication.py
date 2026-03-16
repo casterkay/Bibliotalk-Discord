@@ -4,14 +4,11 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import (
-    DiscordMap,
-    DiscordPost,
-    Figure,
-    Source,
-    TranscriptBatch,
-)
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Source
+from bt_store.models_ingestion import SourceIngestionState, SourceTextBatch
+from bt_store.models_runtime import PlatformPost, PlatformRoute
 from discord_service.config import load_runtime_config
 from discord_service.feed.publisher import DiscordPermissionError
 from discord_service.runtime import publish_pending_feeds
@@ -57,34 +54,42 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
     session_factory = get_session_factory(db)
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
+        agent = Agent(
+            agent_id=uuid.uuid4(),
+            kind="figure",
+            slug="alan-watts",
             display_name="Alan Watts",
-            emos_user_id="alan-watts",
+            persona_summary=None,
+            is_active=True,
         )
-        session.add(figure)
+        session.add(agent)
         await session.flush()
         session.add(
-            DiscordMap(
-                figure_id=figure.figure_id,
-                guild_id="guild",
-                channel_id="channel",
+            PlatformRoute(
+                platform="discord",
+                purpose="feed",
+                agent_id=agent.agent_id,
+                container_id="channel",
+                config_json={"guild_id": "guild"},
             )
         )
         source = Source(
-            figure_id=figure.figure_id,
+            agent_id=agent.agent_id,
+            content_platform="youtube",
             external_id="abc123",
-            group_id="alan-watts:youtube:abc123",
+            emos_group_id="alan-watts:youtube:abc123",
             title="Alan Watts Lecture",
-            source_url="https://www.youtube.com/watch?v=abc123",
-            transcript_status="ingested",
+            external_url="https://www.youtube.com/watch?v=abc123",
             published_at=datetime(2024, 1, 1, tzinfo=UTC),
         )
         session.add(source)
         await session.flush()
+        session.add(
+            SourceIngestionState(source_id=source.source_id, ingest_status="ingested")
+        )
         session.add_all(
             [
-                TranscriptBatch(
+                SourceTextBatch(
                     source_id=source.source_id,
                     speaker_label=None,
                     start_seq=0,
@@ -93,9 +98,8 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
                     end_ms=2300,
                     text="First transcript segment.\n\nSecond transcript segment.",
                     batch_rule="silence_gap",
-                    posted_to_discord=False,
                 ),
-                TranscriptBatch(
+                SourceTextBatch(
                     source_id=source.source_id,
                     speaker_label=None,
                     start_seq=2,
@@ -104,7 +108,6 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
                     end_ms=8200,
                     text="Third transcript segment.",
                     batch_rule="char_limit",
-                    posted_to_discord=False,
                 ),
             ]
         )
@@ -130,14 +133,23 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
 
     async with session_factory() as session:
         posts = (
-            (await session.execute(select(DiscordPost).order_by(DiscordPost.batch_id)))
+            (
+                await session.execute(
+                    select(PlatformPost)
+                    .where(
+                        PlatformPost.platform == "discord",
+                        PlatformPost.kind.in_(["feed.parent", "feed.batch"]),
+                    )
+                    .order_by(PlatformPost.batch_id)
+                )
+            )
             .scalars()
             .all()
         )
         batches = (
             (
                 await session.execute(
-                    select(TranscriptBatch).order_by(TranscriptBatch.start_seq)
+                    select(SourceTextBatch).order_by(SourceTextBatch.start_seq)
                 )
             )
             .scalars()
@@ -145,11 +157,8 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
         )
 
     assert len(batches) == 2
-    assert [batch.posted_to_discord for batch in batches] == [True, False]
     assert len(posts) == 3
-    assert any(
-        post.post_status == "failed" for post in posts if post.batch_id is not None
-    )
+    assert any(post.status == "failed" for post in posts if post.batch_id is not None)
 
     second_transport = FakeTransport()
     second = await publish_pending_feeds(

@@ -2,9 +2,11 @@
 
 **Phase 1 output for:** `003-discord-bot`
 **Date:** 2026-03-07
-**Location:** `packages/bt_common/src/evidence_store/models.py`
+**Status:** Deprecated (schema moved to `packages/bt_store/`)
 
-All eight tables share a single SQLite database accessed via SQLAlchemy 2.x async ORM (`aiosqlite` driver). Shared engine and ORM models live in `bt_common.evidence_store`; `ingestion_service`, `discord_service`, `agents_service`, and `memory_page_service` access them through injected `AsyncSession` instances.
+All services now share a single relational schema owned by `bt_store` (SQLite for local dev; Postgres for prod). The old
+`bt_common.evidence_store` module has been quarantined; if you need to migrate an existing legacy SQLite DB, use
+`scripts/backfill_bt_store_v2.py`.
 
 ---
 

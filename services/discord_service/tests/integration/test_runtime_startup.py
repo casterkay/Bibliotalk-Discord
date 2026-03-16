@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import DiscordMap, Figure
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_runtime import PlatformRoute
 from discord_service.config import load_runtime_config
 from discord_service.runtime import build_live_discord_runtime
 
@@ -16,17 +17,23 @@ async def test_discord_runtime_builds_single_bot_client(tmp_path) -> None:
     session_factory = get_session_factory(db)
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
+        agent = Agent(
+            agent_id=uuid.uuid4(),
             display_name="Alan Watts",
-            emos_user_id="alan-watts",
-            status="active",
+            slug="alan-watts",
+            kind="figure",
+            persona_summary=None,
+            is_active=True,
         )
-        session.add(figure)
+        session.add(agent)
         await session.flush()
         session.add(
-            DiscordMap(
-                figure_id=figure.figure_id, guild_id="guild", channel_id="channel"
+            PlatformRoute(
+                platform="discord",
+                purpose="feed",
+                agent_id=agent.agent_id,
+                container_id="channel",
+                config_json={"guild_id": "guild"},
             )
         )
         await session.commit()

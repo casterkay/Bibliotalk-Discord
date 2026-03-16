@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
-from bt_common.evidence_store.models import Figure, Segment, Source
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Segment, Source
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -41,15 +42,15 @@ class MemoryPageResolver:
     async def resolve(self, page_id: str) -> ResolvedMemoryPage:
         user_id, timestamp = parse_memory_page_id(page_id)
         async with self._session_factory() as session:
-            figure = await self._find_figure(session, user_id=user_id)
-            if figure is None:
-                raise LookupError(f"Unknown figure for memory page: {page_id}")
+            agent = await self._find_agent(session, user_id=user_id)
+            if agent is None:
+                raise LookupError(f"Unknown agent for memory page: {page_id}")
             row = (
                 await session.execute(
                     select(Segment, Source)
                     .join(Source, Source.source_id == Segment.source_id)
                     .where(
-                        Source.figure_id == figure.figure_id,
+                        Source.agent_id == agent.agent_id,
                         Segment.create_time == timestamp,
                     )
                 )
@@ -75,18 +76,16 @@ class MemoryPageResolver:
             memory_timestamp=timestamp,
             memory_item=memory_item,
             source_title=source.title,
-            source_url=source.source_url,
+            source_url=source.external_url or "",
             video_url_with_timestamp=self._build_video_url(
                 source=source, segment=segment
             ),
             segment_text=segment.text,
         )
 
-    async def _find_figure(
-        self, session: AsyncSession, *, user_id: str
-    ) -> Figure | None:
+    async def _find_agent(self, session: AsyncSession, *, user_id: str) -> Agent | None:
         return (
-            await session.execute(select(Figure).where(Figure.emos_user_id == user_id))
+            await session.execute(select(Agent).where(Agent.slug == user_id))
         ).scalar_one_or_none()
 
     def _select_memory_item(
@@ -111,5 +110,8 @@ class MemoryPageResolver:
 
     def _build_video_url(self, *, source: Source, segment: Segment) -> str:
         offset = max(segment.start_ms or 0, 0) // 1000
-        separator = "&" if "?" in source.source_url else "?"
-        return f"{source.source_url}{separator}t={offset}s"
+        root = (source.external_url or "").strip()
+        if not root:
+            return ""
+        separator = "&" if "?" in root else "?"
+        return f"{root}{separator}t={offset}s"

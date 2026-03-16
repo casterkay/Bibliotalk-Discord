@@ -4,8 +4,9 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, Segment, Source
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Segment, Source
 from memory_page_service.app import handle_memory_page_request
 from memory_page_service.resolver import MemoryPageResolver
 
@@ -36,20 +37,18 @@ async def test_memory_page_resolver_returns_single_memory_and_video_timepoint(
     timestamp = datetime(2026, 3, 8, 12, 0, 0, tzinfo=UTC)
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent = Agent(
+            agent_id=uuid.uuid4(), display_name="Alan Watts", slug="alan-watts"
         )
-        session.add(figure)
+        session.add(agent)
         await session.flush()
         source = Source(
-            figure_id=figure.figure_id,
+            agent_id=agent.agent_id,
+            content_platform="youtube",
             external_id="abc123",
-            group_id="alan-watts:youtube:abc123",
+            emos_group_id="alan-watts:youtube:abc123",
             title="Alan Watts Lecture",
-            source_url="https://www.youtube.com/watch?v=abc123",
-            transcript_status="ingested",
+            external_url="https://www.youtube.com/watch?v=abc123",
             published_at=datetime(2026, 3, 8, 11, 59, 0, tzinfo=UTC),
         )
         session.add(source)
@@ -57,12 +56,14 @@ async def test_memory_page_resolver_returns_single_memory_and_video_timepoint(
         session.add(
             Segment(
                 source_id=source.source_id,
+                agent_id=agent.agent_id,
                 seq=0,
                 text="Learning without thought is labor lost.",
                 sha256="a" * 64,
                 start_ms=60_000,
                 end_ms=62_000,
                 create_time=timestamp,
+                emos_message_id="alan-watts:youtube:abc123:seg:0",
             )
         )
         await session.commit()

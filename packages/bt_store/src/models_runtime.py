@@ -39,10 +39,10 @@ class PlatformPost(Base):
     thread_id: Mapped[str | None] = mapped_column(String(255), default=None)
     source_id: Mapped[UUID] = mapped_column(ForeignKey("sources.source_id"), index=True)
     segment_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("segments.segment_id"), index=True, default=None
+        ForeignKey("segments.segment_id", ondelete="SET NULL"), index=True, default=None
     )
     batch_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("source_text_batches.batch_id"), index=True, default=None
+        ForeignKey("source_text_batches.batch_id", ondelete="SET NULL"), index=True, default=None
     )
     idempotency_key: Mapped[str] = mapped_column(String(512))
     platform_event_id: Mapped[str | None] = mapped_column(String(255), default=None)
@@ -64,3 +64,13 @@ class PlatformRoute(Base):
     container_id: Mapped[str] = mapped_column(String(255))
     config_json: Mapped[dict | None] = mapped_column(JSON, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class PlatformUserSettings(Base):
+    __tablename__ = "platform_user_settings"
+
+    platform: Mapped[str] = mapped_column(String(32), primary_key=True)
+    platform_user_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    config_json: Mapped[dict | None] = mapped_column(JSON, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

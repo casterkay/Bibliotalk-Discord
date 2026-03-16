@@ -4,8 +4,10 @@ import argparse
 import asyncio
 import uuid
 
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import DiscordMap, Figure, Subscription
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_ingestion import Subscription
+from bt_store.models_runtime import PlatformRoute
 from sqlalchemy import select
 
 
@@ -50,21 +52,18 @@ async def seed_figure(
 
     async with session_factory() as session:
         figure = (
-            (
-                await session.execute(
-                    select(Figure).where(Figure.emos_user_id == figure_slug)
-                )
-            )
+            (await session.execute(select(Agent).where(Agent.slug == figure_slug)))
             .scalars()
             .first()
         )
         if figure is None:
-            figure = Figure(
-                figure_id=uuid.uuid4(),
+            figure = Agent(
+                agent_id=uuid.uuid4(),
                 display_name=display_name or _display_name_for_slug(figure_slug),
-                emos_user_id=figure_slug,
+                slug=figure_slug,
                 persona_summary=persona_summary,
-                status="active",
+                kind="figure",
+                is_active=True,
             )
             session.add(figure)
             await session.flush()
@@ -73,14 +72,14 @@ async def seed_figure(
                 figure.display_name = display_name
             if persona_summary:
                 figure.persona_summary = persona_summary
-            figure.status = "active"
+            figure.is_active = True
 
         subscription = (
             (
                 await session.execute(
                     select(Subscription).where(
-                        Subscription.figure_id == figure.figure_id,
-                        Subscription.platform == "youtube",
+                        Subscription.agent_id == figure.agent_id,
+                        Subscription.content_platform == "youtube",
                         Subscription.subscription_url == subscription_url,
                     )
                 )
@@ -90,31 +89,47 @@ async def seed_figure(
         )
         if subscription is None:
             subscription = Subscription(
-                figure_id=figure.figure_id,
-                platform="youtube",
-                subscription_type=subscription_type,
+                agent_id=figure.agent_id,
+                content_platform="youtube",
+                subscription_type=f"youtube.{subscription_type}",
                 subscription_url=subscription_url,
                 poll_interval_minutes=max(1, poll_interval_minutes),
                 is_active=True,
             )
             session.add(subscription)
         else:
-            subscription.subscription_type = subscription_type
+            subscription.subscription_type = f"youtube.{subscription_type}"
             subscription.poll_interval_minutes = max(1, poll_interval_minutes)
             subscription.is_active = True
 
-        discord_map = await session.get(DiscordMap, figure.figure_id)
-        if discord_map is None:
+        discord_route = (
+            (
+                await session.execute(
+                    select(PlatformRoute).where(
+                        PlatformRoute.platform == "discord",
+                        PlatformRoute.purpose == "feed",
+                        PlatformRoute.agent_id == figure.agent_id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if discord_route is None:
             session.add(
-                DiscordMap(
-                    figure_id=figure.figure_id,
-                    guild_id=guild_id,
-                    channel_id=channel_id,
+                PlatformRoute(
+                    platform="discord",
+                    purpose="feed",
+                    agent_id=figure.agent_id,
+                    container_id=channel_id,
+                    config_json={"guild_id": guild_id},
                 )
             )
         else:
-            discord_map.guild_id = guild_id
-            discord_map.channel_id = channel_id
+            discord_route.container_id = channel_id
+            config = dict(discord_route.config_json or {})
+            config["guild_id"] = guild_id
+            discord_route.config_json = config
 
         await session.commit()
 

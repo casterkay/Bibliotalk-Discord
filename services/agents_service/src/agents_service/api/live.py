@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from bt_common.evidence_store.engine import get_session_factory as get_legacy_session_factory
 from bt_common.exceptions import AgentNotFoundError
+from bt_store.engine import get_session_factory
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
@@ -54,7 +54,7 @@ def _ws_url(request: Request, session_id: str) -> str:
 async def create_live_session(
     agent_id: UUID, request: Request, body: CreateSessionRequest
 ) -> CreateSessionResponse:
-    session_factory = get_legacy_session_factory()
+    session_factory = get_session_factory()
     store = SQLiteFigureStore(session_factory)
     try:
         agent = await create_spirit_agent(agent_id, store=store)
@@ -84,7 +84,7 @@ async def live_ws(websocket: WebSocket, session_id: str):
 
     await websocket.accept()
 
-    session_factory = get_legacy_session_factory()
+    session_factory = get_session_factory()
     store = SQLiteFigureStore(session_factory)
     try:
         agent = await create_spirit_agent(session.agent_id, store=store)
