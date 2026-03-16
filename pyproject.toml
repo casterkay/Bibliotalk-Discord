@@ -6,6 +6,7 @@ dependencies = []
 
 [tool.uv.workspace]
 members = [
+  "packages/bt_cli",
   "packages/bt_common",
   "services/agents_service",
   "services/discord_service",

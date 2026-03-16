@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from datetime import UTC
 from typing import Any
@@ -88,7 +89,12 @@ class BibliotalkDiscordClient(discord.Client):
         logger: logging.Logger | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        proxy = kwargs.pop("proxy", None)
+        if proxy is None:
+            proxy = (
+                os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY") or ""
+            ).strip() or None
+        super().__init__(proxy=proxy, **kwargs)
         self.config = config
         self.talk_service = talk_service
         self.figure_directory = figure_directory

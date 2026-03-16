@@ -9,7 +9,6 @@ from bt_common.evidence_store.models import (
     DiscordMap,
     DiscordPost,
     Figure,
-    Segment,
     Source,
     TranscriptBatch,
 )
@@ -85,29 +84,27 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
         await session.flush()
         session.add_all(
             [
-                Segment(
+                TranscriptBatch(
                     source_id=source.source_id,
-                    seq=0,
-                    text="First transcript segment.",
-                    sha256="a" * 64,
+                    speaker_label=None,
+                    start_seq=0,
+                    end_seq=1,
                     start_ms=0,
-                    end_ms=1000,
-                ),
-                Segment(
-                    source_id=source.source_id,
-                    seq=1,
-                    text="Second transcript segment.",
-                    sha256="b" * 64,
-                    start_ms=1500,
                     end_ms=2300,
+                    text="First transcript segment.\n\nSecond transcript segment.",
+                    batch_rule="silence_gap",
+                    posted_to_discord=False,
                 ),
-                Segment(
+                TranscriptBatch(
                     source_id=source.source_id,
-                    seq=2,
-                    text="Third transcript segment.",
-                    sha256="c" * 64,
+                    speaker_label=None,
+                    start_seq=2,
+                    end_seq=2,
                     start_ms=7000,
                     end_ms=8200,
+                    text="Third transcript segment.",
+                    batch_rule="char_limit",
+                    posted_to_discord=False,
                 ),
             ]
         )

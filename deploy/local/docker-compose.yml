@@ -11,10 +11,10 @@ services:
       - uv
       - run
       - --package
-      - ingestion_service
-      - python
-      - -m
-      - ingestion_service
+      - bt_cli
+      - bibliotalk
+      - collector
+      - run
       - --figure
       - ${BIBLIOTALK_FIGURE}
 
@@ -30,10 +30,10 @@ services:
       - uv
       - run
       - --package
-      - discord_service
-      - python
-      - -m
-      - discord_service
+      - bt_cli
+      - bibliotalk
+      - discord
+      - run
     depends_on:
       - ingestion
 
@@ -51,10 +51,10 @@ services:
       - uv
       - run
       - --package
-      - memory_page_service
-      - python
-      - -m
-      - memory_page_service
+      - bt_cli
+      - bibliotalk
+      - memory-pages
+      - run
       - --host
       - ${MEMORY_PAGE_HOST:-0.0.0.0}
       - --port

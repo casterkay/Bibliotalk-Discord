@@ -29,7 +29,10 @@ from .index import IngestionIndex
 
 logger = logging.getLogger("ingestion_service")
 
-_BATCH_CHAR_LIMIT = 3000
+# NOTE: `transcript_batches` are consumed by `discord_service` as message bodies.
+# Discord messages have a hard 2000-character limit, and the rendered feed batch
+# message prepends a `[HH:MM:SS]` label + newline.
+_BATCH_CHAR_LIMIT = 1_800
 _BATCH_SILENCE_GAP_MS = 15_000
 
 
@@ -138,7 +141,7 @@ def _derive_transcript_batches(segments: list[Any]) -> list[dict[str, Any]]:
     return batches
 
 
-async def _upsert_source_record(*, index: IngestionIndex, source: Any) -> StoredSource:
+async def upsert_source_record(*, index: IngestionIndex, source: Any) -> StoredSource:
     async with index.session_factory() as session:
         figure = (
             await session.execute(select(Figure).where(Figure.emos_user_id == source.user_id))
@@ -166,6 +169,9 @@ async def _upsert_source_record(*, index: IngestionIndex, source: Any) -> Stored
             )
             session.add(stored)
 
+        subscription_id = getattr(source, "subscription_id", None)
+        if subscription_id is not None:
+            stored.subscription_id = subscription_id
         stored.group_id = source.group_id or stored.group_id
         stored.title = source.title
         stored.source_url = source.source_url
@@ -193,6 +199,10 @@ async def _set_source_transcript_status(
         if stored is None:
             return
         stored.transcript_status = status
+        if status == "ingested":
+            stored.transcript_failure_count = 0
+            stored.transcript_next_retry_at = None
+            stored.transcript_skip_reason = None
         await session.commit()
 
 
@@ -302,7 +312,7 @@ async def ingest_source(
 
     segments = chunk_transcript(source, source_content.content.lines, cfg=chunking_cfg)
     try:
-        stored_source = await _upsert_source_record(index=index, source=source)
+        stored_source = await upsert_source_record(index=index, source=source)
     except Exception as exc:
         err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
         return _failed_source_result(

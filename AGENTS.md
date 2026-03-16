@@ -8,9 +8,12 @@
 - Always maintain excellent abstraction design: modularity, generality, reusability, separation of concerns, elimination of abstraction leaks, etc.
 - Focus on my true intent instead of always literally following my words. If you are confident, you can propose alternatives or raise opposition before executing my commands.
 - Choose the latest suitable modern designs in both backend and frontend.
-- After you make edits, think and suggest updates to maintain consistency and integrity throughout docs and code. In particular, ensure dev context files are up to date and have full coverage.
+- After you make edits, think and suggest updates to maintain consistency and integrity throughout docs and code. In particular, ensure dev context files including `AGENTS.md` are up to date and have full coverage.
 - When you find unexpected changes in code diverted from your read & write memory, always assume they are made by me and RESPECT them.
 - Reduction over Multiplication: always consider lossless reduction of code or specs and avoid unnecessary multiplication.
+- Adhere to the DRY principle: always seek opportunities to avoid obvious code duplication by extracting common logic into reusable code.
+
+**NOTE:** Read `CODEBASE.txt` for the current codebase structure.
 
 ## Active Technologies
 
@@ -29,12 +32,18 @@
   - `uv --directory services/memory_page_service run --package memory_page_service -m pytest`
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
-- Run ingestion CLI:
-  - `uv run --package ingestion_service -m ingestion_service --help`
+- Unified CLI help:
+  - `uv run --package bt_cli bibliotalk --help`
+- Run runtimes:
+  - `uv run --package bt_cli bibliotalk collector run --help`
+  - `uv run --package bt_cli bibliotalk discord run --help`
+  - `uv run --package bt_cli bibliotalk memory-pages run --help`
 - Seed figure/local mapping:
-  - `uv run python services/discord_service/scripts/seed_figure.py --help`
+  - `uv run --package bt_cli bibliotalk figure seed --help`
 - Trigger manual one-shot ingest:
-  - `uv run python services/ingestion_service/scripts/trigger_ingest.py --help`
+  - `uv run --package bt_cli bibliotalk ingest request --help`
+- Publish pending Discord feeds (without restarting bot):
+  - `uv run --package bt_cli bibliotalk feed publish --help`
 
 ## Code Style
 
@@ -66,5 +75,5 @@ Python 3.11+: Follow standard conventions
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Ingestion CLI help:
-  - `uv run --package ingestion_service -m ingestion_service --help`
+  - `uv run --package bt_cli bibliotalk collector run --help`
 <!-- MANUAL ADDITIONS END -->

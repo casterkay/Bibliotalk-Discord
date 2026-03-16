@@ -12,7 +12,12 @@ from typing import Any, Protocol
 
 import httpx
 
-from ..domain.errors import AdapterError, UnsupportedSourceError
+from ..domain.errors import (
+    AccessRestrictedError,
+    AdapterError,
+    RetryLaterError,
+    UnsupportedSourceError,
+)
 from ..domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
 
 
@@ -47,6 +52,18 @@ class YouTubeTranscriptProvider(Protocol):
 
 def _collapse_ws(text: str) -> str:
     return " ".join(text.replace("\n", " ").split()).strip()
+
+
+_MEMBERS_ONLY_MARKERS = (
+    "members-only",
+    "join this channel to get access",
+    "get access to members-only content",
+)
+
+
+def _is_members_only_error_message(message: str) -> bool:
+    lowered = (message or "").lower()
+    return any(marker in lowered for marker in _MEMBERS_ONLY_MARKERS)
 
 
 _VTT_TIME_RE = re.compile(
@@ -345,6 +362,10 @@ class YouTubeTranscriptApiProvider:
                     ]
                 )
         except Exception as exc:
+            if _is_members_only_error_message(str(exc)):
+                raise AccessRestrictedError(
+                    f"YouTube transcript is members-only for video_id={video_id}"
+                ) from exc
             raise AdapterError(
                 f"YouTubeTranscriptApi failed for video_id={video_id}: {exc}"
             ) from exc
@@ -407,6 +428,10 @@ class YtDlpCaptionsProvider:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
         except Exception as exc:
+            if _is_members_only_error_message(str(exc)):
+                raise AccessRestrictedError(
+                    f"YouTube video is members-only for video_id={video_id}"
+                ) from exc
             raise AdapterError(
                 f"yt-dlp metadata extraction failed for video_id={video_id}: {exc}"
             ) from exc
@@ -429,6 +454,15 @@ class YtDlpCaptionsProvider:
                 resp = client.get(selection.url)
                 resp.raise_for_status()
                 caption_text = resp.text
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status == 429:
+                raise RetryLaterError(
+                    f"rate limited downloading captions for video_id={video_id}: {exc}"
+                ) from exc
+            raise AdapterError(
+                f"failed to download captions for video_id={video_id}: {exc}"
+            ) from exc
         except Exception as exc:
             raise AdapterError(
                 f"failed to download captions for video_id={video_id}: {exc}"
@@ -592,6 +626,8 @@ class YouTubeTranscriptService:
                 fetch = await asyncio.to_thread(
                     provider.fetch, video_id, preferred_languages=self._preferred_languages
                 )
+            except AccessRestrictedError:
+                raise
             except Exception as exc:
                 last_exc = exc
                 errors.append(f"{provider.name}: {exc}")
@@ -623,6 +659,14 @@ class YouTubeTranscriptService:
             )
 
         detail = "; ".join(errors) if errors else "no providers configured"
+        if _is_members_only_error_message(detail):
+            raise AccessRestrictedError(
+                f"YouTube transcript is members-only for video_id={video_id}"
+            ) from last_exc
+        if "429 too many requests" in detail.lower():
+            raise RetryLaterError(
+                f"YouTube transcript fetch rate limited for video_id={video_id}: {detail}"
+            ) from last_exc
         raise AdapterError(
             f"Failed to fetch YouTube transcript for video_id={video_id} via providers: {detail}"
         ) from last_exc

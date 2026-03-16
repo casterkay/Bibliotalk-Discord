@@ -37,6 +37,14 @@ class AdapterError(IngestError):
     code = "ADAPTER_ERROR"
 
 
+class RetryLaterError(AdapterError):
+    code = "RETRY_LATER"
+
+
+class AccessRestrictedError(AdapterError):
+    code = "ACCESS_RESTRICTED"
+
+
 class IndexError(IngestError):
     code = "INDEX_ERROR"
 

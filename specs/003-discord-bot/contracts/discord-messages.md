@@ -43,7 +43,7 @@ For the feed publisher, we keep strict Pydantic boundary models in `services/dis
 - **Constraints:**
   - ≤ 2,000 characters per Discord message
   - Long responses are split at sentence boundaries
-  - Grounding links are inline markdown links: `[visible text](https://www.bibliotalk.space/memory/{id})`
+  - Grounding links are inline markdown links: `[visible text]({BIBLIOTALK_WEB_URL}/memory/{id})`
   - No citation indices and no trailing `Sources:` blocks
 
 ---

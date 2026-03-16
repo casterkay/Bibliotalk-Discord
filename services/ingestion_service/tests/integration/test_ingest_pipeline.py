@@ -8,6 +8,7 @@ from bt_common.evidence_store.engine import get_session_factory, init_database
 from bt_common.evidence_store.models import Figure, IngestState, Subscription, TranscriptBatch
 from bt_common.evidence_store.models import Segment as StoredSegment
 from bt_common.evidence_store.models import Source as StoredSource
+from ingestion_service.domain.errors import AccessRestrictedError, RetryLaterError
 from ingestion_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
 from ingestion_service.pipeline.discovery import DiscoveredVideo
 from ingestion_service.pipeline.index import IngestionIndex
@@ -101,12 +102,16 @@ async def test_ingest_persists_sources_segments_and_batches_without_duplicates(t
         stored_source = (await session.execute(select(StoredSource))).scalar_one()
         segment_count = await session.scalar(select(func.count()).select_from(StoredSegment))
         batch_count = await session.scalar(select(func.count()).select_from(TranscriptBatch))
+        max_batch_len = await session.scalar(
+            select(func.max(func.length(TranscriptBatch.text))).select_from(TranscriptBatch)
+        )
 
     assert stored_source.group_id == "alan-watts:youtube:abc123"
     assert stored_source.transcript_status == "ingested"
     assert stored_source.source_meta_synced_at is not None
     assert segment_count == 2
     assert batch_count >= 1
+    assert (max_batch_len or 0) <= 1_800
 
 
 @pytest.mark.anyio
@@ -396,16 +401,174 @@ async def test_collector_does_not_advance_cursor_when_ingest_fails(tmp_path) -> 
 
     snapshot = await poller.run_once()
 
-    assert snapshot.failed_subscriptions == 1
+    assert snapshot.failed_subscriptions == 0
     assert snapshot.ingested_videos == 0
 
     async with session_factory() as session:
         ingest_state = await session.get(IngestState, subscription_id)
+        stored = (
+            (await session.execute(select(StoredSource).where(StoredSource.external_id == "vid1")))
+            .scalars()
+            .one()
+        )
 
     assert ingest_state is not None
-    assert ingest_state.last_seen_video_id is None
-    assert ingest_state.failure_count == 1
-    assert ingest_state.next_retry_at is not None
+    assert ingest_state.last_seen_video_id == "vid1"
+    assert ingest_state.failure_count == 0
+    assert ingest_state.next_retry_at is None
+
+    assert stored.transcript_status == "pending"
+    assert stored.transcript_failure_count == 1
+    assert stored.transcript_next_retry_at is not None
+
+
+@pytest.mark.anyio
+async def test_collector_skips_members_only_videos(tmp_path) -> None:
+    db = tmp_path / "bibliotalk.db"
+    await init_database(db)
+    session_factory = get_session_factory(db)
+    client = StubEverMemOS()
+
+    async with session_factory() as session:
+        figure = Figure(
+            figure_id=uuid.uuid4(),
+            display_name="Alan Watts",
+            emos_user_id="alan-watts",
+        )
+        session.add(figure)
+        await session.flush()
+        subscription = Subscription(
+            figure_id=figure.figure_id,
+            subscription_type="channel",
+            subscription_url="https://www.youtube.com/@AlanWattsOrg",
+        )
+        session.add(subscription)
+        await session.commit()
+        subscription_id = subscription.subscription_id
+
+    async def fake_discovery(*_args, **_kwargs) -> list[DiscoveredVideo]:
+        return [
+            DiscoveredVideo(
+                video_id="members1",
+                title="Members Only",
+                source_url="https://www.youtube.com/watch?v=members1",
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
+                channel_name="Alan Watts Org",
+                raw_meta={"timestamp": 1704067200},
+            )
+        ]
+
+    async def fake_loader(**_kwargs) -> SourceContent:
+        raise AccessRestrictedError("members-only")
+
+    config = load_runtime_config(
+        db_path=str(db),
+        figure_slug="alan-watts",
+        emos_base_url="https://emos.local",
+        index_path=str(tmp_path / "index.sqlite3"),
+    )
+    poller = CollectorPoller(
+        config=config,
+        session_factory=session_factory,
+        logger=configure_logging(),
+        client=client,
+        discovery_fn=fake_discovery,
+        transcript_loader=fake_loader,
+    )
+
+    snapshot = await poller.run_once()
+
+    assert snapshot.failed_subscriptions == 0
+    assert snapshot.discovered_videos == 1
+    assert snapshot.ingested_videos == 0
+
+    async with session_factory() as session:
+        ingest_state = await session.get(IngestState, subscription_id)
+        stored = (
+            (
+                await session.execute(
+                    select(StoredSource).where(StoredSource.external_id == "members1")
+                )
+            )
+            .scalars()
+            .one()
+        )
+
+    assert ingest_state is not None
+    assert ingest_state.last_seen_video_id == "members1"
+    assert stored.transcript_status == "skipped"
+    assert stored.transcript_skip_reason == "members_only"
+
+
+@pytest.mark.anyio
+async def test_collector_schedules_retry_on_rate_limit(tmp_path) -> None:
+    db = tmp_path / "bibliotalk.db"
+    await init_database(db)
+    session_factory = get_session_factory(db)
+    client = StubEverMemOS()
+
+    async with session_factory() as session:
+        figure = Figure(
+            figure_id=uuid.uuid4(),
+            display_name="Alan Watts",
+            emos_user_id="alan-watts",
+        )
+        session.add(figure)
+        await session.flush()
+        subscription = Subscription(
+            figure_id=figure.figure_id,
+            subscription_type="channel",
+            subscription_url="https://www.youtube.com/@AlanWattsOrg",
+        )
+        session.add(subscription)
+        await session.commit()
+
+    async def fake_discovery(*_args, **_kwargs) -> list[DiscoveredVideo]:
+        return [
+            DiscoveredVideo(
+                video_id="rate1",
+                title="Rate Limited",
+                source_url="https://www.youtube.com/watch?v=rate1",
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
+                channel_name="Alan Watts Org",
+                raw_meta={"timestamp": 1704067200},
+            )
+        ]
+
+    async def fake_loader(**_kwargs) -> SourceContent:
+        raise RetryLaterError("429 Too Many Requests")
+
+    config = load_runtime_config(
+        db_path=str(db),
+        figure_slug="alan-watts",
+        emos_base_url="https://emos.local",
+        index_path=str(tmp_path / "index.sqlite3"),
+    )
+    poller = CollectorPoller(
+        config=config,
+        session_factory=session_factory,
+        logger=configure_logging(),
+        client=client,
+        discovery_fn=fake_discovery,
+        transcript_loader=fake_loader,
+    )
+
+    snapshot = await poller.run_once()
+
+    assert snapshot.failed_subscriptions == 0
+    assert snapshot.discovered_videos == 1
+    assert snapshot.ingested_videos == 0
+
+    async with session_factory() as session:
+        stored = (
+            (await session.execute(select(StoredSource).where(StoredSource.external_id == "rate1")))
+            .scalars()
+            .one()
+        )
+
+    assert stored.transcript_status == "pending"
+    assert stored.transcript_failure_count == 1
+    assert stored.transcript_next_retry_at is not None
 
 
 @pytest.mark.anyio

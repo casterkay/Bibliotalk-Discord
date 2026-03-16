@@ -65,7 +65,6 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
     assert discord_maps[0].channel_id == "channel-2"
 
     config = load_runtime_config(db_path=str(db))
-    assert config.discord_token is None
     assert str(config.db_path) == str(db)
 
     directory = FigureDirectory(session_factory=session_factory)

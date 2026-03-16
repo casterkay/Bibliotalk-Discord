@@ -11,13 +11,13 @@ For daily development, use this sequence:
 1. Sync dependencies:
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 2. Seed one figure:
-  - `uv run python services/discord_service/scripts/seed_figure.py --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
+  - `uv run --package bt_cli bibliotalk figure seed --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
 3. Trigger a manual one-shot ingest when needed:
-  - `uv run python services/ingestion_service/scripts/trigger_ingest.py --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
+  - `uv run --package bt_cli bibliotalk ingest request --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
 4. Run runtimes:
-  - `uv run --package ingestion_service python -m ingestion_service --figure alan-watts`
-  - `uv run --package discord_service python -m discord_service`
-  - `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
+  - `uv run --package bt_cli bibliotalk collector run --figure alan-watts`
+  - `uv run --package bt_cli bibliotalk discord run`
+  - `uv run --package bt_cli bibliotalk memory-pages run --host 0.0.0.0 --port 8080`
 5. Optional multi-service boot via Docker Compose:
   - `docker compose -f deploy/local/docker-compose.yml up`
 

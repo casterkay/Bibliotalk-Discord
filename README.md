@@ -17,18 +17,19 @@ Out-of-scope legacy surfaces from prior experiments have been removed.
 - Run agent tests: `uv --directory services/agents_service run --package agents_service -m pytest`
 - Run ingestion tests: `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
 - Run shared package tests: `uv --directory packages/bt_common run --package bt_common -m pytest`
+- Unified CLI help: `uv run --package bt_cli bibliotalk --help`
 
 ## Local Runtime Quickstart
 
 - Full quickstart guide: `specs/003-discord-bot/quickstart.md`
 - Seed one figure mapping:
-	- `uv run python services/discord_service/scripts/seed_figure.py --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
+	- `uv run --package bt_cli bibliotalk figure seed --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
 - Trigger one manual ingest:
-	- `uv run python services/ingestion_service/scripts/trigger_ingest.py --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
+	- `uv run --package bt_cli bibliotalk ingest request --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
 	- Run services locally:
-		- `uv run --package ingestion_service python -m ingestion_service --figure alan-watts --once`
-		- `uv run --package discord_service python -m discord_service`
-		- `uv run --package memory_page_service python -m memory_page_service --host 0.0.0.0 --port 8080`
+		- `uv run --package bt_cli bibliotalk collector run --figure alan-watts --once`
+		- `uv run --package bt_cli bibliotalk discord run`
+		- `uv run --package bt_cli bibliotalk memory-pages run --host 0.0.0.0 --port 8080`
 
 ## Docker Compose
 

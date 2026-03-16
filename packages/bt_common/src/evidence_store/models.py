@@ -66,6 +66,9 @@ class Source(Base):
     figure_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("figures.figure_id", ondelete="CASCADE"), nullable=False
     )
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("subscriptions.subscription_id", ondelete="SET NULL")
+    )
     platform: Mapped[str] = mapped_column(String(20), nullable=False, default="youtube")
     external_id: Mapped[str] = mapped_column(String(200), nullable=False)
     group_id: Mapped[str] = mapped_column(String(300), nullable=False)
@@ -76,6 +79,10 @@ class Source(Base):
     raw_meta_json: Mapped[str | None] = mapped_column(Text)
     source_meta_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     transcript_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    transcript_failure_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    transcript_last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    transcript_next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    transcript_skip_reason: Mapped[str | None] = mapped_column(String(80))
     manual_ingestion_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     figure: Mapped[Figure] = relationship(back_populates="sources")
@@ -90,6 +97,8 @@ class Source(Base):
         UniqueConstraint("figure_id", "platform", "external_id", name="uq_source_identity"),
         Index("ix_sources_figure_id", "figure_id"),
         Index("ix_sources_group_id", "group_id"),
+        Index("ix_sources_subscription_id", "subscription_id"),
+        Index("ix_sources_transcript_retry", "subscription_id", "transcript_next_retry_at"),
     )
 
 

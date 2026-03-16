@@ -1,0 +1,418 @@
+from __future__ import annotations
+
+import asyncio
+import json
+from dataclasses import asdict, dataclass
+from typing import Any
+
+import typer
+from bt_common.evidence_store.engine import init_database, resolve_database_path
+from discord_service.config import load_runtime_config as load_discord_config
+from discord_service.ops import seed_figure
+from discord_service.ops.feed import (
+    publish_pending_feeds_once,
+    republish_source_by_video,
+    retry_failed_posts_by_video,
+    source_feed_status_by_video,
+)
+from discord_service.ops.talks import close_talk_by_thread_id, list_talks
+from ingestion_service.entrypoint import run_collector
+from ingestion_service.ops import request_manual_ingest
+from memory_page_service.entrypoint import run_memory_pages
+from rich.console import Console
+from rich.table import Table
+
+app = typer.Typer(
+    no_args_is_help=True,
+    help="Bibliotalk unified operator CLI (YouTube → EverMemOS → Discord).",
+)
+console = Console()
+
+
+@dataclass(frozen=True, slots=True)
+class _JsonResult:
+    ok: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None
+
+
+def _print_json(result: _JsonResult) -> None:
+    payload = {"ok": result.ok, "data": result.data, "error": result.error}
+    console.print(json.dumps(payload, ensure_ascii=False))
+
+
+def _run(coro) -> Any:
+    return asyncio.run(coro)
+
+
+@app.command()
+def db_init(
+    db: str | None = typer.Option(None, "--db", help="SQLite path (overrides BIBLIOTALK_DB_PATH)."),
+    json_: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """Create DB tables (dev-friendly; migrations recommended for prod)."""
+    try:
+        _run(init_database(db))
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(_JsonResult(ok=True, data={"db_path": str(resolve_database_path(db))}))
+    else:
+        console.print(f"Initialized DB at `{resolve_database_path(db)}`")
+
+
+figure_app = typer.Typer(no_args_is_help=True, help="Figure operations.")
+app.add_typer(figure_app, name="figure")
+
+
+@figure_app.command("seed")
+def figure_seed(
+    figure: str = typer.Option(
+        ..., "--figure", help="Figure slug (emos_user_id), e.g. alan-watts."
+    ),
+    subscription_url: str = typer.Option(
+        ..., "--subscription-url", help="YouTube channel/playlist URL."
+    ),
+    guild_id: str = typer.Option(..., "--guild-id", help="Discord guild ID to host feeds/talks."),
+    channel_id: str = typer.Option(
+        ..., "--channel-id", help="Discord feed channel ID for this figure."
+    ),
+    display_name: str | None = typer.Option(None, "--display-name"),
+    persona_summary: str | None = typer.Option(None, "--persona-summary"),
+    subscription_type: str = typer.Option("channel", "--subscription-type"),
+    poll_interval_minutes: int = typer.Option(60, "--poll-interval-minutes"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Seed (or update) a figure, subscription, and Discord mapping."""
+    try:
+        _run(
+            seed_figure(
+                db_path=db,
+                figure_slug=figure,
+                display_name=display_name,
+                persona_summary=persona_summary,
+                subscription_url=subscription_url,
+                subscription_type=subscription_type,
+                guild_id=guild_id,
+                channel_id=channel_id,
+                poll_interval_minutes=poll_interval_minutes,
+            )
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+
+    if json_:
+        _print_json(
+            _JsonResult(
+                ok=True,
+                data={
+                    "figure": figure,
+                    "subscription_url": subscription_url,
+                    "guild_id": guild_id,
+                    "channel_id": channel_id,
+                    "db_path": str(resolve_database_path(db)),
+                },
+            )
+        )
+    else:
+        console.print(
+            f"Seeded `{figure}` with subscription `{subscription_url}` and feed channel `{channel_id}`."
+        )
+
+
+ingest_app = typer.Typer(no_args_is_help=True, help="Ingest operations.")
+app.add_typer(ingest_app, name="ingest")
+
+
+@ingest_app.command("request")
+def ingest_request(
+    figure: str = typer.Option(..., "--figure"),
+    video_id: str = typer.Option(..., "--video-id"),
+    title: str = typer.Option("(manual ingest requested)", "--title"),
+    source_url: str | None = typer.Option(None, "--source-url"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Request a manual one-shot ingest for a YouTube video."""
+    try:
+        _run(
+            request_manual_ingest(
+                db_path=db,
+                figure_slug=figure,
+                video_id=video_id,
+                title=title,
+                source_url=source_url,
+            )
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(_JsonResult(ok=True, data={"figure": figure, "video_id": video_id}))
+    else:
+        console.print(
+            f"Manual ingest requested for `{figure}` video `{video_id}`. Run `bibliotalk collector run --once` to process."
+        )
+
+
+collector_app = typer.Typer(no_args_is_help=True, help="Collector runtime (ingestion_service).")
+app.add_typer(collector_app, name="collector")
+
+
+@collector_app.command("run")
+def collector_run(
+    figure: str | None = typer.Option(None, "--figure", help="Only run for one figure slug."),
+    db: str | None = typer.Option(None, "--db"),
+    log_level: str | None = typer.Option(None, "--log-level"),
+    once: bool = typer.Option(False, "--once"),
+) -> None:
+    """Run the collector (poll subscriptions, ingest, memorize)."""
+    raise typer.Exit(
+        code=int(
+            _run(
+                run_collector(
+                    figure_slug=figure,
+                    db_path=db,
+                    log_level=log_level,
+                    once=once,
+                )
+            )
+        )
+    )
+
+
+discord_app = typer.Typer(no_args_is_help=True, help="Discord runtime (discord_service).")
+app.add_typer(discord_app, name="discord")
+
+
+@discord_app.command("run")
+def discord_run(
+    db: str | None = typer.Option(None, "--db"),
+    log_level: str | None = typer.Option(None, "--log-level"),
+    command_guild_id: str | None = typer.Option(None, "--command-guild-id"),
+) -> None:
+    """Run the Discord bot runtime."""
+    from discord_service.entrypoint import run_discord_bot
+
+    raise typer.Exit(
+        code=int(
+            _run(
+                run_discord_bot(
+                    db_path=db,
+                    log_level=log_level,
+                    discord_command_guild_id=command_guild_id,
+                )
+            )
+        )
+    )
+
+
+memory_pages_app = typer.Typer(no_args_is_help=True, help="Public memory pages service.")
+app.add_typer(memory_pages_app, name="memory-pages")
+
+
+@memory_pages_app.command("run")
+def memory_pages_run(
+    db: str | None = typer.Option(None, "--db"),
+    host: str | None = typer.Option(None, "--host"),
+    port: int | None = typer.Option(None, "--port"),
+    log_level: str | None = typer.Option(None, "--log-level"),
+) -> None:
+    """Run the memory pages HTTP service."""
+    raise typer.Exit(
+        code=int(
+            _run(
+                run_memory_pages(
+                    db_path=db,
+                    host=host,
+                    port=port,
+                    log_level=log_level,
+                )
+            )
+        )
+    )
+
+
+feed_app = typer.Typer(no_args_is_help=True, help="Discord feed operations.")
+app.add_typer(feed_app, name="feed")
+
+
+@feed_app.command("publish")
+def feed_publish(
+    db: str | None = typer.Option(None, "--db"),
+    log_level: str | None = typer.Option(None, "--log-level"),
+    figure: str | None = typer.Option(None, "--figure", help="Only publish for one figure slug."),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Publish all pending feed posts (connects to Discord, publishes, exits)."""
+    config = load_discord_config(db_path=db, log_level=log_level, discord_command_guild_id=None)
+    try:
+        summary = _run(publish_pending_feeds_once(config, figure_slug=figure))
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+
+    if json_:
+        _print_json(_JsonResult(ok=True, data=asdict(summary)))
+        return
+    table = Table(title="Feed publication")
+    table.add_column("attempted_figures")
+    table.add_column("attempted_sources")
+    table.add_column("published_sources")
+    table.add_column("failed_sources")
+    table.add_row(
+        str(summary.attempted_figures),
+        str(summary.attempted_sources),
+        str(summary.published_sources),
+        str(summary.failed_sources),
+    )
+    console.print(table)
+
+
+@feed_app.command("status")
+def feed_status(
+    figure: str = typer.Option(..., "--figure"),
+    video_id: str = typer.Option(..., "--video-id"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Show feed publishing status for one video."""
+    try:
+        status = _run(
+            source_feed_status_by_video(db_path=db, figure_slug=figure, video_id=video_id)
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(_JsonResult(ok=True, data=asdict(status)))
+    else:
+        console.print(f"source_id={status.source_id} parent_posted={status.parent_posted}")
+        console.print(
+            f"batches_total={status.batches_total} batches_posted={status.batches_posted} failed_posts={status.failed_posts}"
+        )
+
+
+@feed_app.command("retry-failed")
+def feed_retry_failed(
+    figure: str = typer.Option(..., "--figure"),
+    video_id: str = typer.Option(..., "--video-id"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Mark failed feed posts as pending and republish missing parts."""
+    config = load_discord_config(db_path=db, log_level=None, discord_command_guild_id=None)
+    try:
+        summary = _run(
+            retry_failed_posts_by_video(
+                db_path=db,
+                figure_slug=figure,
+                video_id=video_id,
+                discord_config=config,
+            )
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(_JsonResult(ok=True, data=asdict(summary)))
+    else:
+        console.print(
+            f"Retry complete `{figure}` `{video_id}` published={summary.published_sources} failed={summary.failed_sources}."
+        )
+
+
+@feed_app.command("republish")
+def feed_republish(
+    figure: str = typer.Option(..., "--figure"),
+    video_id: str = typer.Option(..., "--video-id"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Publish/resume feed posting for a single video (idempotent)."""
+    config = load_discord_config(db_path=db, log_level=None, discord_command_guild_id=None)
+    try:
+        result = _run(
+            republish_source_by_video(
+                db_path=db,
+                figure_slug=figure,
+                video_id=video_id,
+                discord_config=config,
+            )
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(
+            _JsonResult(ok=True, data={"status": result.status, "source_id": str(result.source_id)})
+        )
+    else:
+        console.print(f"Republish result `{figure}` `{video_id}` status={result.status}.")
+
+
+talks_app = typer.Typer(no_args_is_help=True, help="Talk thread operations.")
+app.add_typer(talks_app, name="talks")
+
+
+@talks_app.command("list")
+def talks_list(
+    owner_discord_user_id: str = typer.Option(..., "--user-id", help="Discord user ID."),
+    limit: int = typer.Option(10, "--limit"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """List recent talks for a user (operator/debug helper)."""
+    try:
+        rows = _run(
+            list_talks(db_path=db, owner_discord_user_id=owner_discord_user_id, limit=limit)
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(_JsonResult(ok=True, data={"talks": [asdict(row) for row in rows]}))
+        return
+    if not rows:
+        console.print("No talks found.")
+        return
+    for row in rows:
+        title = " + ".join(row.participant_names)
+        console.print(f"- {title} ({row.status}): {row.thread_url()}")
+
+
+@talks_app.command("close")
+def talks_close(
+    thread_id: str = typer.Option(..., "--thread-id"),
+    db: str | None = typer.Option(None, "--db"),
+    json_: bool = typer.Option(False, "--json"),
+) -> None:
+    """Mark a talk thread as closed in SQLite (does not delete the Discord thread)."""
+    try:
+        ok = _run(close_talk_by_thread_id(db_path=db, thread_id=thread_id))
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+    if json_:
+        _print_json(_JsonResult(ok=True, data={"closed": bool(ok), "thread_id": thread_id}))
+    else:
+        if ok:
+            console.print(f"Closed talk for thread `{thread_id}`.")
+        else:
+            console.print(f"No open talk found for thread `{thread_id}`.")
+
+
+def main() -> None:
+    app()

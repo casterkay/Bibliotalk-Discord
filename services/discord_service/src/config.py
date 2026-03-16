@@ -28,15 +28,13 @@ class DiscordSettings(BaseSettings):
 class DiscordRuntimeConfig:
     db_path: Path
     log_level: str
-    discord_token: str | None
-    discord_command_guild_id: str | None
+    discord_command_guild_id: str | None = None
 
 
 def load_runtime_config(
     *,
     db_path: str | None = None,
     log_level: str | None = None,
-    discord_token: str | None = None,
     discord_command_guild_id: str | None = None,
 ) -> DiscordRuntimeConfig:
     settings = DiscordSettings()
@@ -45,9 +43,13 @@ def load_runtime_config(
             db_path or settings.bibliotalk_db_path or default_database_path()
         ),
         log_level=(log_level or settings.log_level).upper(),
-        discord_token=(discord_token or settings.discord_token or "").strip() or None,
         discord_command_guild_id=(
             discord_command_guild_id or settings.discord_command_guild_id or ""
         ).strip()
         or None,
     )
+
+
+def resolve_discord_token() -> str | None:
+    settings = DiscordSettings()
+    return (settings.discord_token or "").strip() or None

@@ -31,7 +31,7 @@ class Evidence(BaseModel):
     # EMOS retrieval fields — used to construct memory_url
     memory_timestamp: datetime   # create_time returned by EMOS retrieval
     memory_page_id: str          # "{memory_user_id}_{timestamp_iso}" — URL key
-    memory_url: str              # "https://www.bibliotalk.space/memory/{memory_page_id}"
+    memory_url: str              # "{BIBLIOTALK_WEB_URL}/memory/{memory_page_id}"
 
     # Verbatim evidence for BM25 reranking and quote validation
     text: str                    # full cached segment text from SQLite
@@ -50,7 +50,7 @@ class Evidence(BaseModel):
 ### Construction rules
 
 - `memory_page_id` = `f"{memory_user_id}_{memory_timestamp.strftime('%Y%m%dT%H%M%SZ')}"` (UTC compact ISO-8601, no colons for URL safety)
-- `memory_url` = `f"https://www.bibliotalk.space/memory/{memory_page_id}"`
+- `memory_url` = `f"{BIBLIOTALK_WEB_URL.rstrip('/')}/memory/{memory_page_id}"` (default base URL: `https://www.bibliotalk.space`)
 - `video_url_with_timestamp`: when `published_at` is known, offset = `int((memory_timestamp - published_at).total_seconds())`; URL = `f"{source_url}&t={offset}s"`
 - `memory_timestamp` is the EMOS `timestamp` field returned by `search()` for the matching memory item — it is not re-derived locally
 

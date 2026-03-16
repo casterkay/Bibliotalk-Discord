@@ -31,7 +31,7 @@ class IngestSettings(BaseSettings):
     emos_retries: int = Field(default=3, validation_alias="EMOS_RETRIES")
     ingest_index_path: str | None = Field(default=None, validation_alias="INGEST_INDEX_PATH")
     youtube_transcript_providers: str = Field(
-        default="yt_dlp,youtube_transcript_api",
+        default="yt_dlp",  # optionally: youtube_transcript_api
         validation_alias="BIBLIOTALK_YOUTUBE_TRANSCRIPT_PROVIDERS",
     )
     youtube_transcript_langs: str | None = Field(

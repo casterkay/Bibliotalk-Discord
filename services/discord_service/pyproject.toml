@@ -23,7 +23,13 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["discord_service"]
+packages = [
+  "discord_service",
+  "discord_service.bot",
+  "discord_service.feed",
+  "discord_service.ops",
+  "discord_service.talks",
+]
 
 [tool.setuptools.package-dir]
 "discord_service" = "src"

@@ -9,8 +9,7 @@ from typing import Awaitable, Callable, Protocol
 
 from bt_common.evidence_store.models import DiscordPost, Source, TranscriptBatch
 from discord_service.bot.message_models import FeedBatchMessage, FeedParentMessage
-from discord_service.feed.batcher import ensure_source_batches, format_seq_label
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 logger = logging.getLogger("discord_service")
@@ -83,6 +82,14 @@ def _build_parent_text(source: Source) -> str:
 def _build_thread_name(source: Source) -> str:
     candidate = source.title.strip() or source.external_id
     return candidate[:100] or source.external_id[:100]
+
+
+def _format_seq_label(start_ms: int | None) -> str:
+    total_seconds = max((start_ms or 0) // 1000, 0)
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    return f"[{hours:02d}:{minutes:02d}:{seconds:02d}]"
 
 
 async def _get_parent_post(
@@ -257,15 +264,18 @@ class FeedPublisher:
             if source is None:
                 raise LookupError(f"Unknown source: {source_id}")
 
-            batches = await ensure_source_batches(session, source_id=source_id)
-            await session.commit()
-
-        async with self._session_factory() as session:
-            source = await session.get(Source, source_id)
-            if source is None:
-                raise LookupError(f"Unknown source: {source_id}")
-
-            if not batches:
+            ordered_batches = (
+                (
+                    await session.execute(
+                        select(TranscriptBatch)
+                        .where(TranscriptBatch.source_id == source.source_id)
+                        .order_by(TranscriptBatch.start_seq, TranscriptBatch.batch_id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if not ordered_batches:
                 return PublishResult(source_id=source_id, status="done")
 
             parent_post = await _get_or_create_parent_post(
@@ -321,17 +331,6 @@ class FeedPublisher:
                     )
 
             posted_count = 0
-            ordered_batches = (
-                (
-                    await session.execute(
-                        select(TranscriptBatch)
-                        .where(TranscriptBatch.source_id == source.source_id)
-                        .order_by(TranscriptBatch.start_seq, TranscriptBatch.batch_id)
-                    )
-                )
-                .scalars()
-                .all()
-            )
             for index, batch in enumerate(ordered_batches):
                 batch_post = await _get_or_create_batch_post(
                     session,
@@ -350,7 +349,7 @@ class FeedPublisher:
                     batch_id=batch.batch_id,
                     thread_id=parent_post.thread_id or "",
                     text=batch.text,
-                    seq_label=format_seq_label(batch.start_ms),
+                    seq_label=_format_seq_label(batch.start_ms),
                 )
                 try:
                     await _publish_with_retry(
@@ -416,9 +415,30 @@ class FeedPublisher:
         ):
             return True
 
-        batches = await ensure_source_batches(session, source_id=source_id)
-        if not batches:
+        batches_total = int(
+            (
+                await session.execute(
+                    select(func.count())
+                    .select_from(TranscriptBatch)
+                    .where(TranscriptBatch.source_id == source_id)
+                )
+            ).scalar_one()
+            or 0
+        )
+        if batches_total == 0:
             return False
+
+        batches = (
+            (
+                await session.execute(
+                    select(TranscriptBatch).where(
+                        TranscriptBatch.source_id == source_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         pending_rows = (
             (

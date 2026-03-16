@@ -44,12 +44,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
-    GOOGLE_API_KEY: str | None = None
     BIBLIOTALK_DB_PATH: str | None = None
-    DATABASE_URL: str | None = None
     EMOS_BASE_URL: str | None = None
     EMOS_API_KEY: str | None = None
-    AWS_REGION: str = "us-east-1"
+    BIBLIOTALK_WEB_URL: str = "https://www.bibliotalk.space"
     LOG_LEVEL: str = "INFO"
 
 

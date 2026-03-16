@@ -52,6 +52,7 @@ async def publish_pending_feeds(
     config: DiscordRuntimeConfig,
     *,
     transport: DiscordFeedTransport,
+    figure_slug: str | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     logger_: logging.Logger | None = None,
 ) -> FeedPublicationSummary:
@@ -60,14 +61,14 @@ async def publish_pending_feeds(
     session_factory = session_factory or get_session_factory(config.db_path)
 
     async with session_factory() as session:
-        rows = (
-            await session.execute(
-                select(Figure.figure_id, Figure.emos_user_id, DiscordMap.channel_id)
-                .join(DiscordMap, DiscordMap.figure_id == Figure.figure_id)
-                .where(Figure.status == "active")
-                .order_by(Figure.emos_user_id)
-            )
-        ).all()
+        query = (
+            select(Figure.figure_id, Figure.emos_user_id, DiscordMap.channel_id)
+            .join(DiscordMap, DiscordMap.figure_id == Figure.figure_id)
+            .where(Figure.status == "active")
+        )
+        if figure_slug:
+            query = query.where(Figure.emos_user_id == figure_slug)
+        rows = (await session.execute(query.order_by(Figure.emos_user_id))).all()
 
     publisher = FeedPublisher(session_factory, transport=transport)
     attempted_sources = 0

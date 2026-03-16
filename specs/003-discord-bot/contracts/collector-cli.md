@@ -18,8 +18,13 @@ python -m discord_service
 | -------------------- | ----- | -------- | -------------------------------------------------------------------------------------------- |
 | `--db`               | `str` | No       | SQLite database path. Overrides `BIBLIOTALK_DB_PATH`. Default: `~/.bibliotalk/bibliotalk.db` |
 | `--log-level`        | `str` | No       | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`. Default: `INFO`                                  |
-| `--discord-token`    | `str` | No       | Discord bot token. Overrides `DISCORD_TOKEN`                                                  |
-| `--command-guild-id` | `str` | No       | Optional guild ID to sync slash commands to for faster iteration                              |
+| `--command-guild-id` | `str` | No       | Optional guild ID to sync slash commands to for faster iteration                             |
+
+Preferred unified CLI entrypoint:
+
+```
+bibliotalk discord run
+```
 
 ---
 
@@ -27,16 +32,17 @@ python -m discord_service
 
 All secrets MUST be provided via environment variables. They MUST NOT appear in command arguments, logs, or config files committed to the repository.
 
-| Variable                         | Required | Description                                                        |
-| -------------------------------- | -------- | ------------------------------------------------------------------ |
-| `EMOS_BASE_URL`                  | Yes      | EverMemOS API base URL                                             |
-| `EMOS_API_KEY`                   | Yes      | EverMemOS API key                                                  |
-| `DISCORD_TOKEN`                  | Yes      | Discord bot token                                                  |
-| `GOOGLE_API_KEY`                 | Yes      | Gemini API key (required for production-quality character replies) |
-| `BIBLIOTALK_DB_PATH`             | No       | SQLite database path (overridden by `--db`)                         |
-| `DISCORD_COMMAND_GUILD_ID`       | No       | Optional guild ID for fast slash-command sync                       |
-| `BIBLIOTALK_ENABLE_AI_ROUTER`    | No       | Set to `true` to enable Gemini facilitator routing (default off)    |
-| `BIBLIOTALK_ENABLE_AI_CONCIERGE` | No       | Set to `true` to enable Gemini DM concierge (default off)           |
+| Variable                         | Required | Description                                                                   |
+| -------------------------------- | -------- | ----------------------------------------------------------------------------- |
+| `EMOS_BASE_URL`                  | Yes      | EverMemOS API base URL                                                        |
+| `EMOS_API_KEY`                   | Yes      | EverMemOS API key                                                             |
+| `DISCORD_TOKEN`                  | Yes      | Discord bot token                                                             |
+| `GOOGLE_API_KEY`                 | Yes      | Gemini API key (required for production-quality character replies)            |
+| `BIBLIOTALK_DB_PATH`             | No       | SQLite database path (overridden by `--db`)                                   |
+| `BIBLIOTALK_WEB_URL`             | No       | Base URL used for inline memory links (default: https://www.bibliotalk.space) |
+| `DISCORD_COMMAND_GUILD_ID`       | No       | Optional guild ID for fast slash-command sync                                 |
+| `BIBLIOTALK_ENABLE_AI_ROUTER`    | No       | Set to `true` to enable Gemini facilitator routing (default off)              |
+| `BIBLIOTALK_ENABLE_AI_CONCIERGE` | No       | Set to `true` to enable Gemini DM concierge (default off)                     |
 
 ---
 

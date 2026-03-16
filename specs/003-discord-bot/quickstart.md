@@ -52,6 +52,9 @@ GOOGLE_API_KEY=your-google-api-key
 # SQLite database path (optional — defaults to ~/.bibliotalk/bibliotalk.db)
 BIBLIOTALK_DB_PATH=/path/to/bibliotalk.db
 
+# Public base URL used in inline memory links
+BIBLIOTALK_WEB_URL=https://www.bibliotalk.space
+
 # Discord bot token (single-bot runtime)
 DISCORD_TOKEN=your-discord-bot-token
 
@@ -70,7 +73,7 @@ BIBLIOTALK_ENABLE_AI_CONCIERGE=
 Use the helper script:
 
 ```bash
-uv run python services/discord_service/scripts/seed_figure.py \
+uv run --package bt_cli bibliotalk figure seed \
   --figure alan-watts \
   --display-name "Alan Watts" \
   --persona-summary "Philosopher and interpreter of Eastern philosophy." \
@@ -84,9 +87,9 @@ uv run python services/discord_service/scripts/seed_figure.py \
 ## 5. Run the bot
 
 ```bash
-uv run --package ingestion_service python -m ingestion_service --figure alan-watts
-uv run --package discord_service python -m discord_service
-uv run --package memory_page_service python -m memory_page_service
+uv run --package bt_cli bibliotalk collector run --figure alan-watts
+uv run --package bt_cli bibliotalk discord run
+uv run --package bt_cli bibliotalk memory-pages run
 ```
 
 Expected output:
@@ -106,7 +109,7 @@ INFO  [ingestion_service] Collector polling loop started (interval: 60 min)
 To test ingest without waiting for the polling interval, use the manual helper:
 
 ```bash
-uv run python services/ingestion_service/scripts/trigger_ingest.py \
+uv run --package bt_cli bibliotalk ingest request \
   --figure alan-watts \
   --video-id KNOWN_YOUTUBE_VIDEO_ID
 ```
@@ -114,7 +117,7 @@ uv run python services/ingestion_service/scripts/trigger_ingest.py \
 Then process the manual request immediately:
 
 ```bash
-uv run --package ingestion_service python -m ingestion_service --figure alan-watts --once
+uv run --package bt_cli bibliotalk collector run --figure alan-watts --once
 ```
 
 ---
