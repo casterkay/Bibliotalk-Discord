@@ -148,8 +148,6 @@ high.
 
 ## Engineering Standards
 
-- **Language**: Python 3.11+ for all services. No additional runtime
-  languages without constitution amendment.
 - **Type Safety**: All Python code MUST use type annotations.
   Pydantic models MUST be used for data validation at service
   boundaries. `Any` types are prohibited in public interfaces.

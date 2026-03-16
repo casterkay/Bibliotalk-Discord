@@ -95,13 +95,21 @@
 │   │           ├── config.py
 │   │           ├── poller.py
 │   │           └── reporting.py
-│   └── memory_page_service
-│       ├── pyproject.toml
+│   ├── memory_page_service
+│   │   ├── pyproject.toml
+│   │   └── src
+│   │       ├── app.py
+│   │       ├── config.py
+│   │       ├── entrypoint.py
+│   │       └── resolver.py
+│   └── voip_service
+│       ├── eslint.config.js
+│       ├── package.json
 │       └── src
-│           ├── app.py
-│           ├── config.py
-│           ├── entrypoint.py
-│           └── resolver.py
+│           ├── audio_bridge.js
+│           ├── index.js
+│           ├── matrixrtc.js
+│           └── mixer.js
 ├── specs
 │   ├── 001-matrix-mvp
 │   │   ├── checklists
@@ -116,7 +124,8 @@
 │   │   ├── plan.md
 │   │   ├── quickstart.md
 │   │   ├── research.md
-│   │   └── spec.md
+│   │   ├── spec.md
+│   │   └── tasks.md
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
 │   │   │   └── requirements.md
@@ -148,5 +157,5 @@
 │       └── tasks.md
 └── uv.lock
 
-45 directories, 104 files
+47 directories, 111 files
 
