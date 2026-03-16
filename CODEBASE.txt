@@ -181,10 +181,6 @@
 │   │   ├── research.md
 │   │   ├── spec.md
 │   │   └── tasks.md
-│   ├── 001-spirit-duo-dialogue
-│   │   ├── checklists
-│   │   │   └── requirements.md
-│   │   └── spec.md
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
 │   │   │   └── requirements.md
@@ -216,5 +212,5 @@
 │       └── tasks.md
 └── uv.lock
 
-68 directories, 149 files
+66 directories, 147 files
 

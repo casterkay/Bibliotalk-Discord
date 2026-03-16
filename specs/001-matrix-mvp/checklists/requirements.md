@@ -32,4 +32,4 @@
 ## Notes
 
 - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
-- Validation completed on 2026-03-16.
+- Validation completed on 2026-03-17 (includes User Story 4: autonomous Spirit duo session).

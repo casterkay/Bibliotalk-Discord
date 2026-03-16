@@ -25,11 +25,11 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 **Purpose**: Add the missing packages/services required by the architecture and wire them into the workspace.
 
-- [ ] T001 [P] Add workspace members for `bt_store`, `matrix_service`, `voip_service` in `/Users/tcai/Projects/Bibliotalk/pyproject.toml`
-- [ ] T002 [P] Scaffold `bt_store` package (`/Users/tcai/Projects/Bibliotalk/packages/bt_store/pyproject.toml`)
-- [ ] T003 [P] Scaffold `matrix_service` Node/TS service (`/Users/tcai/Projects/Bibliotalk/services/matrix_service/package.json`)
-- [ ] T004 [P] Scaffold `voip_service` Node sidecar (`/Users/tcai/Projects/Bibliotalk/services/voip_service/package.json`)
-- [ ] T005 [P] Add Matrix+voice env placeholders and documentation in `/Users/tcai/Projects/Bibliotalk/deploy/local/.env.example`
+- [X] T001 [P] Add workspace members for `bt_store`, `matrix_service`, `voip_service` in `/Users/tcai/Projects/Bibliotalk/pyproject.toml`
+- [X] T002 [P] Scaffold `bt_store` package (`/Users/tcai/Projects/Bibliotalk/packages/bt_store/pyproject.toml`)
+- [X] T003 [P] Scaffold `matrix_service` Node/TS service (`/Users/tcai/Projects/Bibliotalk/services/matrix_service/package.json`)
+- [X] T004 [P] Scaffold `voip_service` Node sidecar (`/Users/tcai/Projects/Bibliotalk/services/voip_service/package.json`)
+- [X] T005 [P] Add Matrix+voice env placeholders and documentation in `/Users/tcai/Projects/Bibliotalk/deploy/local/.env.example`
 - [X] T006 [P] Add local Matrix dev stack skeleton (Synapse + Element + appservice registration) in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/docker-compose.yml`
 - [X] T007 [P] Add Synapse appservice registration template in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/appservice/bibliotalk.yaml`
 - [X] T008 [P] Add Matrix stack README for local dev in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/README.md`
@@ -44,21 +44,21 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete.
 
-- [ ] T011 Create async DB engine + session helpers in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/engine.py`
-- [ ] T012 [P] Define SQLAlchemy models for `Agent`, `AgentPlatformIdentity`, `Room` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_core.py`
-- [ ] T013 [P] Define SQLAlchemy models for `Source`, `Segment` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_evidence.py`
-- [ ] T014 [P] Define SQLAlchemy models for `ChatHistory`, `PlatformPost` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_runtime.py`
-- [ ] T015 Add Alembic config + env for `bt_store` migrations in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic.ini`
-- [ ] T016 Create initial schema migration per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/data-model.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic/versions/0001_initial_schema.py`
-- [ ] T017 Add citation validation utility (quote substring + agent isolation) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/citations.py`
-- [ ] T018 Add settings for Matrix appservice + Spirit namespace in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/config.py`
-- [ ] T019 Create `agents_service` HTTP app skeleton (FastAPI) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/server.py`
-- [ ] T020 Implement non-streaming fallback `POST /v1/agents/{agent_id}/turn` per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/turns.py`
-- [ ] T021 Implement Live Sessions create+WS endpoints per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/live.py`
-- [ ] T022 Implement Live-session cancellation/supersede semantics (turn-level cancel; last-turn-wins) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/session_manager.py`
-- [ ] T023 Implement voice Live integration with Gemini Live (audio in/out + transcription forwarding) grounded on `/Users/tcai/Projects/Bibliotalk/docs/knowledge/gemini-live-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/gemini_live_backend.py`
-- [ ] T024 Persist `ChatHistory` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
-- [ ] T025 Add stable error codes + error shape mapping in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/errors.py`
+- [X] T011 Create async DB engine + session helpers in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/engine.py`
+- [X] T012 [P] Define SQLAlchemy models for `Agent`, `AgentPlatformIdentity`, `Room` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_core.py`
+- [X] T013 [P] Define SQLAlchemy models for `Source`, `Segment` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_evidence.py`
+- [X] T014 [P] Define SQLAlchemy models for `ChatHistory`, `PlatformPost` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_runtime.py`
+- [X] T015 Add Alembic config + env for `bt_store` migrations in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic.ini`
+- [X] T016 Create initial schema migration per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/data-model.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic/versions/0001_initial_schema.py`
+- [X] T017 Add citation validation utility (quote substring + agent isolation) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/citations.py`
+- [X] T018 Add settings for Matrix appservice + Spirit namespace in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/config.py`
+- [X] T019 Create `agents_service` HTTP app skeleton (FastAPI) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/server.py`
+- [X] T020 Implement non-streaming fallback `POST /v1/agents/{agent_id}/turn` per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/turns.py`
+- [X] T021 Implement Live Sessions create+WS endpoints per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/live.py`
+- [X] T022 Implement Live-session cancellation/supersede semantics (turn-level cancel; last-turn-wins) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/session_manager.py`
+- [X] T023 Implement voice Live integration with Gemini Live (audio in/out + transcription forwarding) grounded on `/Users/tcai/Projects/Bibliotalk/docs/knowledge/gemini-live-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/gemini_live_backend.py`
+- [X] T024 Persist `ChatHistory` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
+- [X] T025 Add stable error codes + error shape mapping in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/errors.py`
 
 **Checkpoint**: DB schema migrates cleanly; `agents_service` exposes both fallback turn API and Live Sessions API; citation validation is enforced.
 
@@ -70,18 +70,18 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 **Independent Test** (manual): Create a private room, invite a Spirit, send a question with known evidence, observe a cited reply; then send a second message while the first reply is streaming and verify supersede/cancel behavior. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
 
-- [ ] T026 [US1] Create `matrix_service` Node/TS app skeleton and health endpoint in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/server.ts`
-- [ ] T027 [US1] Implement AppService auth verification (`hs_token`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/auth.ts`
-- [ ] T028 [P] [US1] Implement inbound Matrix event parsing/models per contract in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/events.ts`
-- [ ] T029 [US1] Implement inbound event guardrails (ignore edits, bots, non-text, Archive Rooms) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/guards.ts`
-- [ ] T030 [US1] Implement routing rules (mentions → addressed Spirit(s); DM single-Spirit fallback; else no reply) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/routing.ts`
-- [ ] T031 [US1] Implement Spirit virtual user join-on-invite + membership index maintenance in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/membership.ts`
-- [ ] T032 [US1] Implement Matrix client wrapper (as_token masquerade send + edit) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/client.ts`
-- [ ] T033 [US1] Implement outbound message renderer (Matrix formatting + `com.bibliotalk.citations`) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/matrix_message.ts`
-- [ ] T034 [US1] Implement streaming delivery via message edits (`m.replace`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/streaming_edits.ts`
-- [ ] T035 [US1] Implement `/_matrix/app/v1/transactions/{txn_id}` handler (parse → route → call `agents_service` Live Sessions/turn fallback → post) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/appservice.ts`
+- [X] T026 [US1] Create `matrix_service` Node/TS app skeleton and health endpoint in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/server.ts`
+- [X] T027 [US1] Implement AppService auth verification (`hs_token`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/auth.ts`
+- [X] T028 [P] [US1] Implement inbound Matrix event parsing/models per contract in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/events.ts`
+- [X] T029 [US1] Implement inbound event guardrails (ignore edits, bots, non-text, Archive Rooms) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/guards.ts`
+- [X] T030 [US1] Implement routing rules (mentions → addressed Spirit(s); DM single-Spirit fallback; else no reply) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/routing.ts`
+- [X] T031 [US1] Implement Spirit virtual user join-on-invite + membership index maintenance in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/membership.ts`
+- [X] T032 [US1] Implement Matrix client wrapper (as_token masquerade send + edit) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/client.ts`
+- [X] T033 [US1] Implement outbound message renderer (Matrix formatting + `com.bibliotalk.citations`) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/matrix_message.ts`
+- [X] T034 [US1] Implement streaming delivery via message edits (`m.replace`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/streaming_edits.ts`
+- [X] T035 [US1] Implement `/_matrix/app/v1/transactions/{txn_id}` handler (parse → route → call `agents_service` Live Sessions/turn fallback → post) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/appservice.ts`
 - [ ] T036 [US1] Persist Dialogue Room messages + Spirit responses to `ChatHistory` (audit trail) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/audit/write_chat_history.ts`
-- [ ] T037 [P] [US1] Add operator CLI command to run matrix_service in `/Users/tcai/Projects/Bibliotalk/packages/bt_cli/src/main.py`
+- [X] T037 [P] [US1] Add operator CLI command to run matrix_service in `/Users/tcai/Projects/Bibliotalk/packages/bt_cli/src/main.py`
 - [ ] T038 [US1] Validate US1 end-to-end via local Element + Synapse stack using `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/quickstart.md`
 
 ---

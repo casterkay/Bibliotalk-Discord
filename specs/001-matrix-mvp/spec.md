@@ -64,6 +64,26 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 
 ---
 
+### User Story 4 — Autonomous 1:1 Spirit Duo Dialogue (Observer Mode) (Priority: P4)
+
+A user initiates an autonomous, 1:1 dialogue between two Spirits inside a Dialogue Room while acting as an observer/host. After the session starts, the two selected Spirits converse with each other without requiring further user input. The user can watch the conversation unfold and can stop it at any time.
+
+This mode is explicitly opt-in and must not change normal multi-Spirit Dialogue Room behavior: outside of an active duo session, multi-Spirit rooms remain quiet unless a user explicitly addresses a Spirit (to avoid noisy multi-bot chatter).
+
+**Why this priority**: This is a compelling “Spirits feel alive together” experience that remains aligned with Bibliotalk’s trust constraints (grounding + citations) and keeps the user in control (stop).
+
+**Independent Test**: Create a Dialogue Room with exactly two Spirits, start a duo session, and verify the Spirits alternate messages with citations, the user cannot meaningfully intervene (observer-only), and the user can stop the session.
+
+**Acceptance Scenarios**:
+
+1. **Given** a Dialogue Room that includes a user and at least two Spirits, **When** the user starts a duo session selecting exactly two distinct Spirits, **Then** only those two Spirits participate and the user can observe a sequence of Spirit-attributed messages posted to the room.
+2. **Given** a user attempts to start a duo session without selecting exactly two distinct Spirits, **When** the start is requested, **Then** the system prevents the start and explains what must be fixed.
+3. **Given** a duo session is running, **When** the user sends messages into the room, **Then** those messages do not trigger Spirit replies and do not alter the duo session’s turn-taking (observer-only behavior).
+4. **Given** a duo session is running, **When** the user stops the session, **Then** the system stops generating new Spirit messages and records the session as stopped by the user.
+5. **Given** a duo session is running, **When** one of the Spirits cannot produce a response or a safety stop occurs, **Then** the system ends the session and records a user-visible end reason.
+
+---
+
 ### Edge Cases
 
 - What happens when a Spirit is invited to a Dialogue Room but is not configured or is inactive?
@@ -74,6 +94,8 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 - What happens when two users talk to the same Spirit concurrently in separate Dialogue Rooms?
 - What happens when voice session audio is received but speech recognition fails for a turn?
 - What happens when a user speaks continuously for a long time or interrupts the Spirit mid-response?
+- What happens when a duo session is started in a room that contains more than two Spirits?
+- What happens when a duo session repeats or stalls (looping) before reaching a session limit?
 
 ## Requirements *(mandatory)*
 
@@ -121,6 +143,17 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 - **FR-022**: For MVP, the system MUST power Spirit voice interactions using Gemini Live.
 - **FR-023**: The system MUST gracefully handle voice failures (disconnections, temporary unavailability) by notifying the user in the room and leaving text chat functional.
 
+#### Autonomous 1:1 Spirit Duo Dialogue (Observer Mode)
+
+- **FR-026**: The system MUST allow a user to start an explicit “duo session” in a Dialogue Room by selecting exactly two distinct Spirits as participants.
+- **FR-027**: While a duo session is active, only the two selected Spirits MUST participate; all other Spirits in the room MUST remain silent unless explicitly addressed outside of duo mode.
+- **FR-028**: While a duo session is active, user messages in the room MUST NOT trigger Spirit replies and MUST NOT influence duo session turn-taking (observer-only MVP).
+- **FR-029**: Duo session turn-taking MUST be orchestrated by the system and MUST NOT be triggered by Spirit-authored messages as new “incoming” prompts (prevents bot loops).
+- **FR-030**: Each duo session Spirit message MUST obey the same grounding, citation, and cross-Spirit isolation requirements as normal Dialogue Room responses.
+- **FR-031**: The system MUST apply default duo session limits (20 turns or 10 minutes, whichever comes first) and MUST end the session when a limit is reached.
+- **FR-032**: The user MUST be able to stop an active duo session at any time; after stopping, the system MUST generate no further duo messages.
+- **FR-033**: The system MUST record duo session boundaries and end reason in a user-visible way (at minimum: a start marker and an end marker with status and reason).
+
 #### Audit & Safety
 
 - **FR-024**: The system MUST retain an audit trail of Dialogue Room conversations (text and voice transcripts) with associated citations for later review and debugging.
@@ -131,6 +164,7 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 - **FR-004–FR-007, FR-017–FR-018**: Demonstrated by User Story 2 acceptance scenarios.
 - **FR-007a, FR-008–FR-016, FR-024–FR-025**: Demonstrated by User Story 1 acceptance scenarios (including Matrix adapter integration tests for appservice auth).
 - **FR-019–FR-023**: Demonstrated by User Story 3 acceptance scenarios.
+- **FR-026–FR-033**: Demonstrated by User Story 4 acceptance scenarios.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -142,6 +176,7 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 - **Segment**: A verbatim excerpt of a Source used for retrieval, citations, and Archive Room posting.
 - **Citation**: A structured reference to a Segment (source title, URL, quote, and optional location context).
 - **Voice Session**: A time-bounded voice interaction in a Dialogue Room, producing audio plus a text transcript with citations.
+- **Duo Session**: A time-bounded autonomous dialogue between exactly two Spirits in a Dialogue Room, with recorded start/end markers and an end reason.
 - **Platform Adapter**: The integration layer that maps a platform’s native events and rooms to the platform-agnostic conversation interface.
 
 ## Success Criteria *(mandatory)*
@@ -155,6 +190,8 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 - **SC-005**: In 1:1 voice calls, median latency from end-of-user-utterance to start-of-Spirit-speech is under 3 seconds in a controlled test environment.
 - **SC-006**: 100% of Spirit voice turns produce a corresponding text transcript entry with citations in the same Dialogue Room.
 - **SC-007**: The system supports at least 50 concurrent active Dialogue Rooms (text and/or voice) while maintaining success criteria SC-001 and SC-005.
+- **SC-008**: In at least 95% of attempts, a user can start a duo session and see the first duo message within 15 seconds.
+- **SC-009**: In at least 99% of stop attempts, no additional duo messages appear after the user stops the session.
 
 ## Scope & Boundaries
 
@@ -164,12 +201,14 @@ A user starts an Element voice call in a Dialogue Room and invites a Spirit. The
 - Archive Rooms + Dialogue Rooms and their behavioral enforcement.
 - Grounded Spirit text chat in Dialogue Rooms with verifiable citations.
 - 1:1 Spirit voice calls in Dialogue Rooms with transcript + citations.
+- Observer-only autonomous 1:1 duo sessions between two Spirits in a Dialogue Room.
 - Archive publication of ingested content as source threads with ordered segments.
 - Platform-agnostic core logic that can be reused by additional messaging platforms.
 
 ### Out of Scope (MVP)
 
 - Multi-Spirit voice discussions and explicit floor-control behavior in group calls.
+- Observer intervention during duo sessions (sending messages that influence the duo dialogue).
 - End-to-end encrypted voice calls.
 - Federation with external Matrix homeservers.
 - Spirit-generated content in any public room (Archive Rooms remain verbatim-only).
