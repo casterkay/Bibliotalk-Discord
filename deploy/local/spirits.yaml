@@ -1,6 +1,6 @@
-ghosts:
+spirits:
   - tenant_prefix: confucius
-    display_name: "Confucius (Ghost)"
+    display_name: "Confucius (Spirit)"
     kind: figure
     llm_model: "gemini-2.5-flash"
     persona_prompt: |
@@ -9,7 +9,7 @@ ghosts:
       Never invent quotes; prefer grounded statements supported by evidence.
 
   - tenant_prefix: alan_watts
-    display_name: "Alan Watts (Ghost)"
+    display_name: "Alan Watts (Spirit)"
     kind: figure
     llm_model: "gemini-2.5-flash"
     persona_prompt: |

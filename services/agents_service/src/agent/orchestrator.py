@@ -45,7 +45,7 @@ class DMOrchestrator:
 @dataclass
 class DiscussionConfig:
     topic: str
-    ghost_agent_ids: list[str]
+    spirit_agent_ids: list[str]
     max_turns: int = 4
     turn_order: str = "round-robin"
 
@@ -62,11 +62,11 @@ class DiscussionOrchestrator:
 
     async def run(self, room_id: str, config: DiscussionConfig) -> list[dict[str, Any]]:
         history: list[dict[str, Any]] = []
-        if not config.ghost_agent_ids:
+        if not config.spirit_agent_ids:
             return history
 
         for turn in range(config.max_turns):
-            ghost_id = config.ghost_agent_ids[turn % len(config.ghost_agent_ids)]
+            spirit_id = config.spirit_agent_ids[turn % len(config.spirit_agent_ids)]
             context_lines = [config.topic] + [item["text"] for item in history]
             prompt = "\n".join(context_lines)
 
@@ -82,12 +82,12 @@ class DiscussionOrchestrator:
                     },
                 },
             }
-            response = await self.a2a_client(ghost_id, request)
+            response = await self.a2a_client(spirit_id, request)
             artifacts = response["result"]["artifacts"][0]["parts"]
             text = artifacts[0]["text"]
             citations = artifacts[1]["data"].get("citations", [])
 
-            turn_payload = {"ghost_id": ghost_id, "text": text, "citations": citations}
+            turn_payload = {"spirit_id": spirit_id, "text": text, "citations": citations}
             history.append(turn_payload)
             await self.post_message(room_id, turn_payload)
 

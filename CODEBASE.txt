@@ -5,7 +5,7 @@
 ├── deploy
 │   └── local
 │       ├── docker-compose.yml
-│       └── ghosts.yaml
+│       └── spirits.yaml
 ├── DESIGN.md
 ├── OPERATIONS.md
 ├── packages
@@ -27,7 +27,8 @@
 ├── README.md
 ├── ROSTER.md
 ├── scripts
-│   └── outline-codebase.sh
+│   ├── outline-codebase.sh
+│   └── replace-terms.py
 ├── services
 │   ├── agents_service
 │   │   ├── pyproject.toml
@@ -157,5 +158,5 @@
 │       └── tasks.md
 └── uv.lock
 
-47 directories, 111 files
+47 directories, 112 files
 

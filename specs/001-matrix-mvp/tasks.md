@@ -25,10 +25,10 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 **Purpose**: Add the missing packages/services required by the architecture and wire them into the workspace.
 
-- [ ] T001 [P] Add workspace members for `bt_store`, `matrix_service`, `voice_call_service` in `/Users/tcai/Projects/Bibliotalk/pyproject.toml`
+- [ ] T001 [P] Add workspace members for `bt_store`, `matrix_service`, `voip_service` in `/Users/tcai/Projects/Bibliotalk/pyproject.toml`
 - [ ] T002 [P] Scaffold `bt_store` package (`/Users/tcai/Projects/Bibliotalk/packages/bt_store/pyproject.toml`)
 - [ ] T003 [P] Scaffold `matrix_service` Node/TS service (`/Users/tcai/Projects/Bibliotalk/services/matrix_service/package.json`)
-- [ ] T004 [P] Scaffold `voice_call_service` Node sidecar (`/Users/tcai/Projects/Bibliotalk/services/voice_call_service/package.json`)
+- [ ] T004 [P] Scaffold `voip_service` Node sidecar (`/Users/tcai/Projects/Bibliotalk/services/voip_service/package.json`)
 - [ ] T005 [P] Add Matrix+voice env placeholders and documentation in `/Users/tcai/Projects/Bibliotalk/deploy/local/.env.example`
 - [ ] T006 [P] Add local Matrix dev stack skeleton (Synapse + Element + appservice registration) in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/docker-compose.yml`
 - [ ] T007 [P] Add Synapse appservice registration template in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/appservice/bibliotalk.yaml`
@@ -51,46 +51,46 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 - [ ] T015 Add Alembic config + env for `bt_store` migrations in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic.ini`
 - [ ] T016 Create initial schema migration per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/data-model.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic/versions/0001_initial_schema.py`
 - [ ] T017 Add citation validation utility (quote substring + agent isolation) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/citations.py`
-- [ ] T018 Add settings for Matrix appservice + Ghost namespace in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/config.py`
+- [ ] T018 Add settings for Matrix appservice + Spirit namespace in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/config.py`
 - [ ] T019 Create `agents_service` HTTP app skeleton (FastAPI) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/server.py`
 - [ ] T020 Implement non-streaming fallback `POST /v1/agents/{agent_id}/turn` per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/turns.py`
 - [ ] T021 Implement Live Sessions create+WS endpoints per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/live.py`
 - [ ] T022 Implement Live-session cancellation/supersede semantics (turn-level cancel; last-turn-wins) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/session_manager.py`
 - [ ] T023 Implement voice Live integration with Gemini Live (audio in/out + transcription forwarding) grounded on `/Users/tcai/Projects/Bibliotalk/docs/knowledge/gemini-live-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/gemini_live_backend.py`
-- [ ] T024 Persist `ChatHistory` for both user inputs and Ghost outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
+- [ ] T024 Persist `ChatHistory` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
 - [ ] T025 Add stable error codes + error shape mapping in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/errors.py`
 
 **Checkpoint**: DB schema migrates cleanly; `agents_service` exposes both fallback turn API and Live Sessions API; citation validation is enforced.
 
 ---
 
-## Phase 3: User Story 1 — Grounded Ghost Text Chat in a Dialogue Room (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 — Grounded Spirit Text Chat in a Dialogue Room (Priority: P1) 🎯 MVP
 
-**Goal**: In Element, users can message a Ghost in a private Dialogue Room and receive grounded, cited responses; responses may stream; users can message while Ghost is streaming (cancel/supersede).
+**Goal**: In Element, users can message a Spirit in a private Dialogue Room and receive grounded, cited responses; responses may stream; users can message while Spirit is streaming (cancel/supersede).
 
-**Independent Test** (manual): Create a private room, invite a Ghost, send a question with known evidence, observe a cited reply; then send a second message while the first reply is streaming and verify supersede/cancel behavior. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
+**Independent Test** (manual): Create a private room, invite a Spirit, send a question with known evidence, observe a cited reply; then send a second message while the first reply is streaming and verify supersede/cancel behavior. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
 
 - [ ] T026 [US1] Create `matrix_service` Node/TS app skeleton and health endpoint in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/server.ts`
 - [ ] T027 [US1] Implement AppService auth verification (`hs_token`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/auth.ts`
 - [ ] T028 [P] [US1] Implement inbound Matrix event parsing/models per contract in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/events.ts`
 - [ ] T029 [US1] Implement inbound event guardrails (ignore edits, bots, non-text, Archive Rooms) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/guards.ts`
-- [ ] T030 [US1] Implement routing rules (mentions → addressed Ghost(s); DM single-Ghost fallback; else no reply) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/routing.ts`
-- [ ] T031 [US1] Implement Ghost virtual user join-on-invite + membership index maintenance in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/membership.ts`
+- [ ] T030 [US1] Implement routing rules (mentions → addressed Spirit(s); DM single-Spirit fallback; else no reply) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/routing.ts`
+- [ ] T031 [US1] Implement Spirit virtual user join-on-invite + membership index maintenance in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/membership.ts`
 - [ ] T032 [US1] Implement Matrix client wrapper (as_token masquerade send + edit) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/client.ts`
 - [ ] T033 [US1] Implement outbound message renderer (Matrix formatting + `com.bibliotalk.citations`) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/matrix_message.ts`
 - [ ] T034 [US1] Implement streaming delivery via message edits (`m.replace`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/streaming_edits.ts`
 - [ ] T035 [US1] Implement `/_matrix/app/v1/transactions/{txn_id}` handler (parse → route → call `agents_service` Live Sessions/turn fallback → post) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/appservice.ts`
-- [ ] T036 [US1] Persist Dialogue Room messages + Ghost responses to `ChatHistory` (audit trail) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/audit/write_chat_history.ts`
+- [ ] T036 [US1] Persist Dialogue Room messages + Spirit responses to `ChatHistory` (audit trail) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/audit/write_chat_history.ts`
 - [ ] T037 [P] [US1] Add operator CLI command to run matrix_service in `/Users/tcai/Projects/Bibliotalk/packages/bt_cli/src/main.py`
 - [ ] T038 [US1] Validate US1 end-to-end via local Element + Synapse stack using `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/quickstart.md`
 
 ---
 
-## Phase 4: User Story 2 — Browse a Ghost’s Archive Room in the Bibliotalk Space (Priority: P2)
+## Phase 4: User Story 2 — Browse a Spirit’s Archive Room in the Bibliotalk Space (Priority: P2)
 
 **Goal**: Archive Rooms are public + read-only; ingestion publishes per-source threads idempotently (root summary + verbatim replies); zero AI replies in Archive Rooms.
 
-**Independent Test** (manual): Open a Ghost’s Archive Room from the Space, confirm read-only for humans, confirm a source appears as a single thread root + ordered replies and retries do not duplicate. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
+**Independent Test** (manual): Open a Spirit’s Archive Room from the Space, confirm read-only for humans, confirm a source appears as a single thread root + ordered replies and retries do not duplicate. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
 
 - [ ] T039 [P] [US2] Add `Room.kind` enforcement helpers (archive vs dialogue) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/rooms.py`
 - [ ] T040 [US2] Add `PlatformPost` idempotency key helpers per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/archive-publication.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/platform_posts.py`
@@ -104,21 +104,21 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 ---
 
-## Phase 5: User Story 3 — 1:1 Voice Call With a Ghost in a Dialogue Room (Priority: P3)
+## Phase 5: User Story 3 — 1:1 Voice Call With a Spirit in a Dialogue Room (Priority: P3)
 
-**Goal**: In Element Call, a Ghost joins a 1:1 voice call, speaks back with grounded content, and posts a paired text transcript + citations to the Dialogue Room. Voice transcripts come from Gemini Live transcription streams.
+**Goal**: In Element Call, a Spirit joins a 1:1 voice call, speaks back with grounded content, and posts a paired text transcript + citations to the Dialogue Room. Voice transcripts come from Gemini Live transcription streams.
 
-**Independent Test** (manual): Start an Element Call in a Dialogue Room, invoke “call start” for a Ghost, confirm bidirectional audio and that each Ghost turn posts transcript + citations. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
+**Independent Test** (manual): Start an Element Call in a Dialogue Room, invoke “call start” for a Spirit, confirm bidirectional audio and that each Spirit turn posts transcript + citations. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
 
 - [ ] T048 [US3] Implement `!bt call start/stop` command parsing and dispatch in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/commands/bt_call.ts`
 - [ ] T049 [US3] Implement `matrix_service` voice session registry (room ↔ agent ↔ sidecar session) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/voice/session_registry.ts`
 - [ ] T050 [US3] Implement `matrix_service` internal endpoint for sidecar callbacks (join status, transcript+citations delivery) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/voice/sidecar_callbacks.ts`
-- [ ] T051 [P] [US3] Implement Node sidecar MatrixRTC join + media plumbing skeleton in `/Users/tcai/Projects/Bibliotalk/services/voice_call_service/src/matrixrtc.js`
-- [ ] T052 [US3] Implement Opus decode (remote → PCM16k) and encode (PCM24k → Opus) in `/Users/tcai/Projects/Bibliotalk/services/voice_call_service/src/audio_bridge.js`
-- [ ] T053 [US3] Implement sidecar ↔ agent core WS bridge per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/voice-bridge.md` in `/Users/tcai/Projects/Bibliotalk/services/voice_call_service/src/index.js`
-- [ ] T054 [US3] Implement sidecar → matrix_service callback delivery for final transcript+citations per `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/voice/sidecar_callbacks.ts` in `/Users/tcai/Projects/Bibliotalk/services/voice_call_service/src/index.js`
-- [ ] T055 [US3] Ensure barge-in / interruption stops playback immediately and supersedes generation (Gemini Live interruption aligned) in `/Users/tcai/Projects/Bibliotalk/services/voice_call_service/src/audio_bridge.js`
-- [ ] T056 [US3] Add CLI command to run `voice_call_service` (dev convenience wrapper) in `/Users/tcai/Projects/Bibliotalk/packages/bt_cli/src/main.py`
+- [ ] T051 [P] [US3] Implement Node sidecar MatrixRTC join + media plumbing skeleton in `/Users/tcai/Projects/Bibliotalk/services/voip_service/src/matrixrtc.js`
+- [ ] T052 [US3] Implement Opus decode (remote → PCM16k) and encode (PCM24k → Opus) in `/Users/tcai/Projects/Bibliotalk/services/voip_service/src/audio_bridge.js`
+- [ ] T053 [US3] Implement sidecar ↔ agent core WS bridge per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/voice-bridge.md` in `/Users/tcai/Projects/Bibliotalk/services/voip_service/src/index.js`
+- [ ] T054 [US3] Implement sidecar → matrix_service callback delivery for final transcript+citations per `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/voice/sidecar_callbacks.ts` in `/Users/tcai/Projects/Bibliotalk/services/voip_service/src/index.js`
+- [ ] T055 [US3] Ensure barge-in / interruption stops playback immediately and supersedes generation (Gemini Live interruption aligned) in `/Users/tcai/Projects/Bibliotalk/services/voip_service/src/audio_bridge.js`
+- [ ] T056 [US3] Add CLI command to run `voip_service` (dev convenience wrapper) in `/Users/tcai/Projects/Bibliotalk/packages/bt_cli/src/main.py`
 - [ ] T057 [US3] Validate US3 end-to-end using `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/quickstart.md`
 
 ---
@@ -145,7 +145,7 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 - After Phase 2:
   - US1 (P1) is the MVP slice and should ship first.
   - US2 (P2) can proceed after Phase 2, but is easiest once Matrix client + provisioning primitives exist (from US1).
-  - US3 (P3) depends on US1 (Matrix adapter + Ghost identity + posting) and the Phase 2 Live Sessions foundation.
+  - US3 (P3) depends on US1 (Matrix adapter + Spirit identity + posting) and the Phase 2 Live Sessions foundation.
 
 ### User Story completion order (recommended)
 
@@ -166,7 +166,7 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 ### US3 parallelizable clusters
 
-- Node sidecar RTC + audio bridge can proceed in parallel: T051 vs T052 (`/Users/tcai/Projects/Bibliotalk/services/voice_call_service/src/`)
+- Node sidecar RTC + audio bridge can proceed in parallel: T051 vs T052 (`/Users/tcai/Projects/Bibliotalk/services/voip_service/src/`)
 
 ---
 

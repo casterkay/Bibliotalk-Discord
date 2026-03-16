@@ -97,7 +97,7 @@ class AdkGeminiLLM:
 
         instruction = textwrap.dedent(
             f"""
-            You are a Bibliotalk Ghost.
+            You are a Bibliotalk Spirit.
 
             Persona:
             {persona_prompt.strip()}
@@ -109,7 +109,7 @@ class AdkGeminiLLM:
         prompt = _build_prompt(query, evidence)
 
         agent = Agent(
-            name="ghost",
+            name="spirit",
             model=self.model_name,
             instruction=instruction,
             generate_content_config=types.GenerateContentConfig(

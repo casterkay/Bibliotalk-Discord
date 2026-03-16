@@ -38,7 +38,7 @@ Unknown top-level fields are ignored.
 The Matrix adapter explicitly models and handles:
 
 1) `m.room.message` (text messages only)
-2) `m.room.member` (membership changes for Ghost virtual users)
+2) `m.room.member` (membership changes for Spirit virtual users)
 
 All other event types are ignored.
 
@@ -61,17 +61,17 @@ Optional fields used for routing/loop prevention:
 
 **Rules (MUST)**:
 
-1. Messages originating from Ghost virtual users (e.g., `sender` matches the `@bt_` namespace) MUST be ignored to prevent bot loops.
+1. Messages originating from Spirit virtual users (e.g., `sender` matches the `@bt_` namespace) MUST be ignored to prevent bot loops.
 2. Messages in an Archive Room MUST be ignored (Archive Rooms are non-interactive).
 3. Only text (`m.text` / `m.notice`) messages are eligible for routing.
 4. Edit events (`m.replace`) MUST be ignored for MVP.
 
 **Routing (Dialogue Rooms only)**:
 
-1. If `m.mentions.user_ids` contains one or more Ghost virtual user IDs, the addressed Ghost(s) are those mentioned users.
-2. Otherwise, if the message body contains one or more Ghost user IDs (literal `@bt_...` mentions), those Ghost(s) are addressed.
-3. Otherwise, if the Dialogue Room contains exactly one Ghost member (best-effort membership index), that Ghost is addressed.
-4. Otherwise, no Ghost responds.
+1. If `m.mentions.user_ids` contains one or more Spirit virtual user IDs, the addressed Spirit(s) are those mentioned users.
+2. Otherwise, if the message body contains one or more Spirit user IDs (literal `@bt_...` mentions), those Spirit(s) are addressed.
+3. Otherwise, if the Dialogue Room contains exactly one Spirit member (best-effort membership index), that Spirit is addressed.
+4. Otherwise, no Spirit responds.
 
 ---
 
@@ -81,19 +81,19 @@ Required fields:
 
 - `type`: `"m.room.member"`
 - `room_id`
-- `state_key`: the membership target user id (Ghost virtual user is `@bt_...`)
+- `state_key`: the membership target user id (Spirit virtual user is `@bt_...`)
 - `content.membership`: `"invite" | "join" | "leave" | "ban"`
 
 **Rules (MUST)**:
 
-1. On `invite` for a known Ghost virtual user, the system MUST join the room as that user.
-2. On `join`/`leave`/`ban`, the system updates its best-effort in-memory room→Ghost membership index for Dialogue Room routing.
+1. On `invite` for a known Spirit virtual user, the system MUST join the room as that user.
+2. On `join`/`leave`/`ban`, the system updates its best-effort in-memory room→Spirit membership index for Dialogue Room routing.
 
 ---
 
-## Outbound: Ghost Message Payload (Client-Server API)
+## Outbound: Spirit Message Payload (Client-Server API)
 
-Ghost text messages are sent via Matrix Client-Server API as the Ghost virtual user using the appservice `as_token` and the `user_id` masquerade parameter.
+Spirit text messages are sent via Matrix Client-Server API as the Spirit virtual user using the appservice `as_token` and the `user_id` masquerade parameter.
 
 ### Required Fields
 
@@ -120,7 +120,7 @@ The Matrix adapter MUST send content shaped like:
 
 ### Optional: Streaming delivery (SHOULD for MVP UX)
 
-To approximate “streaming responses” in Element, the Matrix adapter SHOULD stream the Ghost response by:
+To approximate “streaming responses” in Element, the Matrix adapter SHOULD stream the Spirit response by:
 - sending an initial `m.room.message`, then
 - issuing one or more `m.replace` edits to update `body` / `formatted_body` as text arrives, and finally
 - finishing with a last edit that represents the final message (and includes the final structured citations).

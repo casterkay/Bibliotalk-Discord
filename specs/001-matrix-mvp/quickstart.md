@@ -5,7 +5,7 @@
 
 This quickstart describes the intended local end-to-end dev loop for:
 
-- **Dialogue Rooms**: Ghost text chat + 1:1 voice calls (with transcript + citations)
+- **Dialogue Rooms**: Spirit text chat + 1:1 voice calls (with transcript + citations)
 - **Archive Rooms**: ingestion-backed public, read-only archives
 
 ---
@@ -14,7 +14,7 @@ This quickstart describes the intended local end-to-end dev loop for:
 
 - Python 3.11+
 - `uv` (workspace package manager)
-- Node.js 20+ (for `matrix_service` + `voice_call_service`)
+- Node.js 20+ (for `matrix_service` + `voip_service`)
 - Docker (for Synapse + Element)
 - EverMemOS instance + API key
 - Google API key with Gemini access (text + voice)
@@ -51,7 +51,7 @@ MATRIX_HOMESERVER_URL=
 MATRIX_AS_TOKEN=
 MATRIX_HS_TOKEN=
 MATRIX_SENDER_LOCALPART=bt_system
-MATRIX_GHOST_USER_PREFIX=bt_
+MATRIX_SPIRIT_USER_PREFIX=bt_
 ```
 
 ---
@@ -70,9 +70,9 @@ Expected outcome:
 
 ---
 
-## 4) Initialize database + seed Ghosts
+## 4) Initialize database + seed Spirits
 
-Initialize the DB schema and seed at least one Ghost.
+Initialize the DB schema and seed at least one Spirit.
 
 ```bash
 uv run --package bt_cli bibliotalk db-init
@@ -83,7 +83,7 @@ uv run --package bt_cli bibliotalk agent seed --agent confucius
 
 ## 5) Ingest one source and publish to an Archive Room
 
-Run a one-shot ingest for a configured Ghost and publish to its Archive Room.
+Run a one-shot ingest for a configured Spirit and publish to its Archive Room.
 
 ```bash
 uv run --package bt_cli bibliotalk ingest request --agent confucius --source <SOURCE_ID>
@@ -108,10 +108,10 @@ npm install
 npm run dev
 ```
 
-Then open Element Web, create or open a Dialogue Room with the Ghost, and send a message.
+Then open Element Web, create or open a Dialogue Room with the Spirit, and send a message.
 
 Expected outcome:
-- The Ghost replies in the Dialogue Room.
+- The Spirit replies in the Dialogue Room.
 - The reply includes verifiable citations.
 
 ---
@@ -121,18 +121,18 @@ Expected outcome:
 Start the Node sidecar:
 
 ```bash
-cd services/voice_call_service
+cd services/voip_service
 npm install
 npm start
 ```
 
 In Element:
 - Start a call in a Dialogue Room.
-- Trigger the Ghost to join and speak (command UX is implementation-defined for MVP).
+- Trigger the Spirit to join and speak (command UX is implementation-defined for MVP).
 
 Expected outcome:
-- Ghost audio is heard in the call.
-- A text transcript + citations are posted into the Dialogue Room for each Ghost turn.
+- Spirit audio is heard in the call.
+- A text transcript + citations are posted into the Dialogue Room for each Spirit turn.
 
 ---
 

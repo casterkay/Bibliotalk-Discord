@@ -1,7 +1,7 @@
 # Contract: EverMemOS API Usage (Ingestion)
 
-**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`  
-**Created**: 2026-03-01  
+**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`
+**Created**: 2026-03-01
 **Scope**: Memorize + group metadata only (no retrieval contract in this feature)
 
 This contract defines how the ingestion package interacts with EverMemOS.
@@ -25,7 +25,7 @@ All endpoints are under `/api/v1/memories` (per `BLUEPRINT.md`).
 
 **Required fields**:
 - `message_id` (string): stable per segment (see ID rules below)
-- `sender` (string): EverMemOS user/tenant ID (the Ghost/person being populated)
+- `sender` (string): EverMemOS user/tenant ID (the Spirit/person being populated)
 - `content` (string): verbatim segment text
 - `create_time` (string/date-time): set by client if not provided by SDK defaults
 

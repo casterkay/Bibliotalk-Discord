@@ -1,9 +1,9 @@
 # Contract: Citation Schema (v1)
 
-**Scope**: Bibliotalk Ghost responses (text + voice transcripts)
+**Scope**: Bibliotalk Spirit responses (text + voice transcripts)
 **Used by**: agent core, Matrix adapter, audit storage (`ChatHistory`)
 
-This contract defines the structured citation payload used to keep Ghost responses verifiable (**言必有據**).
+This contract defines the structured citation payload used to keep Spirit responses verifiable (**言必有據**).
 
 ## Citation Object
 
@@ -22,11 +22,11 @@ This contract defines the structured citation payload used to keep Ghost respons
 Notes:
 - `timestamp` is optional and may be either an ISO date or ISO date-time.
 - `quote` MUST be a substring of the canonical `segments.text` for the referenced `segment_id`.
-- Citations MUST be scoped to the responding Ghost; cross-Ghost citations are always invalid.
+- Citations MUST be scoped to the responding Spirit; cross-Spirit citations are always invalid.
 
 ## Matrix Event Extension
 
-Ghost responses in **Dialogue Rooms** include structured citations under `com.bibliotalk.citations`:
+Spirit responses in **Dialogue Rooms** include structured citations under `com.bibliotalk.citations`:
 
 ```json
 {
@@ -46,10 +46,10 @@ Notes:
 
 ## Validation Rules (MUST)
 
-Before delivering any cited Ghost response:
+Before delivering any cited Spirit response:
 
 1. Verify every cited `segment_id` exists in `segments`.
-2. Verify the cited segment belongs to the responding Ghost (`segments.agent_id` matches).
+2. Verify the cited segment belongs to the responding Spirit (`segments.agent_id` matches).
 3. Verify `quote` is a substring of the canonical `segments.text`.
 4. Strip citations that fail validation; log a warning with safe metadata only.
 

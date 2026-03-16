@@ -1,13 +1,13 @@
 # Contract: Agent Interaction API (v1)
 
-**Purpose**: Provide a stable, platform-agnostic interface for Ghost interactions (text + voice) with first-class streaming.
+**Purpose**: Provide a stable, platform-agnostic interface for Spirit interactions (text + voice) with first-class streaming.
 **Primary caller (MVP)**: Matrix adapter
 **Primary callee (MVP)**: agent core (`agents_service`)
 
 This contract is intentionally minimal and designed to remain stable as additional platforms (e.g., Discord) are added.
 
 **Design stance (MVP)**:
-- Streaming is **first-class**. Callers SHOULD use Live Sessions for full-duplex interactions (users can send new inputs while the Ghost is streaming output).
+- Streaming is **first-class**. Callers SHOULD use Live Sessions for full-duplex interactions (users can send new inputs while the Spirit is streaming output).
 - A non-streaming “turn” endpoint remains available as a compatibility fallback.
 
 ---
@@ -62,7 +62,7 @@ All messages MUST be JSON objects with:
 ```
 
 Rules:
-- `turn_id` scopes a single user input → Ghost output unit of work.
+- `turn_id` scopes a single user input → Spirit output unit of work.
 - Callers MAY send a new turn while a previous turn is still streaming. For MVP, the agent core MUST either:
   - support multiplexed streaming by `turn_id`, OR
   - cancel the in-progress turn and begin the newest turn (recommended; matches Gemini Live VAD interruption semantics).
@@ -138,7 +138,7 @@ Adds context deterministically (ordered) to the session. This is the contract-le
 
 Rules:
 - `turn_id` MAY be a sentinel value for purely contextual updates (implementation-defined).
-- This message is for context; it MUST NOT itself trigger a new Ghost response unless explicitly coupled with an `input.text` or `input.audio.*` turn.
+- This message is for context; it MUST NOT itself trigger a new Spirit response unless explicitly coupled with an `input.text` or `input.audio.*` turn.
 
 #### Agent core → Client message types
 
@@ -185,7 +185,7 @@ Rules:
 
 ##### `output.audio.chunk`
 
-Ghost audio output, raw PCM bytes (base64 encoded).
+Spirit audio output, raw PCM bytes (base64 encoded).
 
 ```json
 {
@@ -272,7 +272,7 @@ Emitted when a turn is interrupted (e.g., voice activity / new input supersedes 
   "sender_platform_user_id": "@alice:server",
   "sender_display_name": "Alice",
   "text": "What did you say about learning?",
-  "mentions": ["@bt_ghost_confucius:server"],
+  "mentions": ["@bt_spirit_confucius:server"],
   "timestamp": "2026-03-16T12:00:00Z",
   "modality": "text"
 }
@@ -331,6 +331,6 @@ Error codes (MVP minimum):
 
 ## Non-Functional Contract Guarantees
 
-- The agent core MUST enforce cross-Ghost isolation: responses for `{agent_id}` MUST never cite evidence owned by another agent.
+- The agent core MUST enforce cross-Spirit isolation: responses for `{agent_id}` MUST never cite evidence owned by another agent.
 - The agent core MUST validate citations before returning them in this API.
 - The agent core MUST be cancellable per turn (implementation-specific cancellation mechanism; required for voice barge-in support).

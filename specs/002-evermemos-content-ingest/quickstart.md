@@ -60,7 +60,7 @@ The manifest format and report format are defined in:
 
 ## Local E2E with agents_service
 
-For the **full local “chat with ghosts” flow** (Synapse + Element Web + `agents_service` + this ingestion package), you can use the agents_service quickstart’s one-shot script:
+For the **full local “chat with spirits” flow** (Synapse + Element Web + `agents_service` + this ingestion package), you can use the agents_service quickstart’s one-shot script:
 
 ```bash
 chmod +x deploy/local/bin/*.sh
@@ -73,6 +73,6 @@ This will:
 - write reports + segment cache under `.ingestion_service/`, and
 - import the segment cache into the `agents_service` SQLite store for citations.
 
-See `specs/001-agent-service/quickstart.md` for the end-to-end Matrix flow and how to chat with Ghosts once data is ingested.
+See `specs/001-agent-service/quickstart.md` for the end-to-end Matrix flow and how to chat with Spirits once data is ingested.
 
 If a source requires interactive browsing (dynamic rendering, login, anti-bot challenges), ingestion must fail with an actionable error. Playwright/browser crawling is explicitly deferred in this feature.

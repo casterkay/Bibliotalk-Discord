@@ -10,7 +10,7 @@
 
 **Decision:** Define a platform-independent “conversation turn” input and a platform-independent “agent result” output. All platform adapters (Matrix now, Discord later) translate native events into the turn contract, invoke the agent core, and render the result into native platform message formats.
 
-**Rationale:** Bibliotalk’s trust invariants (grounding-first, cross-Ghost isolation, citation validation) must not be re-implemented per platform. A single core makes correctness testable once and reusable.
+**Rationale:** Bibliotalk’s trust invariants (grounding-first, cross-Spirit isolation, citation validation) must not be re-implemented per platform. A single core makes correctness testable once and reusable.
 
 **Alternatives considered:**
 - Duplicate logic per platform adapter: rejected due to inevitable behavior drift and citation regressions.
@@ -23,9 +23,9 @@
 **Decision:** Adopt two immutable Matrix room kinds:
 
 - **Archive Room**: public, read-only; ingestion-backed; never interactive. Per source, the thread root is a deterministic source summary (from ingestion / EverMemOS metadata) and replies are ordered verbatim transcript excerpts.
-- **Dialogue Room**: private (invite-only) conversational room; Ghosts can respond; may host voice calls.
+- **Dialogue Room**: private (invite-only) conversational room; Spirits can respond; may host voice calls.
 
-**Rationale:** The “no AI in public” rule is best enforced structurally, not via mutable flags. A hard taxonomy prevents accidental leakage of Ghost-generated content into public contexts and makes policy simple to test.
+**Rationale:** The “no AI in public” rule is best enforced structurally, not via mutable flags. A hard taxonomy prevents accidental leakage of Spirit-generated content into public contexts and makes policy simple to test.
 
 **Alternatives considered:**
 - Per-room “AI enabled” toggle state event: rejected because it is mutable and error-prone.
@@ -37,14 +37,14 @@
 
 **Decision:** Handle only the minimal Matrix event set required for the MVP:
 
-- Inbound appservice transactions containing `m.room.message` (text) and `m.room.member` (membership changes for Ghost virtual users).
-- Ignore edits (`m.replace`), non-text messages, and all events originating from Ghost virtual users (loop prevention).
+- Inbound appservice transactions containing `m.room.message` (text) and `m.room.member` (membership changes for Spirit virtual users).
+- Ignore edits (`m.replace`), non-text messages, and all events originating from Spirit virtual users (loop prevention).
 
 **Rationale:** MVP correctness depends on a small set of deterministic routing rules and guardrails (Archive vs Dialogue, mention-based addressing, no bot loops). Handling fewer event types reduces failure surface and prevents accidental interactive behavior in Archive Rooms.
 
 **Alternatives considered:**
 - Handle all timeline events and infer meaning later: rejected as unnecessary complexity for MVP.
-- Respond to unaddressed messages in multi-Ghost Dialogue Rooms: rejected because it creates noisy, nondeterministic group behavior.
+- Respond to unaddressed messages in multi-Spirit Dialogue Rooms: rejected because it creates noisy, nondeterministic group behavior.
 
 ---
 
@@ -84,7 +84,7 @@
 
 Re-running publication MUST not create duplicate roots or replies; partial failures must resume safely.
 
-**Rationale:** Archive Rooms must remain a stable, auditable representation of “what the Ghost knows.” Idempotency is non-negotiable in the face of retries and restarts.
+**Rationale:** Archive Rooms must remain a stable, auditable representation of “what the Spirit knows.” Idempotency is non-negotiable in the face of retries and restarts.
 
 **Alternatives considered:**
 - “Best effort” posting without persistence: rejected (duplicates and gaps accumulate over time).
@@ -99,7 +99,7 @@ Re-running publication MUST not create duplicate roots or replies; partial failu
 1. User speech → transcription (speech recognition).
 2. Transcript → grounded text agent turn (retrieval + citation validation).
 3. Agent response text → speech synthesis.
-4. Post a text transcript + citations to the Dialogue Room for every Ghost voice turn.
+4. Post a text transcript + citations to the Dialogue Room for every Spirit voice turn.
 
 **Rationale:** This architecture preserves Bibliotalk’s core trust constraint (verifiable citations) while enabling a compelling voice experience. It isolates speech I/O concerns from grounding logic and makes the voice stack testable using recorded transcripts.
 
@@ -114,7 +114,7 @@ Re-running publication MUST not create duplicate roots or replies; partial failu
 **Decision:** Use a minimal, explicit bridge protocol between the voice sidecar and the agent core:
 
 - Inbound: audio frames + stream boundaries (and optional manual VAD signals) + call/session lifecycle events.
-- Outbound: Ghost audio frames + transcription events (from Gemini Live) + “end of turn” events + interruption + error notifications.
+- Outbound: Spirit audio frames + transcription events (from Gemini Live) + “end of turn” events + interruption + error notifications.
 
 **Rationale:** Voice is inherently stateful and failure-prone. A typed bridge protocol prevents “stringly-typed” integration bugs and supports deterministic recovery and audit logging.
 

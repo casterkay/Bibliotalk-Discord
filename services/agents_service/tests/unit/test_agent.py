@@ -37,7 +37,7 @@ class FakeSupabase:
             return None
         return {
             "id": str(self.agent_id),
-            "display_name": "Confucius (Ghost)",
+            "display_name": "Confucius (Spirit)",
             "persona_prompt": "You are Confucius.",
             "llm_model": "gemini-2.5-flash",
         }
@@ -61,21 +61,21 @@ class FakeSupabase:
 
 @pytest.mark.anyio
 async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> None:
-    from agents_service.agent.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_spirit_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
     registry.register("gemini-2.5-flash", FakeLlm("gemini-2.5-flash"))
 
-    agent = await create_ghost_agent(supabase.agent_id, store=supabase, llm_registry=registry)
+    agent = await create_spirit_agent(supabase.agent_id, store=supabase, llm_registry=registry)
 
-    assert agent.name == "Confucius (Ghost)"
+    assert agent.name == "Confucius (Spirit)"
     assert agent.instruction == "You are Confucius."
 
 
 @pytest.mark.anyio
 async def test_agent_calls_memory_search_tool_when_given_factual_question() -> None:
-    from agents_service.agent.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_spirit_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -95,7 +95,7 @@ async def test_agent_calls_memory_search_tool_when_given_factual_question() -> N
             )
         ]
 
-    agent = await create_ghost_agent(
+    agent = await create_spirit_agent(
         supabase.agent_id,
         store=supabase,
         llm_registry=registry,
@@ -109,7 +109,7 @@ async def test_agent_calls_memory_search_tool_when_given_factual_question() -> N
 
 @pytest.mark.anyio
 async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
-    from agents_service.agent.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_spirit_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -132,7 +132,7 @@ async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
         seen["count"] = len(evidence_items)
         return []
 
-    agent = await create_ghost_agent(
+    agent = await create_spirit_agent(
         supabase.agent_id,
         store=supabase,
         llm_registry=registry,
@@ -147,7 +147,7 @@ async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
 
 @pytest.mark.anyio
 async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty() -> None:
-    from agents_service.agent.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_spirit_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -156,7 +156,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
     async def empty_memory_search(query: str, agent_id: str):
         return []
 
-    agent = await create_ghost_agent(
+    agent = await create_spirit_agent(
         supabase.agent_id,
         store=supabase,
         llm_registry=registry,
@@ -170,7 +170,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
 
 @pytest.mark.anyio
 async def test_agent_uses_correct_llm_model_from_config() -> None:
-    from agents_service.agent.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_spirit_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -189,7 +189,7 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
     async def fake_memory_search(query: str, agent_id: str):
         return [evidence]
 
-    agent = await create_ghost_agent(
+    agent = await create_spirit_agent(
         supabase.agent_id,
         store=supabase,
         llm_registry=registry,
@@ -204,7 +204,7 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
 
 @pytest.mark.anyio
 async def test_agent_handles_memory_outage_gracefully() -> None:
-    from agents_service.agent.agent_factory import create_ghost_agent
+    from agents_service.agent.agent_factory import create_spirit_agent
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
@@ -218,7 +218,7 @@ async def test_agent_handles_memory_outage_gracefully() -> None:
         _ = agent_id
         raise _FakeEmosError("down")
 
-    agent = await create_ghost_agent(
+    agent = await create_spirit_agent(
         supabase.agent_id,
         store=supabase,
         llm_registry=registry,

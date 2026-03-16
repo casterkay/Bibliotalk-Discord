@@ -2,7 +2,7 @@
 
 **Participants**:
 - **Voice sidecar**: joins MatrixRTC/Element Call, handles WebRTC media, Opus encode/decode
-- **Agent core**: manages voice sessions, grounding, transcript + citations, and Ghost audio output
+- **Agent core**: manages voice sessions, grounding, transcript + citations, and Spirit audio output
 
 **Transport**: bidirectional WebSocket (one WS connection per active voice session)
 
@@ -18,7 +18,7 @@ This contract defines the minimum message types required for the 1:1 voice MVP i
 - Bit depth: 16-bit signed little-endian
 - Channels: mono
 
-### Agent core → Sidecar (outbound Ghost audio)
+### Agent core → Sidecar (outbound Spirit audio)
 - Format: PCM
 - Sample rate: 24 kHz
 - Bit depth: 16-bit signed little-endian
@@ -80,7 +80,7 @@ All messages are JSON objects with:
   "ts": "…",
   "payload": {
     "call_id": "opaque-platform-id",
-    "participants": ["@alice:server", "@bt_ghost_confucius:server"]
+    "participants": ["@alice:server", "@bt_spirit_confucius:server"]
   }
 }
 ```
@@ -151,7 +151,7 @@ For MVP, voice transcripts are provided by Gemini Live when configured with `inp
 
 #### `audio.chunk`
 
-Ghost audio output, raw PCM bytes (base64 encoded).
+Spirit audio output, raw PCM bytes (base64 encoded).
 
 ```json
 {
@@ -165,7 +165,7 @@ Ghost audio output, raw PCM bytes (base64 encoded).
 
 #### `turn.end`
 
-Signals the end of the Ghost’s response turn.
+Signals the end of the Spirit’s response turn.
 
 ```json
 {
@@ -192,7 +192,7 @@ Signals the end of the Ghost’s response turn.
 
 #### `interrupted`
 
-Emitted when the in-progress Ghost output should be stopped immediately (e.g., barge-in / VAD interruption, user cancel, or a newer turn supersedes the current one).
+Emitted when the in-progress Spirit output should be stopped immediately (e.g., barge-in / VAD interruption, user cancel, or a newer turn supersedes the current one).
 
 ```json
 {

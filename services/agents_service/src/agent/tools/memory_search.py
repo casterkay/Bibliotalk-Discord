@@ -131,7 +131,7 @@ class MemorySearchTool:
                 segment_rows = await _maybe_await(self.segments_by_source_ids_provider(source_ids))
 
         # Fallback: if the narrowing produced nothing, avoid "search everything" unless
-        # explicitly desired. Return empty evidence so the Ghost can say it has no evidence.
+        # explicitly desired. Return empty evidence so the Spirit can say it has no evidence.
         if not segment_rows:
             return []
 

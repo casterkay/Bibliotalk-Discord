@@ -57,7 +57,7 @@ description: "Tasks for EverMemOS Content Ingestion Package"
 
 ---
 
-## Phase 3: User Story 1 - Ingest A Single Source For A Ghost (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Ingest A Single Source For A Spirit (Priority: P1) 🎯 MVP
 
 **Goal**: Ingest one operator-provided source (text or local file) into EverMemOS as grouped, ordered segments with a clear per-source report.
 

@@ -1,4 +1,4 @@
-"""Ghost agent factory and lightweight runtime."""
+"""Spirit agent factory and lightweight runtime."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from .tools.memory_search import MemorySearchTool
 MemorySearchFn = Callable[[str, str], Awaitable[list[Evidence]]]
 EmitCitationsFn = Callable[[list[Evidence], str], Awaitable[list]]
 
-_CACHE: dict[str, tuple[float, GhostAgent]] = {}
+_CACHE: dict[str, tuple[float, SpiritAgent]] = {}
 _CACHE_LOCK = asyncio.Lock()
 logger = logging.getLogger("agents_service.agent")
 
@@ -77,7 +77,7 @@ class LLMRegistry:
 
 
 @dataclass
-class GhostAgent:
+class SpiritAgent:
     id: str
     figure_slug: str
     name: str
@@ -145,7 +145,7 @@ class GhostAgent:
         return {"text": response_text, "citations": citations, "evidence": evidence}
 
 
-async def create_ghost_agent(
+async def create_spirit_agent(
     agent_id: UUID,
     *,
     store: Store,
@@ -153,7 +153,7 @@ async def create_ghost_agent(
     memory_search_fn: MemorySearchFn | None = None,
     emit_citations_fn: EmitCitationsFn | None = None,
     cache_ttl_seconds: int = 60,
-) -> GhostAgent:
+) -> SpiritAgent:
     key = str(agent_id)
     now = time.time()
 
@@ -214,7 +214,7 @@ async def create_ghost_agent(
     model = agent_row.get("llm_model", "gemini-2.5-flash")
     llm = registry.resolve(model)
 
-    ghost = GhostAgent(
+    spirit = SpiritAgent(
         id=key,
         figure_slug=agent_row.get("emos_user_id", key),
         name=agent_row["display_name"],
@@ -227,5 +227,5 @@ async def create_ghost_agent(
     )
 
     async with _CACHE_LOCK:
-        _CACHE[key] = (time.time(), ghost)
-    return ghost
+        _CACHE[key] = (time.time(), spirit)
+    return spirit

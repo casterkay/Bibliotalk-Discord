@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 
 import discord
-from agents_service.agent.agent_factory import create_ghost_agent
+from agents_service.agent.agent_factory import create_spirit_agent
 from agents_service.agent.orchestrator import DMOrchestrator
 from agents_service.store import SQLiteFigureStore
 from bt_common.evidence_store.engine import get_session_factory, init_database
@@ -110,7 +110,7 @@ async def build_live_discord_runtime(
 
     store = SQLiteFigureStore(session_factory)
     orchestrator = DMOrchestrator(
-        agent_factory=lambda figure_id: create_ghost_agent(figure_id, store=store)
+        agent_factory=lambda figure_id: create_spirit_agent(figure_id, store=store)
     )
 
     directory = FigureDirectory(session_factory=session_factory)

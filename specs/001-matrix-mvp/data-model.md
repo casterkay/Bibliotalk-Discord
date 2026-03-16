@@ -6,9 +6,9 @@
 
 This document defines the logical data model required to implement:
 
-- **Dialogue Rooms**: grounded Ghost conversations (text + voice transcripts) with verifiable citations.
+- **Dialogue Rooms**: grounded Spirit conversations (text + voice transcripts) with verifiable citations.
 - **Archive Rooms**: public, read-only, ingestion-backed room timelines posted idempotently.
-- **Platform-agnostic core**: the same Ghost grounding/citation logic works across platforms.
+- **Platform-agnostic core**: the same Spirit grounding/citation logic works across platforms.
 
 Implementation note: In the Matrix MVP, the Matrix adapter (`matrix_service`) is implemented in Node.js/TypeScript; this does not affect the shared relational schema.
 
@@ -16,14 +16,14 @@ Implementation note: In the Matrix MVP, the Matrix adapter (`matrix_service`) is
 
 ## Core Entities
 
-### 1) Agent (Ghost)
+### 1) Agent (Spirit)
 
-Represents a single Ghost persona that can participate in Dialogue Rooms and owns an Archive Room.
+Represents a single Spirit persona that can participate in Dialogue Rooms and owns an Archive Room.
 
 **Key fields**
 - `agent_id`: stable UUID
 - `kind`: `figure` (MVP) *(future: `user`)*
-- `display_name`: human-friendly name (e.g., "Confucius (Ghost)")
+- `display_name`: human-friendly name (e.g., "Confucius (Spirit)")
 - `persona_prompt`: system persona and constraints
 - `llm_model`: model selection identifier (configurable per agent)
 - `is_active`: active/inactive flag
@@ -38,12 +38,12 @@ Represents a single Ghost persona that can participate in Dialogue Rooms and own
 
 ### 2) AgentPlatformIdentity
 
-Maps an `agent_id` to a platform-scoped identifier (e.g., Matrix user ID for virtual Ghost users).
+Maps an `agent_id` to a platform-scoped identifier (e.g., Matrix user ID for virtual Spirit users).
 
 **Key fields**
 - `agent_id`
 - `platform`: `matrix` *(future: `discord`, others)*
-- `platform_user_id`: e.g., `@bt_ghost_confucius:bibliotalk.space`
+- `platform_user_id`: e.g., `@bt_spirit_confucius:bibliotalk.space`
 - `created_at`
 
 **Constraints**
