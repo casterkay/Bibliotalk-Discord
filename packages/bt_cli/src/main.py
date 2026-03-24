@@ -451,6 +451,10 @@ def discord_run(
     db: str | None = typer.Option(None, "--db"),
     log_level: str | None = typer.Option(None, "--log-level"),
     command_guild_id: str | None = typer.Option(None, "--command-guild-id"),
+    voip_service_url: str | None = typer.Option(None, "--voip-service-url"),
+    voice_default_text_channel_id: str | None = typer.Option(
+        None, "--voice-default-text-channel-id"
+    ),
 ) -> None:
     """Run the Discord bot runtime."""
     from discord_service.entrypoint import run_discord_bot
@@ -462,6 +466,8 @@ def discord_run(
                     db_path=db,
                     log_level=log_level,
                     discord_command_guild_id=command_guild_id,
+                    voip_service_url=voip_service_url,
+                    discord_voice_default_text_channel_id=voice_default_text_channel_id,
                 )
             )
         )

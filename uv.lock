@@ -30,6 +30,7 @@ source = { editable = "services/agents_service" }
 dependencies = [
     { name = "bt-common" },
     { name = "bt-store" },
+    { name = "fastapi" },
     { name = "google-adk" },
     { name = "google-genai" },
     { name = "httpx", extra = ["socks"] },
@@ -47,6 +48,7 @@ dev = [
 requires-dist = [
     { name = "bt-common", editable = "packages/bt_common" },
     { name = "bt-store", editable = "packages/bt_store" },
+    { name = "fastapi", specifier = ">=0.115.0" },
     { name = "google-adk", specifier = ">=1.25.0" },
     { name = "google-genai", specifier = ">=1.0.0" },
     { name = "httpx", extras = ["socks"], specifier = ">=0.27.0" },
@@ -782,6 +784,7 @@ version = "0.1.0"
 source = { editable = "services/discord_service" }
 dependencies = [
     { name = "agents-service" },
+    { name = "aiohttp" },
     { name = "bt-common" },
     { name = "bt-store" },
     { name = "discord-py" },
@@ -799,6 +802,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "agents-service", editable = "services/agents_service" },
+    { name = "aiohttp", specifier = ">=3.10.0" },
     { name = "bt-common", editable = "packages/bt_common" },
     { name = "bt-store", editable = "packages/bt_store" },
     { name = "discord-py", specifier = ">=2.4.0" },

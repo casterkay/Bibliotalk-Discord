@@ -20,6 +20,12 @@ class DiscordSettings(BaseSettings):
     discord_command_guild_id: str | None = Field(
         default=None, validation_alias="DISCORD_COMMAND_GUILD_ID"
     )
+    voip_service_url: str = Field(
+        default="http://localhost:9012", validation_alias="VOIP_SERVICE_URL"
+    )
+    discord_voice_default_text_channel_id: str | None = Field(
+        default=None, validation_alias="DISCORD_VOICE_DEFAULT_TEXT_CHANNEL_ID"
+    )
 
     model_config = SettingsConfigDict(extra="ignore")
 
@@ -29,6 +35,8 @@ class DiscordRuntimeConfig:
     db_path: Path
     log_level: str
     discord_command_guild_id: str | None = None
+    voip_service_url: str = "http://localhost:9012"
+    discord_voice_default_text_channel_id: str | None = None
 
 
 def load_runtime_config(
@@ -36,6 +44,8 @@ def load_runtime_config(
     db_path: str | None = None,
     log_level: str | None = None,
     discord_command_guild_id: str | None = None,
+    voip_service_url: str | None = None,
+    discord_voice_default_text_channel_id: str | None = None,
 ) -> DiscordRuntimeConfig:
     settings = DiscordSettings()
     return DiscordRuntimeConfig(
@@ -47,6 +57,15 @@ def load_runtime_config(
             discord_command_guild_id or settings.discord_command_guild_id or ""
         ).strip()
         or None,
+        voip_service_url=(voip_service_url or settings.voip_service_url).rstrip("/"),
+        discord_voice_default_text_channel_id=(
+            (
+                discord_voice_default_text_channel_id
+                or settings.discord_voice_default_text_channel_id
+                or ""
+            ).strip()
+            or None
+        ),
     )
 
 

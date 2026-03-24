@@ -7,7 +7,10 @@ export function decodePcmS16Le(b64) {
 }
 
 export function pcm24kTo48kS16le(pcm24kBuf) {
-  // Naive 2x upsample: duplicate samples. Demo-grade but deterministic and low-latency.
+  return pcm24kMonoTo48kS16le(pcm24kBuf);
+}
+
+export function pcm24kMonoTo48kS16le(pcm24kBuf) {
   const inSamples = pcm24kBuf.length / 2;
   const out = Buffer.allocUnsafe(inSamples * 2 * 2);
   for (let i = 0; i < inSamples; i++) {
@@ -18,6 +21,43 @@ export function pcm24kTo48kS16le(pcm24kBuf) {
     out[j + 1] = hi;
     out[j + 2] = lo;
     out[j + 3] = hi;
+  }
+  return out;
+}
+
+export function pcm24kMonoTo48kStereoS16le(pcm24kBuf) {
+  const inSamples = Math.floor(pcm24kBuf.length / 2);
+  const out = Buffer.allocUnsafe(inSamples * 2 * 2 * 2);
+  for (let i = 0; i < inSamples; i++) {
+    const sample = pcm24kBuf.readInt16LE(i * 2);
+    const j = i * 8;
+    out.writeInt16LE(sample, j);
+    out.writeInt16LE(sample, j + 2);
+    out.writeInt16LE(sample, j + 4);
+    out.writeInt16LE(sample, j + 6);
+  }
+  return out;
+}
+
+function clampInt16(value) {
+  if (value > 32767) return 32767;
+  if (value < -32768) return -32768;
+  return value;
+}
+
+export function pcm48kStereoTo16kMonoS16le(pcm48kStereo) {
+  const frameBytes = 4;
+  const totalFrames = Math.floor(pcm48kStereo.length / frameBytes);
+  const outFrames = Math.floor(totalFrames / 3);
+  const out = Buffer.allocUnsafe(outFrames * 2);
+
+  for (let outIndex = 0; outIndex < outFrames; outIndex++) {
+    const inFrame = outIndex * 3;
+    const inByte = inFrame * frameBytes;
+    const left = pcm48kStereo.readInt16LE(inByte);
+    const right = pcm48kStereo.readInt16LE(inByte + 2);
+    const mono = clampInt16(Math.trunc((left + right) / 2));
+    out.writeInt16LE(mono, outIndex * 2);
   }
   return out;
 }

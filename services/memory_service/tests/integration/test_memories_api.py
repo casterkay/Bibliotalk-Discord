@@ -200,3 +200,10 @@ async def test_memories_routes_render_and_join_chunks(tmp_path) -> None:
     assert response.status_code == 200
     results = response.json()["results"]
     assert results and results[0]["chunks"]
+
+    # Invalid memory ids should be treated as bad requests, not server errors.
+    invalid_html = client.get("/memories/not-a-valid-id")
+    assert invalid_html.status_code == 400
+
+    invalid_json = client.get("/v1/memories?id=not-a-valid-id")
+    assert invalid_json.status_code == 400

@@ -68,6 +68,8 @@ def create_app(
     async def memory_html(memory_id: str) -> HTMLResponse:
         try:
             view = await svc.get_memcell_view_by_id(memory_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -125,6 +127,8 @@ def create_app(
                     limit=min(500, max(1, int(limit))),
                     offset=max(0, int(offset)),
                 )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 

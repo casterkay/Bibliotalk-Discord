@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import os
 from dataclasses import dataclass
 from datetime import UTC
@@ -10,6 +11,7 @@ import discord
 from discord import app_commands
 
 from discord_service.bot.concierge import DMConcierge
+from discord_service.bot.voice_gateway_proxy import DiscordVoiceGatewayProxy
 from discord_service.config import DiscordRuntimeConfig
 from discord_service.talks.agent_directory import AgentDirectory
 from discord_service.talks.service import TalkService
@@ -85,6 +87,7 @@ class BibliotalkDiscordClient(discord.Client):
         talk_service: TalkService,
         agent_directory: AgentDirectory,
         dm_concierge: DMConcierge | None = None,
+        voice_gateway_proxy: DiscordVoiceGatewayProxy | None = None,
         on_ready_callback: Any | None = None,
         logger: logging.Logger | None = None,
         **kwargs: Any,
@@ -99,6 +102,7 @@ class BibliotalkDiscordClient(discord.Client):
         self.talk_service = talk_service
         self.agent_directory = agent_directory
         self.dm_concierge = dm_concierge
+        self.voice_gateway_proxy = voice_gateway_proxy
         self.on_ready_callback = on_ready_callback
         self.logger = logger or logging.getLogger("discord_service")
         self.tree = app_commands.CommandTree(self)
@@ -119,6 +123,32 @@ class BibliotalkDiscordClient(discord.Client):
                 callback=self._cmd_talks,
             )
         )
+        voice_group = app_commands.Group(
+            name="voice",
+            description="Manage Bibliotalk voice sessions in this server.",
+        )
+        voice_group.add_command(
+            app_commands.Command(
+                name="join",
+                description="Join your current voice channel.",
+                callback=self._cmd_voice_join,
+            )
+        )
+        voice_group.add_command(
+            app_commands.Command(
+                name="leave",
+                description="Leave the active voice session in this server.",
+                callback=self._cmd_voice_leave,
+            )
+        )
+        voice_group.add_command(
+            app_commands.Command(
+                name="status",
+                description="Show voice bridge status for this server.",
+                callback=self._cmd_voice_status,
+            )
+        )
+        self.tree.add_command(voice_group)
 
     async def setup_hook(self) -> None:
         if self._synced:
@@ -135,6 +165,14 @@ class BibliotalkDiscordClient(discord.Client):
         if self.on_ready_callback is not None and not self._ready_callback_ran:
             self._ready_callback_ran = True
             await self.on_ready_callback()
+
+    async def close(self) -> None:
+        if self.voice_gateway_proxy is not None:
+            try:
+                await self.voice_gateway_proxy.stop_all(reason="discord_client_close")
+            except Exception:
+                self.logger.exception("voice gateway proxy stop_all failed")
+        await super().close()
 
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot:
@@ -166,6 +204,26 @@ class BibliotalkDiscordClient(discord.Client):
                 message.channel.id,
                 message.author.id,
             )
+
+    async def on_socket_raw_receive(self, msg: str) -> None:
+        if self.voice_gateway_proxy is None:
+            return
+        try:
+            payload = json.loads(msg)
+        except Exception:
+            return
+        if payload.get("op") != 0:
+            return
+        event_type = str(payload.get("t") or "")
+        if event_type not in {"VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"}:
+            return
+        data = payload.get("d")
+        if not isinstance(data, dict):
+            return
+        await self.voice_gateway_proxy.forward_gateway_dispatch(
+            event_type=event_type,
+            data=data,
+        )
 
     async def _cmd_talk(
         self, interaction: discord.Interaction, characters: str
@@ -237,3 +295,153 @@ class BibliotalkDiscordClient(discord.Client):
             "\n".join(lines)[:2000],
             allowed_mentions=discord.AllowedMentions.none(),
         )
+
+    async def _cmd_voice_join(
+        self,
+        interaction: discord.Interaction,
+        agent: str | None = None,
+        text_channel: discord.TextChannel | None = None,
+    ) -> None:
+        if self.voice_gateway_proxy is None:
+            await interaction.response.send_message(
+                "Voice bridge is not configured.",
+                ephemeral=True,
+            )
+            return
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "Run this command in a server.",
+                ephemeral=True,
+            )
+            return
+
+        member = (
+            interaction.user if isinstance(interaction.user, discord.Member) else None
+        )
+        if member is None:
+            member = interaction.guild.get_member(interaction.user.id)
+        voice_state = member.voice if member is not None else None
+        if voice_state is None or voice_state.channel is None:
+            await interaction.response.send_message(
+                "Join a voice channel first.",
+                ephemeral=True,
+            )
+            return
+        if not isinstance(
+            voice_state.channel, (discord.VoiceChannel, discord.StageChannel)
+        ):
+            await interaction.response.send_message(
+                "Your current channel is not a supported voice channel.",
+                ephemeral=True,
+            )
+            return
+
+        chosen_agent = self._resolve_voice_agent(agent)
+        if chosen_agent is None:
+            available = ", ".join(
+                sorted({a.agent_slug for a in self.agent_directory.list_agents()})
+            )
+            await interaction.response.send_message(
+                f"Unknown agent. Available: {available or '(none)'}",
+                ephemeral=True,
+            )
+            return
+
+        destination_channel_id = (
+            str(text_channel.id)
+            if text_channel is not None
+            else self._resolve_voice_text_channel_id(interaction)
+        )
+
+        await interaction.response.defer(thinking=True)
+        bridge = await self.voice_gateway_proxy.ensure_bridge(
+            guild_id=str(interaction.guild.id),
+            voice_channel_id=str(voice_state.channel.id),
+            agent_id=str(chosen_agent.agent_id),
+            initiator_user_id=str(interaction.user.id),
+            text_channel_id=destination_channel_id or None,
+            text_thread_id=(
+                str(interaction.channel.id)
+                if isinstance(interaction.channel, discord.Thread)
+                else None
+            ),
+        )
+        await interaction.followup.send(
+            (
+                f"Voice session started.\n"
+                f"- Agent: `{chosen_agent.agent_slug}`\n"
+                f"- Voice channel: <#{voice_state.channel.id}>\n"
+                f"- Bridge: `{bridge.bridge_id}`"
+            ),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    async def _cmd_voice_leave(self, interaction: discord.Interaction) -> None:
+        if self.voice_gateway_proxy is None:
+            await interaction.response.send_message(
+                "Voice bridge is not configured.",
+                ephemeral=True,
+            )
+            return
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "Run this command in a server.",
+                ephemeral=True,
+            )
+            return
+
+        stopped = await self.voice_gateway_proxy.stop_guild(
+            guild_id=str(interaction.guild.id), reason="user_requested_leave"
+        )
+        if stopped:
+            await interaction.response.send_message("Voice session stopped.")
+            return
+        await interaction.response.send_message(
+            "No active voice session for this server."
+        )
+
+    async def _cmd_voice_status(self, interaction: discord.Interaction) -> None:
+        if self.voice_gateway_proxy is None:
+            await interaction.response.send_message(
+                "Voice bridge is not configured.",
+                ephemeral=True,
+            )
+            return
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "Run this command in a server.",
+                ephemeral=True,
+            )
+            return
+        rows = await self.voice_gateway_proxy.status(guild_id=str(interaction.guild.id))
+        if not rows:
+            await interaction.response.send_message(
+                "No active voice session in this server."
+            )
+            return
+        row = rows[0]
+        await interaction.response.send_message(
+            (
+                f"Active voice session:\n"
+                f"- Bridge: `{row['bridge_id']}`\n"
+                f"- Agent: `{row['agent_id']}`\n"
+                f"- Voice channel: <#{row['voice_channel_id']}>"
+            ),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    def _resolve_voice_agent(self, token: str | None):
+        candidate = (token or "").strip()
+        if candidate:
+            return self.agent_directory.resolve_token(candidate)
+        agents = self.agent_directory.list_agents()
+        if not agents:
+            return None
+        return sorted(agents, key=lambda item: item.display_name.lower())[0]
+
+    def _resolve_voice_text_channel_id(
+        self, interaction: discord.Interaction
+    ) -> str | None:
+        if isinstance(interaction.channel, (discord.TextChannel, discord.Thread)):
+            return str(interaction.channel.id)
+        return self.config.discord_voice_default_text_channel_id

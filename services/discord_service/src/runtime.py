@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .bot.client import BibliotalkDiscordClient
 from .bot.concierge import DMConcierge
+from .bot.voice_gateway_proxy import DiscordVoiceGatewayProxy
+from .bot.voice_transcripts import VoiceTranscriptPublisher
 from .config import DiscordRuntimeConfig
 from .feed.discord_transport import DiscordPyFeedTransport
 from .feed.publisher import DiscordFeedTransport, FeedPublisher
@@ -141,15 +143,27 @@ async def build_live_discord_runtime(
     intents.dm_messages = True
     intents.guilds = True
     intents.messages = True
+    intents.voice_states = True
 
     client = BibliotalkDiscordClient(
         config=config,
         talk_service=talk_service,
         agent_directory=directory,
         dm_concierge=DMConcierge(agent_directory=directory, logger_=logger_),
+        voice_gateway_proxy=None,
         on_ready_callback=None,
         logger=logger_,
         intents=intents,
+    )
+    client.voice_gateway_proxy = DiscordVoiceGatewayProxy(
+        client=client,
+        voip_service_url=config.voip_service_url,
+        transcript_publisher=VoiceTranscriptPublisher(
+            client=client,
+            default_text_channel_id=config.discord_voice_default_text_channel_id,
+            logger_=logger_,
+        ),
+        logger_=logger_,
     )
     client.on_ready_callback = lambda: _on_ready(
         client=client,

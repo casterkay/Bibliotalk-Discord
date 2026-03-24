@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from bt_common.config import get_settings
 from agents_service.models.citation import (
     Evidence,
     build_inline_link,
     extract_memory_links,
     validate_evidence_links,
 )
+from bt_common.config import get_settings
 
 
 def test_evidence_construction_derives_memory_url_and_video_timestamp_link() -> None:
