@@ -3,7 +3,7 @@
 **Feature Branch**: `003-discord-bot`
 **Created**: 2026-03-07
 **Revised**: 2026-03-24
-**Status**: US1–US3 Approved (Implemented) · US4 Planned
+**Status**: US1–US3 Approved (Implemented) · US4 In Progress (Gateway proxy + voice bridge wiring)
 **Approved**: 2026-03-15
 **Input**:
 - System design: `DESIGN.md`
@@ -25,7 +25,7 @@ An operator registers an agent (e.g. Alan Watts) with one or more YouTube channe
 1. **Given** a registered agent with a YouTube subscription, **When** the collector polls the subscription, **Then** newly discovered videos are enqueued and each transcript segment is persisted in SQLite and memorized in EverMemOS under the correct `group_id`.
 2. **Given** a video already ingested, **When** the collector polls again, **Then** the same `video_id` is not re-ingested and no duplicate memories appear in EverMemOS.
 3. **Given** an operator triggers manual single-video ingestion, **When** the video was previously ingested, **Then** existing EverMemOS memories for that `group_id` are deleted first, transcript is re-fetched, and memories are re-inserted cleanly.
-4. **Given** a video with no available transcript, **When** the collector attempts ingest, **Then** the failure is recorded in `ingest_state` and the video is skipped without corrupting other in-progress ingest operations.
+4. **Given** a video with no available transcript, **When** the collector attempts ingest, **Then** the failure is recorded in ingestion state (`subscription_state`, `source_ingestion_state`) and the video is skipped without corrupting other in-progress ingest operations.
 5. **Given** EverMemOS is temporarily unavailable during ingest, **When** chunk memorization fails, **Then** local SQLite state is preserved intact so the operator can retry without data loss.
 
 ---
@@ -70,7 +70,7 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 
 ### User Story 4 — Voice Channel Conversation Driven by Gemini Live (Priority: P4)
 
-A Discord user runs `/voice join` in a guild. The bot joins the user’s current voice channel, listens continuously, and responds with low-latency speech. The system posts paired input/output transcripts into a designated text channel/thread as durable artifacts. The user can barge-in: speaking while the bot is talking stops playback immediately.
+A Discord user runs `/voice join` in a guild. The bot joins the user’s current voice channel, listens continuously, and responds with low-latency speech. The system posts paired input/output transcripts into a designated text channel/thread as durable artifacts. After each transcript message is finalized, citations (if any) are appended as footnotes based on Gemini Live tool-calling outputs. The user can barge-in: speaking while the bot is talking stops playback immediately.
 
 **Why this priority**: Voice is the fastest path to “research instrument” UX. It also stress-tests interruption semantics, transcript artifacts, and the separation of control-plane (Discord gateway) from media-plane (voice transport).
 
@@ -83,6 +83,8 @@ A Discord user runs `/voice join` in a guild. The bot joins the user’s current
 3. **Given** the model speaks, **When** audio is streamed back, **Then** the system plays audio into the voice channel and posts `output.transcription.output` text artifacts.
 4. **Given** the bot is currently speaking, **When** the user begins speaking again, **Then** playback is interrupted immediately and stale audio is not played.
 5. **Given** a transient network disconnect, **When** the voice bridge reconnects, **Then** it either resumes cleanly or fails closed with a visible error posted to the text channel.
+
+**Why `/voice join|leave|status` instead of DM-initiated voice?** Discord voice is guild-scoped. A DM request has no unambiguous guild/voice-channel target, and “auto-create a temporary voice channel” requires additional permissions and UX (choosing a guild, channel placement, cleanup). For MVP, explicit guild slash commands keep the control plane predictable; DM-initiated voice can be added later as a convenience layer.
 
 ---
 
@@ -110,13 +112,13 @@ A Discord user runs `/voice join` in a guild. The bot joins the user’s current
 - **FR-007**: The system MUST memorize each segment into EverMemOS using stable `group_id = {emos_user_id}:youtube:{video_id}` and `message_id = {emos_user_id}:youtube:{video_id}:seg:{seq}` identifiers.
 - **FR-008**: Automated polling MUST treat `video_id` as the immutable no-reingest key; a known `video_id` MUST NOT be re-ingested automatically.
 - **FR-009**: The system MUST support manual single-video ingestion by first deleting all existing EverMemOS memories for that video's `group_id`, then re-ingesting from scratch.
-- **FR-010**: The system MUST apply exponential backoff after repeated per-subscription failures and record failure state in `ingest_state`.
+- **FR-010**: The system MUST apply exponential backoff after repeated per-subscription failures and record failure state in subscription and source ingestion state (`subscription_state`, `source_ingestion_state`).
 - **FR-011**: The system MUST group adjacent transcript segments into `transcript_batches` using speaker-continuity and silence-gap threshold rules for later Discord posting.
 
 #### Discovery
 
 - **FR-012**: Each agent MUST be able to own multiple YouTube subscriptions (channels and playlists).
-- **FR-013**: The system MUST persist a per-subscription discovery cursor in `ingest_state` and only enqueue videos not yet seen since the last successful poll.
+- **FR-013**: The system MUST persist a per-subscription discovery cursor in `subscription_state` and only enqueue videos not yet seen since the last successful poll.
 - **FR-014**: Poll intervals MUST be configurable per subscription (default 15–60 minutes).
 - **FR-015**: The system SHOULD support YouTube RSS as an optional fallback when `yt-dlp` extraction is unreliable for a given source.
 
@@ -127,13 +129,13 @@ A Discord user runs `/voice join` in a guild. The bot joins the user’s current
 - **FR-018**: Feed batch messages MUST contain original verbatim transcript text; EMOS-generated summaries MUST NOT appear in feed posts.
 - **FR-019**: The system MUST never post a duplicate parent message, thread, or transcript-batch post for the same video (idempotent publication).
 - **FR-020**: Discord posting MUST be sequential per agent to respect rate limits; concurrent bursting across multiple videos is not permitted.
-- **FR-021**: The system MUST track Discord post state in SQLite (`discord_posts`) and resume from the last successfully posted batch if a thread-posting run fails partway through.
+- **FR-021**: The system MUST track Discord post state in SQLite (`platform_posts`) using deterministic idempotency keys and resume from the last successfully posted batch if a thread-posting run fails partway through.
 
 #### Talks (DM → Private Threads)
 
 - **FR-022**: Users MUST initiate private conversations by DMing the bot and invoking `/talk Character A, [Character B...]`.
 - **FR-023**: `/talk` MUST create (or resume) a private thread under the guild Talk Hub channel `#bibliotalk` and invite the user.
-- **FR-024**: A user message posted inside a talk thread MUST be routed to one or more selected characters; users MAY override routing by prefixing a message with `@character-name`.
+- **FR-024**: A user message posted inside a talk thread MUST be routed to one or more selected characters; users MAY override routing by prefixing a message with `@slug` (preferred) or `@display-name`.
 - **FR-025**: When routing a user message to a character, the system MUST search EverMemOS for relevant evidence before generating any response.
 - **FR-026**: The system MUST rerank retrieved EverMemOS candidate segments using BM25 against the user query.
 - **FR-027**: Every non-trivial factual claim in a character response MUST be expressed as an inline markdown link of the form `[text](https://www.bibliotalk.space/memories/{id})`.
@@ -160,7 +162,7 @@ A Discord user runs `/voice join` in a guild. The bot joins the user’s current
 - **FR-039**: The Discord gateway MUST be owned by `discord_service`; the voice media-plane MUST NOT require a second Discord gateway client for the same bot token.
 - **FR-040**: The voice bridge MUST stream inbound audio as PCM16k mono chunks to `agents_service` Live Sessions (`modality="voice"`) following `docs/knowledge/gemini-live-api.md`.
 - **FR-041**: The voice bridge MUST play model audio back into the Discord voice channel, resampling as needed (Gemini Live outputs PCM24k; Discord voice expects Opus at 48kHz).
-- **FR-042**: The system MUST surface input/output transcripts (from Gemini Live transcription streams) as durable messages in a configured Discord text channel/thread.
+- **FR-042**: The system MUST surface input/output transcripts (from Gemini Live transcription streams) as durable messages in a configured Discord text channel/thread, and append citations as footnotes after each transcript message is finalized (citations are derived from Gemini Live tool-calling outputs; not transported over Live WS).
 - **FR-043**: The system MUST support barge-in: any detected user speech while the bot is speaking MUST interrupt playback and clear pending output audio buffers.
 - **FR-044**: Voice sessions MUST be isolated per guild/voice channel; a voice session MUST NOT leak audio or transcripts across agents or channels.
 - **FR-045**: Voice failure MUST degrade gracefully: if voice is unavailable, Discord text talk threads remain functional.
@@ -172,9 +174,9 @@ A Discord user runs `/voice join` in a guild. The bot joins the user’s current
 - **Source**: A single YouTube video associated with an agent. Stores the YouTube `video_id`, computed `group_id`, video metadata, and transcript ingest status.
 - **Segment**: One atomic chunk of a video transcript. Identified by `segment_id`, sequence `seq`, verbatim `text`, content `sha256`, millisecond offsets, and EMOS `create_time`.
 - **TranscriptBatch**: A locally computed grouping of adjacent segments by speaker continuity and silence gap for Discord feed posting. Not derived from EMOS MemCells.
-- **IngestState**: Per-subscription discovery cursor tracking last seen video, last polled time, failure count, and next retry time.
-- **DiscordMap**: Associates an agent with its Discord guild, feed channel, and bot application identifiers.
-- **DiscordPost**: Records whether each `(source, batch)` pair has been posted to Discord, enabling idempotent retry.
+- **SubscriptionState / SourceIngestionState**: Discovery cursor + ingest retry state for subscriptions and sources.
+- **PlatformRoute**: Associates an agent with platform containers (e.g., Discord feed channel) by purpose (e.g., `feed`, `voice`).
+- **PlatformPost**: Records platform publication attempts (e.g., feed parent, feed batch) using deterministic idempotency keys for retry-safe publication.
 
 ## Success Criteria *(mandatory)*
 
@@ -201,14 +203,14 @@ A Discord user runs `/voice join` in a guild. The bot joins the user’s current
 - Private talk threads grounded on EverMemOS + local verbatim cache, created under `#bibliotalk`.
 - SQLite as the local evidence and state store.
 - Gemini via ADK as the LLM runtime.
-- Lightweight public memory pages at `bibliotalk.space/memories/`.
-- Voice-channel conversations (User Story 4) as a planned increment on top of the same agent-core Live Session protocol.
+- Lightweight public memory pages at `https://www.bibliotalk.space/memories/`.
+- Voice-channel conversations (User Story 4) via `discord_service` control-plane + `voip_service` media-plane on top of the same agent-core Live Session protocol.
 
 ### Out of Scope
 
 - Matrix integration or transport.
 - Non-YouTube content sources.
-- Multi-agent group conversations.
+- Multi-human group conversations (non-threaded rooms/channels).
 - Multi-human room semantics.
 - Persistent multi-turn conversation history beyond short recent DM context.
 

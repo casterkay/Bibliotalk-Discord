@@ -20,8 +20,8 @@ Where:
 
 1. Parse `memory_id` into `agent-slug` and `timestamp`.
 2. Resolve the matching MemCell from EverMemOS (scoped by `user_id=agent_slug` and exact timestamp).
-3. Resolve the MemCell's `group_id` (treated as `source_id`) and load the matching local `Source`.
-4. Load the full ordered chunk/segment sequence for the source from SQLite, then split that sequence into MemCells by EverMemOS cell timestamps to obtain the chunks belonging to this MemCell.
+3. Resolve the MemCell's `group_id` (EverMemOS group identifier; stored locally as `sources.emos_group_id`) and load the matching local `Source`.
+4. Load the full ordered chunk/segment sequence for the source from SQLite, then use EverMemOS cell timestamps as boundaries to obtain the chunk(s) corresponding to this MemCell.
 5. Render exactly one page containing:
    - the agent slug
    - the single MemCell payload returned by EverMemOS

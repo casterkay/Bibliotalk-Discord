@@ -6,7 +6,7 @@
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [x] Implementation constraints are explicit and intentional (and do not obscure the user stories)
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
@@ -27,10 +27,10 @@
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [x] Any technical constraints included in the spec are testable and clearly justified
 
 ## Notes
 
 - Specification is derived directly from DESIGN.md and covers all three runtime packages: ingestion, agent runtime, and Discord runtime.
-- Public memory pages are served by the unified Memories API (`bibliotalk.space/memories/`).
-- Technology references (`yt-dlp`, `discord.py`, Gemini/ADK, EverMemOS, SQLite) appear only in the Assumptions section where necessary to bound scope — they do not appear in functional requirements or success criteria.
+- Public memory pages are served by the unified Memories API (`https://www.bibliotalk.space/memories/`).
+- Technology references (`yt-dlp`, `discord.py`, Gemini/ADK, EverMemOS, SQLite) are limited and used to make contracts and tests unambiguous.

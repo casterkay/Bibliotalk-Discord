@@ -26,14 +26,13 @@ UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras
 
 ## 2. Set up the database
 
-Run Alembic migrations (from the `memory_service` directory):
+For local dev, the services auto-create tables on startup (SQLite).
+
+To run Alembic migrations explicitly (recommended for production-like testing), run them from `packages/bt_store`:
 
 ```bash
-cd services/memory_service
-uv run alembic upgrade head
+uv --directory packages/bt_store run alembic upgrade head
 ```
-
-For local dev without Alembic, the process auto-creates tables on startup.
 
 ---
 
@@ -61,6 +60,10 @@ DISCORD_TOKEN=your-discord-bot-token
 # Optional: speed up slash-command iteration by syncing to one guild
 DISCORD_COMMAND_GUILD_ID=
 
+# Voice bridge
+VOIP_SERVICE_URL=http://localhost:9012
+DISCORD_VOICE_DEFAULT_TEXT_CHANNEL_ID=
+
 # Optional: enable AI facilitator/concierge (defaults to deterministic fallback)
 BIBLIOTALK_ENABLE_AI_ROUTER=
 BIBLIOTALK_ENABLE_AI_CONCIERGE=
@@ -87,6 +90,11 @@ uv run --package bt_cli bibliotalk agent seed \
 ## 5. Run the bot
 
 ```bash
+pushd services/voip_service
+npm install
+npm run start
+popd
+
 uv run --package bt_cli bibliotalk collector run --agent alan-watts
 uv run --package bt_cli bibliotalk discord run
 uv run --package bt_cli bibliotalk memories run
@@ -101,6 +109,8 @@ INFO  [discord_service] Connected to Discord as AlanWattsBot#1234
 INFO  [discord_service] Feed publication complete agent_slug=alan-watts attempted=... published=... failed=...
 INFO  [memory_service] Collector polling loop started (interval: 60 min)
 ```
+
+For voice testing, keep `voip_service` running and run `/voice join` in a guild text channel while you are connected to voice.
 
 ---
 

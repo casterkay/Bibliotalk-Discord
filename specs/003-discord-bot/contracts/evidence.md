@@ -29,7 +29,7 @@ class Evidence(BaseModel):
     memory_user_id: str          # == agent slug (EverMemOS user_id) e.g. "alan-watts"
 
     # EMOS retrieval fields — used to construct memory_url
-    memory_timestamp: datetime   # create_time returned by EMOS retrieval
+    memory_timestamp: datetime   # EMOS memory item `timestamp` (UTC)
     memory_id: str               # "{memory_user_id}_{timestamp_compact}" — URL key
     memory_url: str              # "{BIBLIOTALK_WEB_URL}/memories/{memory_id}"
 
@@ -51,7 +51,7 @@ class Evidence(BaseModel):
 
 - `memory_id` = `f"{memory_user_id}_{memory_timestamp.strftime('%Y%m%dT%H%M%SZ')}"` (UTC compact timestamp, no colons for URL safety)
 - `memory_url` = `f"{BIBLIOTALK_WEB_URL.rstrip('/')}/memories/{memory_id}"` (default base URL: `https://www.bibliotalk.space`)
-- `video_url_with_timestamp`: when `published_at` is known, offset = `int((memory_timestamp - published_at).total_seconds())`; URL = `f"{source_url}&t={offset}s"`
+- `video_url_with_timestamp`: when `published_at` is known, offset = `int((memory_timestamp - published_at).total_seconds())`; URL = `f"{source_url}{'&' if '?' in source_url else '?'}t={offset}s"`
 - `memory_timestamp` is the EMOS `timestamp` field returned by `search()` for the matching memory item — it is not re-derived locally
 
 ---

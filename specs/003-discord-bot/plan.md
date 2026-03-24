@@ -15,16 +15,20 @@ Shipped (US1–US3):
 - Discord feed publishing + DM `/talk` + private thread routing (`services/discord_service/`)
 - Public memory pages served by `memory_service` (`/memories/{id}`)
 
-Already present (voice building blocks):
+Implemented in current branch (US4 foundation):
 - Agent-core Live Sessions (text + voice): `services/agents_service/src/agents_service/api/live.py`
 - Gemini Live bidi audio + transcription backend: `services/agents_service/src/agents_service/live/gemini_live_backend.py`
-- A working voice bridge for Matrix calls (LiveKit/MatrixRTC): `services/voip_service/src/voip/bridge_manager.js`
+- Multi-platform bridge manager + Matrix bridge: `services/voip_service/src/voip/bridge_manager.js`, `services/voip_service/src/voip/matrix_livekit_bridge.js`
+- Discord voice bridge skeleton + gateway-proxy WS endpoint: `services/voip_service/src/voip/discord_bridge.js`, `services/voip_service/src/server.js`
+- Discord control-plane proxy + slash commands `/voice join|leave|status`: `services/discord_service/src/bot/voice_gateway_proxy.py`, `services/discord_service/src/bot/client.py`
+- Transcript posting helper: `services/discord_service/src/bot/voice_transcripts.py`
 
 ## Goal (US4)
 
 Add Discord voice-channel conversations driven by Gemini Live:
 - `/voice join` → bot joins a Discord voice channel and speaks back
 - Paired transcripts posted into a configured text channel/thread
+- Citations appended as footnotes after transcript finalization (not transported over Live WS)
 - Barge-in interrupts playback immediately
 
 ## Architecture Decisions (non-negotiable for Discord voice)
@@ -67,14 +71,16 @@ Then streams:
 - `input.audio.chunk` with `pcm16k_b64`
 - receives `output.audio.chunk` with `pcm24k_b64`
 - receives `output.transcription.input` / `output.transcription.output`
+- citations are appended out-of-band to finalized transcript messages based on Gemini Live tool-calling outputs
 
 Reference: `services/agents_service/src/agents_service/api/live.py`
 
 ### B) `voip_service` control endpoints
 
-Extend existing `voip_service` API to support a Discord ensure request:
-- `POST /v1/voip/ensure` with `platform="discord"` + `{guild_id, voice_channel_id, agent_id, initiator_discord_user_id, text_channel_id}`
-- `POST /v1/voip/stop` unchanged
+Operational request shape:
+- `POST /v1/voip/ensure` with `platform="discord"` + `{guild_id, voice_channel_id, agent_id, initiator_user_id, text_channel_id?, text_thread_id?}`
+- `POST /v1/voip/stop` with optional `{bridge_id, guild_id, room_id, reason}`
+- internal gateway channel: `ws /v1/discord/gateway/ws?bridge_id=...`
 
 Backwards compatibility: existing Matrix payloads continue working.
 
@@ -90,18 +96,18 @@ Backwards compatibility: existing Matrix payloads continue working.
 ### Phase V1 — Discord UX + Routing (Python)
 
 In `services/discord_service/`:
-- Add slash commands `/voice join`, `/voice leave`, `/voice status`
+- Add slash commands `/voice join`, `/voice leave`, `/voice status` ✅
 - Persist voice binding via `PlatformRoute` (`platform="discord"`, `purpose="voice"`, `container_id=voice_channel_id`, `config_json={text_channel_id,...}`)
-- Call `voip_service` to ensure/stop the voice bridge
-- Post transcripts (input/output) into the configured text channel/thread with rate-limit-safe edits/coalescing
+- Call `voip_service` to ensure/stop the voice bridge ✅
+- Post transcripts (input/output) into the configured text channel/thread ✅
 
 ### Phase V2 — `voip_service` Discord bridge skeleton (Node)
 
 In `services/voip_service/`:
-- Add a `DiscordBridge` alongside the existing Matrix/LiveKit bridge
+- Add a `DiscordBridge` alongside the existing Matrix/LiveKit bridge ✅
 - Add an internal websocket for the gateway-proxy channel:
-  - inbound: `VOICE_STATE_UPDATE` / `VOICE_SERVER_UPDATE`
-  - outbound: `request.change_voice_state` (join/leave)
+  - inbound: `gateway.voice_state_update` / `gateway.voice_server_update` ✅
+  - outbound: `gateway.request_change_voice_state` (join/leave) ✅
 - Keep the audio bridge identical to Matrix voice:
   - inbound audio → resample to PCM16k → `input.audio.chunk`
   - outbound `output.audio.chunk` → resample to 48k → Opus playback

@@ -8,7 +8,7 @@
 
 ## 1. YouTube Discovery — yt-dlp Flat Extraction
 
-**Decision:** Use `yt-dlp --flat-playlist --dump-single-json {url}` to list channel or playlist entries without video downloads. Parse the `entries` array for `id`, `title`, `url`, `upload_date`, and `channel` fields. Compare against the `last_seen_video_id` cursor stored in `ingest_state` to compute the delta on each poll.
+**Decision:** Use `yt-dlp --flat-playlist --dump-single-json {url}` to list channel or playlist entries without video downloads. Parse the `entries` array for `id`, `title`, `url`, `upload_date`, and `channel` fields. Compare against the `last_seen_external_id` cursor stored in `subscription_state` to compute the delta on each poll.
 
 **Rationale:** Already proven in this codebase — `youtube_transcript.py` already shells out to `yt-dlp` for per-video metadata. Flat extraction avoids any video download; it returns structured JSON per playlist item and works for both channel URLs and playlist URLs without an API key. The `upload_date` field (`YYYYMMDD` string) combined with `last_published_at` cursor enables reliable incrementality.
 
@@ -22,7 +22,7 @@
 
 **Decision:** Use `create_async_engine("sqlite+aiosqlite:///{db_path}")` with `async_sessionmaker(expire_on_commit=False)` and `DeclarativeBase`. Migrations via Alembic using the `run_sync` pattern (`await conn.run_sync(Base.metadata.create_all)` for tests; `alembic upgrade head` for production). All three packages reference the same DB path via `BIBLIOTALK_DB_PATH` environment variable.
 
-**Rationale:** Operator directive. SQLAlchemy 2.x async integrates cleanly with the `asyncio` event loops used by both `discord.ext.tasks` (collector polling) and `discord.py` (bot event handling). `aiosqlite` is non-blocking, preventing the Discord event loop from stalling during DB writes. `agents_service` already has an Alembic setup that can be adapted. Typed ORM models (`Mapped[T]`) prevent raw SQL query drift between the three packages sharing the same schema. `expire_on_commit=False` is the standard pattern for async sessions to avoid lazy-load errors after commit.
+**Rationale:** Operator directive. SQLAlchemy 2.x async integrates cleanly with the `asyncio` event loops used by both the collector (`memory_service`) and Discord gateway (`discord_service`). `aiosqlite` is non-blocking, preventing the Discord event loop from stalling during DB writes. Alembic migrations live with the shared schema in `packages/bt_store/`. Typed ORM models (`Mapped[T]`) prevent raw SQL query drift between services sharing the same schema. `expire_on_commit=False` is the standard pattern for async sessions to avoid lazy-load errors after commit.
 
 **Alternatives considered:**
 - Raw `aiosqlite` + manual SQL: Faster to bootstrap but loses type safety, migration tooling, and the ability to run `alembic upgrade head` on deployments. Rejected per operator directive.
@@ -30,14 +30,18 @@
 
 ---
 
-## 3. discord.py 2.x — Process-Per-Bot Pattern
+## 3. discord.py 2.x — Single-Bot, Multi-Agent Runtime
 
-**Decision:** Subclass `discord.Client` (not `commands.Bot`). Override `on_ready` (start the collector polling task) and `on_message` (route DMs to the agent orchestrator). Launch with `asyncio.run(client.start(DISCORD_TOKEN))`. The collector polling loop runs as a `discord.ext.tasks.loop` task, started inside `on_ready`, sharing the same asyncio event loop as the Discord client.
+**Decision:** Subclass `discord.Client` (not `commands.Bot`) and use `app_commands.CommandTree` for `/talk` and `/talks`. Route:
+- DM messages to a concierge helper, and DM slash commands to talk-thread creation.
+- Thread messages in private talk threads to the grounded agent orchestrator.
 
-**Rationale:** `discord.Client` is the minimal surface needed: receive DM events + call REST API for feed posting. `commands.Bot` adds prefix-command and slash-command machinery that is not needed and increases the attack surface. `discord.ext.tasks.loop` integrates natively with the running event loop, avoiding a second thread or subprocess for the polling loop. Each agent can run as a separate OS process, providing fault isolation: a crash in one agent's bot does not affect others.
+YouTube ingestion/collection runs separately in `memory_service` and is not started by the Discord gateway process.
+
+**Rationale:** `discord.Client` is the minimal surface needed: gateway events, DMs, threads, and REST actions for feed posting. A **single bot identity** should support multiple agents by loading active agents from the shared DB (`bt_store`) rather than running one process per agent/token.
 
 **Alternatives considered:**
-- Separate asyncio processes for bot and collector with IPC: Adds inter-process plumbing. Rejected — both the bot and collector share the same agent context and the same SQLite session factory.
+- Separate asyncio processes for bot and collector with IPC: Adds extra IPC complexity. Rejected.
 - Sharded gateway: Not needed at MVP scale (2–10 bots, each low-traffic).
 
 ---
@@ -100,17 +104,17 @@ The existing `Citation.index: int` field and citation-index-based validation are
 | `memory_service/pipeline/index.py`              | Adapt          | Replace raw `sqlite3` with SQLAlchemy ORM reads/writes                        |
 | `agents_service/agent/tools/memory_search.py`      | Adapt          | Agent-scoped `user_id`; import updated `Evidence`                             |
 | `agents_service/agent/tools/emit_citations.py`     | Adapt          | Drop index field; emit inline `[text](memory_url)` Markdown                   |
-| `agents_service/models/citation.py`                | Rebuild        | New `Evidence` shape; remove `Citation.index`; add `memory_url` fields        |
-| `agents_service/models/segment.py`                 | Keep unchanged | `Segment` + `bm25_rerank` reused directly                                     |
+| `services/agents_service/src/agents_service/models/citation.py` | Rebuild        | New `Evidence` shape; remove `Citation.index`; add `memory_url` fields        |
+| `services/agents_service/src/agents_service/models/segment.py`  | Keep unchanged | `Segment` + `bm25_rerank` reused directly                                     |
 | `agents_service/agent/providers/gemini.py`         | Keep           | Gemini LLM provider                                                           |
 | `agents_service/agent/agent_factory.py`            | Adapt          | Updated system prompt; new `Evidence` model wired                             |
 | `agents_service/agent/orchestrator.py`             | Adapt          | Discord DM context replaces Matrix room context                               |
-| `bt_common/evermemos_client.py`                    | Keep unchanged | `search`, `memorize`, `delete_by_group_id`                                    |
+| `packages/bt_common/src/evermemos_client.py`       | Keep unchanged | `search`, `memorize`, `delete_by_group_id`                                    |
 | `agents_service/matrix/`                           | **DELETE**     | Matrix transport — out of scope                                               |
 | `agents_service/voice/`                            | **DELETE**     | Voice pipeline — out of scope                                                 |
 | `agents_service/admin/`                            | **DELETE**     | SQLAdmin UI — out of scope                                                    |
 | `agents_service/agent/providers/aws_nova.py`       | **DELETE**     | Non-Gemini provider                                                           |
-| `agents_service/database/`                         | **DELETE**     | Old SQLAlchemy schema; replaced by shared evidence-store infra in `bt_common` |
+| `agents_service/database/`                         | **DELETE**     | Old SQLAlchemy schema; replaced by the shared schema in `packages/bt_store/` |
 | `agents_service/server.py`                         | **DELETE**     | Litestar HTTP server — not needed                                             |
 | `memory_service/adapters/blog_crawl.py`         | **DELETE**     | Non-YouTube                                                                   |
 | `memory_service/adapters/document.py`           | **DELETE**     | Non-YouTube                                                                   |

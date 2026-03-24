@@ -72,18 +72,33 @@
 │   │   ├── pyproject.toml
 │   │   └── src
 │   │       ├── agent
+│   │       │   ├── agent_factory.py
+│   │       │   ├── orchestrator.py
 │   │       │   ├── providers
 │   │       │   └── tools
 │   │       ├── agents_service
 │   │       │   ├── agent
 │   │       │   ├── api
 │   │       │   ├── audit
-│   │       │   ├── demo
 │   │       │   ├── live
 │   │       │   ├── models
 │   │       │   ├── server.py
 │   │       │   └── store.py
-│   │       └── models
+│   │       ├── api
+│   │       │   ├── errors.py
+│   │       │   ├── live.py
+│   │       │   └── turns.py
+│   │       ├── audit
+│   │       │   └── chat_history.py
+│   │       ├── demo
+│   │       ├── live
+│   │       │   ├── gemini_live_backend.py
+│   │       │   └── session_manager.py
+│   │       ├── models
+│   │       │   ├── citation.py
+│   │       │   └── segment.py
+│   │       ├── server.py
+│   │       └── store.py
 │   ├── discord_service
 │   │   ├── pyproject.toml
 │   │   ├── scripts
@@ -92,7 +107,9 @@
 │   │       ├── bot
 │   │       │   ├── client.py
 │   │       │   ├── concierge.py
-│   │       │   └── message_models.py
+│   │       │   ├── message_models.py
+│   │       │   ├── voice_gateway_proxy.py
+│   │       │   └── voice_transcripts.py
 │   │       ├── config.py
 │   │       ├── entrypoint.py
 │   │       ├── feed
@@ -217,8 +234,8 @@
 │       ├── checklists
 │       │   └── requirements.md
 │       ├── contracts
-│       │   ├── collector-cli.md
 │       │   ├── discord-messages.md
+│       │   ├── discord-runtime-entrypoint.md
 │       │   ├── evermemos-api.md
 │       │   ├── evidence.md
 │       │   └── memories.md
@@ -230,5 +247,5 @@
 │       └── tasks.md
 └── uv.lock
 
-73 directories, 158 files
+76 directories, 172 files
 

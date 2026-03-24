@@ -19,7 +19,7 @@
 - [X] T006 Delete non-YouTube adapters in `services/memory_service/src/adapters/blog_crawl.py`, `services/memory_service/src/adapters/document.py`, `services/memory_service/src/adapters/gutenberg.py`, `services/memory_service/src/adapters/http_fetch.py`, `services/memory_service/src/adapters/local_text.py`, `services/memory_service/src/adapters/url_tools.py`, and `services/memory_service/src/adapters/web_page.py`
 - [X] T007 Delete non-MVP ingestion entrypoints in `services/memory_service/src/server.py` and `services/memory_service/src/pipeline/manifest.py`
 - [X] T008 Update retained package dependencies in `services/memory_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
-- [X] T009 Create the shared evidence-store package skeleton in `packages/bt_common/src/evidence_store/__init__.py`, `packages/bt_common/src/evidence_store/engine.py`, and `packages/bt_common/src/evidence_store/models.py`
+- [X] T009 Create the shared relational schema package in `packages/bt_store/src/` (`engine.py`, `models_*.py`, Alembic env)
 - [X] T010 [P] Create the new Discord runtime package skeleton in `services/discord_service/pyproject.toml`, `services/discord_service/src/__init__.py`, `services/discord_service/src/__main__.py`, and `services/discord_service/tests/__init__.py`
 - [X] T011 [P] Create the unified Memories API (FastAPI) inside `services/memory_service/src/api/` (HTML `/memories/{id}` + JSON `/v1/*`)
 
@@ -31,18 +31,18 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete.
 
-- [X] T012 Create the SQLAlchemy async engine and session factory in `packages/bt_common/src/evidence_store/engine.py`
-- [X] T013 Create the shared ORM schema in `packages/bt_common/src/evidence_store/models.py`
-- [X] T014 Create the initial Alembic environment and first migration in `services/memory_service/alembic/env.py` and `services/memory_service/alembic/versions/0001_initial_schema.py`
+- [X] T012 Create the SQLAlchemy async engine and session factory in `packages/bt_store/src/engine.py`
+- [X] T013 Create the shared ORM schema in `packages/bt_store/src/models_*.py`
+- [X] T014 Create the initial Alembic environment and first migration in `packages/bt_store/alembic/env.py` and `packages/bt_store/alembic/versions/0001_initial_schema.py`
 - [X] T015 [P] Create standalone collector configuration models in `services/memory_service/src/runtime/config.py`
 - [X] T016 [P] Create Discord runtime configuration models in `services/discord_service/src/config.py`
 - [X] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/memory_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
-- [X] T018 Refactor `services/memory_service/src/pipeline/index.py` to use `AsyncSession` from `packages/bt_common/src/evidence_store/engine.py`
+- [X] T018 Refactor `services/memory_service/src/pipeline/index.py` to use `AsyncSession` via `packages/bt_store/src/engine.py`
 - [X] T019 Refactor `services/memory_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/memory_service/src/domain/models.py`
-- [X] T020 Refactor `services/agents_service/src/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
+- [X] T020 Refactor `services/agents_service/src/agents_service/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
 - [X] T021 Create the standalone collector process bootstrap in `services/memory_service/src/__main__.py` and `services/memory_service/src/runtime/poller.py`
 - [X] T022 Create the Discord bot process bootstrap in `services/discord_service/src/runtime.py` and `services/discord_service/src/__main__.py`
-- [X] T023 [P] Add foundational database and startup tests in `packages/bt_common/tests/test_evidence_store_models.py`, `services/memory_service/tests/integration/test_runtime_startup.py`, and `services/discord_service/tests/integration/test_runtime_startup.py`
+- [X] T023 [P] Add foundational database and startup tests in `services/memory_service/tests/integration/test_runtime_startup.py` and `services/discord_service/tests/integration/test_runtime_startup.py`
 
 **Checkpoint**: Shared DB infra, collector runtime, and Discord runtime boundaries are ready for story implementation.
 
@@ -95,7 +95,7 @@
 - [X] T041 [P] [US2] Implement transcript batch grouping in `services/discord_service/src/feed/batcher.py`
 - [X] T042 [P] [US2] Implement typed Discord boundary models in `services/discord_service/src/bot/message_models.py`
 - [X] T043 [US2] Implement feed parent-message and thread publisher logic in `services/discord_service/src/feed/publisher.py`
-- [X] T044 [US2] Persist and resume `discord_posts` state during feed publication in `services/discord_service/src/feed/publisher.py` and `packages/bt_common/src/evidence_store/models.py`
+- [X] T044 [US2] Persist and resume platform post state (`platform_posts`) during feed publication in `services/discord_service/src/feed/publisher.py` and `packages/bt_store/src/models_runtime.py`
 - [X] T045 [US2] Trigger feed publication from newly ingested videos by reading shared ingest state in `services/discord_service/src/feed/publisher.py` and `services/discord_service/src/runtime.py`
 - [X] T046 [US2] Add rate-limit handling and retry logging for Discord publication in `services/discord_service/src/feed/publisher.py`
 
@@ -154,26 +154,26 @@
 ### Docs + Contracts
 
 - [X] T066 [P] [US4] Update system and Discord bot docs to treat Discord voice as first-class in `DESIGN.md`, `specs/003-discord-bot/spec.md`, `specs/003-discord-bot/plan.md`, and `specs/003-discord-bot/tasks.md`
-- [ ] T067 [P] [US4] Reconcile voice-bridge contract drift (document the operational truth and plan the fix) in `specs/001-matrix-mvp/contracts/voice-bridge.md` and `services/agents_service/src/agents_service/api/live.py`
+- [X] T067 [P] [US4] Reconcile voice-bridge contract drift (document the operational truth and plan the fix) in `specs/001-matrix-mvp/contracts/voice-bridge.md` and `services/agents_service/src/agents_service/api/live.py`
 
 ### Discord UX + Control Plane (`discord_service`, Python)
 
-- [ ] T068 [P] [US4] Add Discord voice runtime config (voip_service URL, transcript channel defaults) in `services/discord_service/src/config.py`
-- [ ] T069 [US4] Add `/voice join|leave|status` commands and authorization checks in `services/discord_service/src/bot/client.py`
+- [X] T068 [P] [US4] Add Discord voice runtime config (voip_service URL, transcript channel defaults) in `services/discord_service/src/config.py`
+- [X] T069 [US4] Add `/voice join|leave|status` commands and authorization checks in `services/discord_service/src/bot/client.py`
 - [ ] T070 [US4] Persist Discord voice bindings via `PlatformRoute` (`purpose="voice"`) in `services/discord_service/src/talks/service.py` and `packages/bt_store/src/models_runtime.py`
-- [ ] T071 [US4] Implement the gateway-proxy client (forward `VOICE_*` dispatches; execute join/leave requests) in `services/discord_service/src/bot/voice_gateway_proxy.py`
-- [ ] T072 [P] [US4] Add unit tests for voice route parsing and command gating in `services/discord_service/tests/unit/test_voice_routes.py`
+- [X] T071 [US4] Implement the gateway-proxy client (forward `VOICE_*` dispatches; execute join/leave requests) in `services/discord_service/src/bot/voice_gateway_proxy.py`
+- [X] T072 [P] [US4] Add unit tests for voice route parsing and command gating in `services/discord_service/tests/unit/test_voice_routes.py`
 
 ### Media Plane (`voip_service`, Node)
 
-- [ ] T073 [P] [US4] Extend `POST /v1/voip/ensure` request model to support `platform="discord"` in `services/voip_service/src/voip/http_models.js` and `services/voip_service/src/server.js`
-- [ ] T074 [US4] Add internal WS endpoint for gateway-proxy events (VOICE_SERVER/STATE updates; request voice-state changes) in `services/voip_service/src/server.js` and `services/voip_service/src/voip/discord_gateway_proxy.js`
-- [ ] T075 [US4] Implement Discord voice bridge (Opus in/out, resampling, Live Session WS) in `services/voip_service/src/voip/discord_bridge.js` and `services/voip_service/src/voip/bridge_manager.js`
-- [ ] T076 [US4] Implement barge-in behavior (stop playback + clear ring buffer) in `services/voip_service/src/voip/discord_bridge.js` and `services/voip_service/src/voip/pcm.js`
+- [X] T073 [P] [US4] Extend `POST /v1/voip/ensure` request model to support `platform="discord"` in `services/voip_service/src/voip/http_models.js` and `services/voip_service/src/server.js`
+- [X] T074 [US4] Add internal WS endpoint for gateway-proxy events (VOICE_SERVER/STATE updates; request voice-state changes) in `services/voip_service/src/server.js` and `services/voip_service/src/voip/bridge_manager.js`
+- [X] T075 [US4] Implement Discord voice bridge (Opus in/out, resampling, Live Session WS) in `services/voip_service/src/voip/discord_bridge.js` and `services/voip_service/src/voip/bridge_manager.js`
+- [X] T076 [US4] Implement barge-in behavior (stop playback + clear ring buffer) in `services/voip_service/src/voip/discord_bridge.js` and `services/voip_service/src/voip/pcm.js`
 
 ### Transcript Artifacts
 
-- [ ] T077 [US4] Post coalesced input/output transcripts into the configured Discord text channel/thread in `services/discord_service/src/bot/voice_transcripts.py`
+- [X] T077 [US4] Post coalesced input/output transcripts into the configured Discord text channel/thread in `services/discord_service/src/bot/voice_transcripts.py`
 - [ ] T078 [P] [US4] Add integration-ish tests for transcript coalescing and rate-limit-safe posting in `services/discord_service/tests/integration/test_voice_transcripts.py`
 
 ### Deployment

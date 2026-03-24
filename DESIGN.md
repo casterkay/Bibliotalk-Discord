@@ -61,7 +61,9 @@ services/
 
 ### Implementation note (current repo state)
 
-The voice sidecar currently lives at `services/voip_service/` and is the canonical home for all voice-media bridging. It already bridges MatrixRTC/LiveKit ↔ `agents_service` Live Sessions; it is planned to also bridge Discord voice channels ↔ `agents_service` using the same Live Session protocol.
+The voice sidecar lives at `services/voip_service/` and is the canonical home for voice-media bridging. It now supports:
+- MatrixRTC/LiveKit bridges (`platform="matrix"`)
+- Discord voice bridges (`platform="discord"`) through a gateway-proxy channel with `discord_service`
 
 ## Contracts (source of truth)
 
@@ -73,7 +75,10 @@ The system is contract-driven; treat these as normative:
 - Archive publication intents + idempotency keys: `specs/001-matrix-mvp/contracts/archive-publication.md`
 - Voice bridge protocol (audio + transcription + interruption): `specs/001-matrix-mvp/contracts/voice-bridge.md`
 
-Implementation note: the currently shipped wire messages for voice Live Sessions are defined by `services/agents_service/src/agents_service/api/live.py` and consumed by `services/voip_service/src/voip/bridge_manager.js`. Where these disagree with `voice-bridge.md`, the code is the operational truth and the contract must be reconciled.
+Operational truth for voice wire messages is implemented in:
+- `services/agents_service/src/agents_service/api/live.py`
+- `services/voip_service/src/voip/matrix_livekit_bridge.js`
+- `services/voip_service/src/voip/discord_bridge.js`
 
 ### Interaction model (streaming is the product)
 
@@ -90,6 +95,9 @@ Citation marker style is **adapter-owned and implementation-defined** per platfo
 - plain text, and
 - structured citations (validated),
 and the adapter formats markers for Matrix/Discord.
+
+For voice sessions, citations are not transported over the Live Session WS. Instead, adapters append citations as
+footnotes to finalized transcript messages based on Gemini Live tool-calling outputs.
 
 This is not just a UI preference: it prevents platform markup from leaking into the “truth layer”, and lets each adapter pick the best conventions (Matrix HTML vs Discord markdown).
 
@@ -161,7 +169,7 @@ Platform voice session (MatrixRTC or Discord)
   -> agents_service uses Gemini Live for audio I/O + input/output transcription
   -> (target) grounded reasoning remains authority for content + citations
   -> voip_service publishes Spirit audio back to platform
-  -> platform adapter posts paired transcript (+ citations) as durable artifact
+  -> platform adapter posts paired transcript artifacts; citations are appended as footnotes after transcript finalization
 ```
 
 Notes:
@@ -177,9 +185,15 @@ Instead:
 - `voip_service` provides the **media plane**: UDP voice transport, Opus encode/decode, PCM resampling, and bridging to `agents_service`.
 - `discord_service` forwards the minimal gateway events needed for voice transport (`VOICE_SERVER_UPDATE`, `VOICE_STATE_UPDATE`) to `voip_service` over a local/internal channel, and executes join/leave requests from `voip_service` (voice-state updates).
 
+Implemented control-plane interface:
+- `POST /v1/voip/ensure` accepts `platform="discord"` with `{guild_id, voice_channel_id, agent_id, initiator_user_id, text_channel_id?, text_thread_id?}`
+- `GET ws /v1/discord/gateway/ws?bridge_id=...` (internal): gateway-proxy channel between `discord_service` and `voip_service`
+- `discord_service → voip_service`: `gateway.voice_state_update`, `gateway.voice_server_update`
+- `voip_service → discord_service`: `gateway.request_change_voice_state`, `discord.transcription.input`, `discord.transcription.output`
+
 Design advice (to win on stage):
 - Treat voice as a **state machine**: `idle → listening → thinking → speaking → idle`, and surface state transitions in logs.
-- Always post the paired transcript + citations even if the call glitches (it’s the proof artifact the judges will remember).
+- Always post the paired transcript + citations (footnotes) even if the call glitches (it’s the proof artifact the judges will remember).
 - Pre-warm Gemini Live sessions where possible to avoid first-response cold-start during a demo.
 
 ## Matrix Room Taxonomy (MVP)
@@ -219,14 +233,14 @@ If we do nothing else for engineering polish, do this: judges can *feel* robustn
 
 ## Migration Plan (from legacy Discord-era schema)
 
-The repository previously shipped a Discord-oriented schema under `bt_common.evidence_store`. That module is now
-deprecated/quarantined in favor of a single shared schema owned by `packages/bt_store/`.
+The repository previously shipped a Discord-oriented schema under `bt_common.evidence_store` (now removed). The
+current single shared relational schema is owned by `packages/bt_store/`.
 
 Target state:
-- Move shared relational schema ownership to `bt_store`.
-- Provide a one-shot backfill script to map:
-  - `figures` → `agents` (preserve UUIDs)
-  - existing `sources/segments` → new evidence tables (agent_id = figure_id)
+- Keep shared relational schema ownership in `bt_store`.
+- Provide and maintain a one-shot backfill script (`scripts/backfill_bt_store_v2.py`) to map legacy tables into:
+  - `agents` (preserve legacy primary keys as `agent_id` where possible)
+  - `sources` / `segments` / `source_text_batches` / `platform_*` tables
 - Preserve adapter correctness during migrations: Discord + Matrix runtimes must continue to function, or migrations must ship with an explicit compatibility window and rollback path.
 
 ## Local Development

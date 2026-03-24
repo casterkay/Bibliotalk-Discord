@@ -27,9 +27,9 @@ Notes:
 | Given EMOS `group_id` values, fetch all local segments | Join `sources → segments` filtered by `sources.emos_group_id IN (...)`                                                                                       |
 | Given `segment_id`, fetch verbatim text                | Primary key lookup on `segments.segment_id`                                                                                                                  |
 | Given EMOS `(user_id, timestamp)`, reconstruct time    | Join `agents` on `agents.slug = user_id` → `sources.published_at` + compute `(memcell.timestamp - sources.published_at)` (or use stored segment timestamps) |
-| Given `source_id`, fetch unposted transcript batches   | `WHERE source_id = ? AND posted_to_discord = FALSE ORDER BY start_seq`                                                                                        |
+| Given `source_id`, fetch unposted transcript batches   | Join `source_text_batches` for `source_id` and left-join `platform_posts` (`platform="discord"`, `kind="feed.batch"`, `status="posted"`) to filter unposted |
 | Given `agent_id`, fetch all segments for reranking     | Join `sources → segments` filtered by `sources.agent_id`                                                                                                      |
-| Given `source_id`, check Discord post state            | `SELECT * FROM discord_posts WHERE source_id = ?`                                                                                                            |
+| Given `source_id`, check Discord post state            | `SELECT * FROM platform_posts WHERE platform="discord" AND source_id = ?`                                                                                   |
 
 ## Entity identifier summary
 
@@ -37,6 +37,8 @@ Notes:
 | --------------------- | ---------- | -------------------------------------------------------- |
 | Agent                 | `agent_id` | UUID v4, internal PK                                     |
 | Agent (EverMemOS)     | `user_id`  | Readable slug `"alan-watts"` — immutable                 |
+| Source (DB)           | `source_id` | UUID v4, internal PK                                   |
+| Source (EverMemOS)    | `group_id` | Stored as `sources.emos_group_id` (`"{user_id}:youtube:{video_id}"`) |
 | YouTube video         | `external_id` | YouTube `video_id` string                             |
 | EverMemOS group       | `group_id` | `"{user_id}:youtube:{video_id}"`                         |
 | EverMemOS message     | `message_id` | `"{user_id}:youtube:{video_id}:seg:{seq}"`            |
