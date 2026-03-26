@@ -23,6 +23,7 @@ def sha256_text(text: str) -> str:
 class ChunkingConfig:
     target_chars: int = 1200
     max_chars: int = 1500
+    hard_max_chars: int = 1800
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +58,9 @@ def _split_long(text: str, max_chars: int) -> list[str]:
 
 
 def _chunk_plain_text_default(source: Source, text: str, cfg: ChunkingConfig) -> list[Segment]:
+    effective_max = min(cfg.max_chars, cfg.hard_max_chars)
+    effective_target = min(cfg.target_chars, effective_max)
+
     paragraphs = [p.strip() for p in _PARA_SPLIT_RE.split(text) if p.strip()]
     packed: list[str] = []
     buf: list[str] = []
@@ -71,13 +75,13 @@ def _chunk_plain_text_default(source: Source, text: str, cfg: ChunkingConfig) ->
         buf_len = 0
 
     for para in paragraphs:
-        for para_piece in _split_long(para, cfg.max_chars):
+        for para_piece in _split_long(para, effective_max):
             piece_len = len(para_piece)
             if not buf:
                 buf = [para_piece]
                 buf_len = piece_len
                 continue
-            if buf_len + 2 + piece_len <= cfg.max_chars:
+            if buf_len + 2 + piece_len <= effective_max:
                 buf.append(para_piece)
                 buf_len += 2 + piece_len
             else:
@@ -85,12 +89,16 @@ def _chunk_plain_text_default(source: Source, text: str, cfg: ChunkingConfig) ->
                 buf = [para_piece]
                 buf_len = piece_len
 
-            if buf_len >= cfg.target_chars:
+            if buf_len >= effective_target:
                 flush()
 
     flush()
     segments: list[Segment] = []
     for seq, seg_text in enumerate(packed):
+        if len(seg_text) > effective_max:
+            raise ValueError(
+                f"chunk_plain_text produced an oversized segment: {len(seg_text)} > {effective_max}"
+            )
         segments.append(
             build_segment(
                 source=source,
@@ -201,6 +209,7 @@ def chunk_transcript(
     source: Source, lines: list[TranscriptLine], *, cfg: ChunkingConfig | None = None
 ) -> list[Segment]:
     cfg = cfg or ChunkingConfig(target_chars=1000, max_chars=1200)
+    effective_max = min(cfg.max_chars, cfg.hard_max_chars)
     normalized_lines: list[TranscriptLine] = []
     for line in lines:
         text = normalize_text(line.text)
@@ -221,11 +230,31 @@ def chunk_transcript(
         source.published_at = published_at
     segments: list[Segment] = []
     for message in messages:
-        rendered = f"{message.speaker}: {message.text}" if message.speaker else message.text
-        for piece in [rendered]:
+        if message.speaker:
+            speaker_label = message.speaker.strip()
+            if len(speaker_label) > 64:
+                speaker_label = f"{speaker_label[:61]}..."
+            prefix = f"{speaker_label}: "
+
+            max_body = effective_max - len(prefix)
+            if max_body < 50:
+                # Speaker label is unexpectedly long; prefer preserving content over
+                # producing segments that violate downstream hard limits.
+                rendered_pieces = _split_long(message.text, effective_max)
+            else:
+                pieces = _split_long(message.text, max_body)
+                rendered_pieces = [f"{prefix}{piece}" for piece in pieces]
+        else:
+            rendered_pieces = _split_long(message.text, effective_max)
+
+        for piece in rendered_pieces:
             piece = piece.strip()
             if not piece:
                 continue
+            if len(piece) > effective_max:
+                raise ValueError(
+                    f"chunk_transcript produced an oversized segment: {len(piece)} > {effective_max}"
+                )
             segments.append(
                 build_segment(
                     source=source,

@@ -92,6 +92,16 @@ def _derive_transcript_batches(segments: list[Any]) -> list[dict[str, Any]]:
     if not segments:
         return []
 
+    oversized = [s for s in segments if len(getattr(s, "text", "") or "") > _BATCH_CHAR_LIMIT]
+    if oversized:
+        first = oversized[0]
+        raise IngestError(
+            f"Oversized transcript segment cannot be published to Discord feed: "
+            f"seq={getattr(first, 'seq', '?')} chars={len(first.text)} limit={_BATCH_CHAR_LIMIT}. "
+            f"Re-ingest with smaller chunking (ChunkingConfig.max_chars/hard_max_chars).",
+            code="SEGMENT_TOO_LARGE",
+        )
+
     batches: list[dict[str, Any]] = []
     current: list[Any] = [segments[0]]
     current_chars = len(segments[0].text)
@@ -100,6 +110,13 @@ def _derive_transcript_batches(segments: list[Any]) -> list[dict[str, Any]]:
         nonlocal current, current_chars
         if not current:
             return
+        batch_text = "\n\n".join(segment.text for segment in current)
+        if len(batch_text) > _BATCH_CHAR_LIMIT:
+            raise IngestError(
+                f"Derived transcript batch exceeds char limit: chars={len(batch_text)} "
+                f"limit={_BATCH_CHAR_LIMIT} rule={rule}",
+                code="BATCH_TOO_LARGE",
+            )
         batches.append(
             {
                 "speaker_label": current[0].speaker,
@@ -107,7 +124,7 @@ def _derive_transcript_batches(segments: list[Any]) -> list[dict[str, Any]]:
                 "end_seq": current[-1].seq,
                 "start_ms": current[0].start_ms,
                 "end_ms": current[-1].end_ms,
-                "text": "\n\n".join(segment.text for segment in current),
+                "text": batch_text,
                 "batch_rule": rule,
             }
         )

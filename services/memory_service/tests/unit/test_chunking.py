@@ -4,7 +4,7 @@ import re
 from datetime import UTC, datetime
 
 from memory_service.domain.models import Source, TranscriptLine
-from memory_service.pipeline.chunking import chunk_plain_text, chunk_transcript
+from memory_service.pipeline.chunking import ChunkingConfig, chunk_plain_text, chunk_transcript
 
 
 def test_chunk_plain_text_is_deterministic() -> None:
@@ -71,3 +71,55 @@ def test_chunk_transcript_does_not_split_on_internal_punctuation() -> None:
 
     assert len(segments) == 1
     assert all(re.search(r'[.!?]["\')\]\u2019\u201D\uFF09\u3011]*$', s.text) for s in segments)
+
+
+def test_chunk_transcript_never_exceeds_hard_max_chars() -> None:
+    src = Source(
+        user_id="u1",
+        external_id="vid1",
+        title="Talk",
+        source_url="https://www.youtube.com/watch?v=vid1",
+    )
+    lines = [TranscriptLine(text="x" * 5000, start_ms=0, end_ms=1000)]
+    cfg = ChunkingConfig(target_chars=4000, max_chars=4000)  # hard cap should still apply
+
+    segments = chunk_transcript(src, lines, cfg=cfg)
+
+    assert segments
+    assert max(len(s.text) for s in segments) <= cfg.hard_max_chars
+    assert max(len(s.text) for s in segments) <= 2000
+
+
+def test_chunk_transcript_speaker_prefix_does_not_break_limits() -> None:
+    src = Source(
+        user_id="u1",
+        external_id="vid1",
+        title="Talk",
+        source_url="https://www.youtube.com/watch?v=vid1",
+    )
+    lines = [TranscriptLine(text="x" * 5000, start_ms=0, end_ms=1000, speaker="Narrator")]
+    cfg = ChunkingConfig(target_chars=4000, max_chars=4000)
+
+    segments = chunk_transcript(src, lines, cfg=cfg)
+
+    assert segments
+    assert all(s.text.startswith("Narrator: ") for s in segments)
+    assert max(len(s.text) for s in segments) <= cfg.hard_max_chars
+    assert max(len(s.text) for s in segments) <= 2000
+
+
+def test_chunk_plain_text_never_exceeds_hard_max_chars() -> None:
+    src = Source(
+        user_id="u1",
+        external_id="e1",
+        title="T",
+        source_url="https://www.youtube.com/watch?v=e1",
+    )
+    text = ("word " * 3000).strip()
+    cfg = ChunkingConfig(target_chars=10_000, max_chars=10_000)
+
+    segments = chunk_plain_text(src, text, cfg=cfg)
+
+    assert segments
+    assert max(len(s.text) for s in segments) <= cfg.hard_max_chars
+    assert max(len(s.text) for s in segments) <= 2000
