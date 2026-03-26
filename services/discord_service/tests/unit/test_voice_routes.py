@@ -32,6 +32,10 @@ class _FakeAgentDirectory:
             display_name="Alan Watts",
         )
 
+    async def ensure_fresh(self, *, max_age_seconds: float = 30.0) -> None:
+        _ = max_age_seconds
+        return None
+
     def list_agents(self):
         return [self._agent]
 

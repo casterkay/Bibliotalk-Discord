@@ -70,11 +70,9 @@ export class DiscordVoiceBridge {
     this._gatewayMethods = null;
     this._gatewayWaiters = [];
     this._gotVoiceStateUpdate = false;
-    this._gotAnyVoiceStateUpdate = false;
     this._gotVoiceServerUpdate = false;
     this._lastVoiceSessionId = null;
     this._lastVoiceEndpoint = null;
-    this._lastVoiceToken = null;
     this._lastVoiceConnectionStatus = null;
 
     this._voiceConnection = null;
@@ -150,14 +148,7 @@ export class DiscordVoiceBridge {
       });
       this._voiceConnection.on("stateChange", (oldState, newState) => {
         this._lastVoiceConnectionStatus = newState?.status ?? null;
-        if (process.env.BT_VOIP_DEBUG?.trim()) {
-          // eslint-disable-next-line no-console
-          console.log("voice connection stateChange", {
-            bridge_id: this.bridgeId,
-            old: oldState?.status,
-            new: newState?.status,
-          });
-        }
+        void oldState;
       });
 
       this._wireReceiver();
@@ -170,7 +161,6 @@ export class DiscordVoiceBridge {
           const details = {
             bridge_id: this.bridgeId,
             got_voice_state_update: this._gotVoiceStateUpdate,
-            got_any_voice_state_update: this._gotAnyVoiceStateUpdate,
             got_voice_server_update: this._gotVoiceServerUpdate,
             last_voice_connection_status: this._lastVoiceConnectionStatus,
             last_voice_session_id: this._lastVoiceSessionId,
@@ -250,7 +240,6 @@ export class DiscordVoiceBridge {
 
     if (type === "gateway.voice_state_update") {
       const event = payload?.d || payload;
-      this._gotAnyVoiceStateUpdate = true;
       if (
         this._botUserId &&
         event &&
@@ -273,7 +262,6 @@ export class DiscordVoiceBridge {
       const event = payload?.d || payload;
       if (event && typeof event === "object") {
         if (typeof event.endpoint === "string") this._lastVoiceEndpoint = event.endpoint;
-        if (typeof event.token === "string") this._lastVoiceToken = event.token;
       }
       this._gatewayMethods?.onVoiceServerUpdate?.(event);
     }

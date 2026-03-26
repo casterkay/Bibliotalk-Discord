@@ -336,9 +336,7 @@ class BibliotalkDiscordClient(discord.Client):
             )
             return
 
-        ensure_fresh = getattr(self.agent_directory, "ensure_fresh", None)
-        if callable(ensure_fresh):
-            await ensure_fresh(max_age_seconds=30.0)
+        await self.agent_directory.ensure_fresh(max_age_seconds=30.0)
         chosen_agent = self._resolve_voice_agent(agent)
         if chosen_agent is None:
             available = ", ".join(
@@ -353,7 +351,7 @@ class BibliotalkDiscordClient(discord.Client):
         destination_channel_id = (
             str(text_channel.id)
             if text_channel is not None
-            else self._resolve_voice_text_channel_id(interaction)
+            else str(voice_state.channel.id)
         )
 
         await interaction.response.defer(thinking=True)
@@ -363,22 +361,14 @@ class BibliotalkDiscordClient(discord.Client):
             agent_id=str(chosen_agent.agent_id),
             initiator_user_id=str(interaction.user.id),
             text_channel_id=destination_channel_id or None,
-            text_thread_id=(
-                str(interaction.channel.id)
-                if isinstance(interaction.channel, discord.Thread)
-                else None
-            ),
+            text_thread_id=None,
         )
         await self.talk_service.upsert_voice_route(
             guild_id=str(interaction.guild.id),
             agent_id=chosen_agent.agent_id,
             voice_channel_id=str(voice_state.channel.id),
             text_channel_id=destination_channel_id or None,
-            text_thread_id=(
-                str(interaction.channel.id)
-                if isinstance(interaction.channel, discord.Thread)
-                else None
-            ),
+            text_thread_id=None,
             updated_by_user_id=str(interaction.user.id),
         )
         await interaction.followup.send(
@@ -440,9 +430,7 @@ class BibliotalkDiscordClient(discord.Client):
                 ephemeral=True,
             )
             return
-        ensure_fresh = getattr(self.agent_directory, "ensure_fresh", None)
-        if callable(ensure_fresh):
-            await ensure_fresh(max_age_seconds=30.0)
+        await self.agent_directory.ensure_fresh(max_age_seconds=30.0)
         guild_id = str(interaction.guild.id)
         active_rows = await self.voice_gateway_proxy.status(guild_id=guild_id)
         saved_routes = await self.talk_service.list_voice_routes(guild_id=guild_id)
@@ -500,10 +488,3 @@ class BibliotalkDiscordClient(discord.Client):
         if not agents:
             return None
         return sorted(agents, key=lambda item: item.display_name.lower())[0]
-
-    def _resolve_voice_text_channel_id(
-        self, interaction: discord.Interaction
-    ) -> str | None:
-        if isinstance(interaction.channel, (discord.TextChannel, discord.Thread)):
-            return str(interaction.channel.id)
-        return self.config.discord_voice_default_text_channel_id
