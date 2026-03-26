@@ -154,6 +154,10 @@ async def build_live_discord_runtime(
         on_ready_callback=None,
         logger=logger_,
         intents=intents,
+        # Required for `on_socket_raw_receive` to fire in discord.py.
+        # We rely on raw gateway VOICE_* dispatch to drive the VOIP sidecar's
+        # @discordjs/voice adapter.
+        enable_debug_events=True,
     )
     client.voice_gateway_proxy = DiscordVoiceGatewayProxy(
         client=client,

@@ -104,6 +104,9 @@ class TalkService:
         characters: str,
         guild_id: str | None = None,
     ) -> TalkStartResult:
+        ensure_fresh = getattr(self._directory, "ensure_fresh", None)
+        if callable(ensure_fresh):
+            await ensure_fresh(max_age_seconds=30.0)
         participants = self._parse_participants(characters)
         if not participants:
             return TalkStartResult(

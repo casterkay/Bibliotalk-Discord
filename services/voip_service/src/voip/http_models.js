@@ -35,6 +35,7 @@ export function parseEnsureRequest(raw) {
       voice_channel_id: mustString(raw, "voice_channel_id"),
       agent_id: mustString(raw, "agent_id"),
       initiator_user_id: mustString(raw, "initiator_user_id"),
+      bot_user_id: optionalString(raw, "bot_user_id"),
       text_channel_id: optionalString(raw, "text_channel_id"),
       text_thread_id: optionalString(raw, "text_thread_id"),
       self_mute: optionalBoolean(raw, "self_mute", false),

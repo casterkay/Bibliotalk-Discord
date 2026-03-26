@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 
@@ -31,6 +33,8 @@ class AgentDirectory:
         self._by_id: dict[uuid.UUID, AgentInfo] = {}
         self._by_slug_lower: dict[str, AgentInfo] = {}
         self._by_display_lower: dict[str, list[AgentInfo]] = {}
+        self._last_refresh_monotonic: float | None = None
+        self._refresh_lock = asyncio.Lock()
 
     async def refresh(self) -> None:
         async with self._session_factory() as session:
@@ -63,7 +67,20 @@ class AgentDirectory:
         self._by_id = by_id
         self._by_slug_lower = by_slug_lower
         self._by_display_lower = by_display_lower
+        self._last_refresh_monotonic = time.monotonic()
         self._logger.info("agent directory refreshed count=%s", len(self._by_id))
+
+    async def ensure_fresh(self, *, max_age_seconds: float = 30.0) -> None:
+        last = self._last_refresh_monotonic
+        if last is not None and (time.monotonic() - last) <= max(0.0, max_age_seconds):
+            return
+        async with self._refresh_lock:
+            last = self._last_refresh_monotonic
+            if last is not None and (time.monotonic() - last) <= max(
+                0.0, max_age_seconds
+            ):
+                return
+            await self.refresh()
 
     def list_agents(self) -> list[AgentInfo]:
         return list(self._by_id.values())

@@ -107,6 +107,9 @@ class DiscordVoiceGatewayProxy:
             "voice_channel_id": voice_channel_id,
             "agent_id": agent_id,
             "initiator_user_id": initiator_user_id,
+            "bot_user_id": (
+                str(getattr(self._client.user, "id", "")) if self._client.user else ""
+            ),
             "text_channel_id": text_channel_id,
             "text_thread_id": text_thread_id,
         }
@@ -269,6 +272,12 @@ class DiscordVoiceGatewayProxy:
                     }
                 )
             )
+            if event_type == "VOICE_SERVER_UPDATE":
+                self._logger.info(
+                    "forwarded voice server update bridge_id=%s guild_id=%s",
+                    bridge_id,
+                    guild_id,
+                )
         except Exception:
             self._logger.info(
                 "forward gateway dispatch failed bridge_id=%s event=%s",
@@ -321,6 +330,11 @@ class DiscordVoiceGatewayProxy:
                     payload = {}
                 try:
                     if kind == "gateway.request_change_voice_state":
+                        self._logger.info(
+                            "voice state change requested guild_id=%s channel_id=%s",
+                            str(payload.get("guild_id") or ""),
+                            str(payload.get("channel_id")),
+                        )
                         await self._apply_voice_state(payload)
                         continue
                     if kind == "discord.transcription.input":
@@ -329,7 +343,7 @@ class DiscordVoiceGatewayProxy:
                     if kind == "discord.transcription.output":
                         await self._transcripts.publish_output(payload)
                 except Exception:
-                    self._logger.info(
+                    self._logger.exception(
                         "voice gateway message handling failed bridge_id=%s type=%s",
                         bridge_id,
                         kind,

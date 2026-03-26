@@ -34,6 +34,9 @@ class DMConcierge:
         if not message:
             return
 
+        ensure_fresh = getattr(self._directory, "ensure_fresh", None)
+        if callable(ensure_fresh):
+            await ensure_fresh(max_age_seconds=30.0)
         reply = await self._generate_reply(message)
         await channel.send(
             reply[:2000], allowed_mentions=discord.AllowedMentions.none()

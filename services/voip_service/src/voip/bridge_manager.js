@@ -135,6 +135,7 @@ export class BridgeManager {
       voiceChannelId,
       agentId,
       initiatorUserId: params.initiator_user_id,
+      botUserId: params.bot_user_id || null,
       textChannelId: params.text_channel_id || null,
       textThreadId: params.text_thread_id || null,
       selfMute: params.self_mute,

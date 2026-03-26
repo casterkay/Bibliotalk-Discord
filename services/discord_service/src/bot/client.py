@@ -336,6 +336,9 @@ class BibliotalkDiscordClient(discord.Client):
             )
             return
 
+        ensure_fresh = getattr(self.agent_directory, "ensure_fresh", None)
+        if callable(ensure_fresh):
+            await ensure_fresh(max_age_seconds=30.0)
         chosen_agent = self._resolve_voice_agent(agent)
         if chosen_agent is None:
             available = ", ".join(
@@ -437,6 +440,9 @@ class BibliotalkDiscordClient(discord.Client):
                 ephemeral=True,
             )
             return
+        ensure_fresh = getattr(self.agent_directory, "ensure_fresh", None)
+        if callable(ensure_fresh):
+            await ensure_fresh(max_age_seconds=30.0)
         guild_id = str(interaction.guild.id)
         active_rows = await self.voice_gateway_proxy.status(guild_id=guild_id)
         saved_routes = await self.talk_service.list_voice_routes(guild_id=guild_id)

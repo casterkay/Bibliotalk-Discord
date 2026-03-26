@@ -50,6 +50,7 @@ export class DiscordVoiceBridge {
     this._voiceChannelId = config.voiceChannelId;
     this._agentId = config.agentId;
     this._initiatorUserId = config.initiatorUserId;
+    this._botUserId = config.botUserId || null;
     this._textChannelId = config.textChannelId || null;
     this._textThreadId = config.textThreadId || null;
     this._selfMute = Boolean(config.selfMute);
@@ -68,6 +69,13 @@ export class DiscordVoiceBridge {
     this._gatewayOutbox = [];
     this._gatewayMethods = null;
     this._gatewayWaiters = [];
+    this._gotVoiceStateUpdate = false;
+    this._gotAnyVoiceStateUpdate = false;
+    this._gotVoiceServerUpdate = false;
+    this._lastVoiceSessionId = null;
+    this._lastVoiceEndpoint = null;
+    this._lastVoiceToken = null;
+    this._lastVoiceConnectionStatus = null;
 
     this._voiceConnection = null;
     this._audioPlayer = null;
@@ -140,11 +148,45 @@ export class DiscordVoiceBridge {
           };
         },
       });
+      this._voiceConnection.on("stateChange", (oldState, newState) => {
+        this._lastVoiceConnectionStatus = newState?.status ?? null;
+        if (process.env.BT_VOIP_DEBUG?.trim()) {
+          // eslint-disable-next-line no-console
+          console.log("voice connection stateChange", {
+            bridge_id: this.bridgeId,
+            old: oldState?.status,
+            new: newState?.status,
+          });
+        }
+      });
 
       this._wireReceiver();
-      this._resetPlaybackPipeline();
+      this._restartPlaybackPipeline();
       this._voiceConnection.subscribe(this._audioPlayer);
-      await entersState(this._voiceConnection, VoiceConnectionStatus.Ready, 30000);
+      try {
+        await entersState(this._voiceConnection, VoiceConnectionStatus.Ready, 30000);
+      } catch (err) {
+        if (err?.name === "AbortError" || err?.code === "ABORT_ERR") {
+          const details = {
+            bridge_id: this.bridgeId,
+            got_voice_state_update: this._gotVoiceStateUpdate,
+            got_any_voice_state_update: this._gotAnyVoiceStateUpdate,
+            got_voice_server_update: this._gotVoiceServerUpdate,
+            last_voice_connection_status: this._lastVoiceConnectionStatus,
+            last_voice_session_id: this._lastVoiceSessionId,
+            last_voice_endpoint: this._lastVoiceEndpoint,
+          };
+          throw new Error(
+            [
+              "Discord voice connection did not become Ready within 30s.",
+              "This usually means VOICE_STATE_UPDATE/VOICE_SERVER_UPDATE gateway events are not flowing to the sidecar,",
+              "or the voice server handshake cannot complete from this environment.",
+              JSON.stringify(details),
+            ].join("\n"),
+          );
+        }
+        throw err;
+      }
       this._state = "running";
     } catch (err) {
       await this.stop("start_failed");
@@ -208,11 +250,31 @@ export class DiscordVoiceBridge {
 
     if (type === "gateway.voice_state_update") {
       const event = payload?.d || payload;
+      this._gotAnyVoiceStateUpdate = true;
+      if (
+        this._botUserId &&
+        event &&
+        typeof event === "object" &&
+        typeof event.user_id === "string" &&
+        event.user_id !== this._botUserId
+      ) {
+        return;
+      }
+
+      this._gotVoiceStateUpdate = true;
+      if (event && typeof event === "object" && typeof event.session_id === "string") {
+        this._lastVoiceSessionId = event.session_id;
+      }
       this._gatewayMethods?.onVoiceStateUpdate?.(event);
       return;
     }
     if (type === "gateway.voice_server_update") {
+      this._gotVoiceServerUpdate = true;
       const event = payload?.d || payload;
+      if (event && typeof event === "object") {
+        if (typeof event.endpoint === "string") this._lastVoiceEndpoint = event.endpoint;
+        if (typeof event.token === "string") this._lastVoiceToken = event.token;
+      }
       this._gatewayMethods?.onVoiceServerUpdate?.(event);
     }
   }
@@ -278,15 +340,36 @@ export class DiscordVoiceBridge {
   _wireReceiver() {
     if (!this._voiceConnection) return;
     const receiver = this._voiceConnection.receiver;
-    receiver.speaking.on("start", (userId) => this._startSpeakerStream(userId));
-    receiver.speaking.on("end", (userId) => this._endSpeakerStream(userId));
+    receiver.speaking.on("start", (userId) => {
+      try {
+        this._startSpeakerStream(userId);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("discord speaker stream start failed", {
+          bridge_id: this.bridgeId,
+          user_id: String(userId),
+          err: String(err?.message || err),
+        });
+        this.stop("speaker_stream_failed").catch(() => {});
+      }
+    });
+    receiver.speaking.on("end", (userId) => {
+      try {
+        this._endSpeakerStream(userId);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("discord speaker stream end failed", {
+          bridge_id: this.bridgeId,
+          user_id: String(userId),
+          err: String(err?.message || err),
+        });
+      }
+    });
   }
 
   _startSpeakerStream(userId) {
     if (this._stopRequested || this._speakerStreams.has(userId)) return;
-    this._resetPlaybackPipeline();
-    this._audioPlayer?.stop(true);
-    this._audioPlayer?.play(this._playbackResource);
+    this._restartPlaybackPipeline();
 
     const opus = this._voiceConnection.receiver.subscribe(userId, {
       end: {
@@ -350,9 +433,7 @@ export class DiscordVoiceBridge {
     }
 
     if (type === "output.interrupted") {
-      this._resetPlaybackPipeline();
-      this._audioPlayer?.stop(true);
-      this._audioPlayer?.play(this._playbackResource);
+      this._restartPlaybackPipeline();
       return;
     }
 
@@ -409,6 +490,35 @@ export class DiscordVoiceBridge {
         },
       });
     }
-    this._audioPlayer.play(this._playbackResource);
+  }
+
+  _restartPlaybackPipeline() {
+    if (!this._audioPlayer) {
+      this._audioPlayer = createAudioPlayer({
+        behaviors: {
+          noSubscriber: NoSubscriberBehavior.Pause,
+        },
+      });
+    }
+    try {
+      // Stop whatever is currently playing; `true` ensures the underlying stream ends.
+      this._audioPlayer.stop(true);
+    } catch {
+      // ignore
+    }
+    this._resetPlaybackPipeline();
+    try {
+      this._audioPlayer.play(this._playbackResource);
+    } catch (err) {
+      const msg = String(err && err.message ? err.message : err || "");
+      throw new Error(
+        [
+          "Failed to start Discord playback pipeline.",
+          msg ? `Original error: ${msg}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
   }
 }
